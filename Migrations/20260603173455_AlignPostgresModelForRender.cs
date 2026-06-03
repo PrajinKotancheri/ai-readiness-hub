@@ -1,0 +1,4330 @@
+﻿using System;
+using Microsoft.EntityFrameworkCore.Migrations;
+using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
+
+#nullable disable
+
+namespace AI_Readiness_Hub.Migrations
+{
+    /// <inheritdoc />
+    public partial class AlignPostgresModelForRender : Migration
+    {
+        /// <inheritdoc />
+        protected override void Up(MigrationBuilder migrationBuilder)
+        {
+            if (!migrationBuilder.ActiveProvider.Contains("Npgsql", StringComparison.Ordinal))
+            {
+                return;
+            }
+
+            migrationBuilder.AlterColumn<string>(
+                name: "Status",
+                table: "SwotAnalysisItems",
+                type: "character varying(80)",
+                maxLength: 80,
+                nullable: false,
+                oldClrType: typeof(string),
+                oldType: "TEXT",
+                oldMaxLength: 80);
+
+            migrationBuilder.AlterColumn<DateTime>(
+                name: "LastModifiedAt",
+                table: "SwotAnalysisItems",
+                type: "timestamp with time zone",
+                nullable: true,
+                oldClrType: typeof(string),
+                oldType: "TEXT",
+                oldNullable: true);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "EvidenceSource",
+                table: "SwotAnalysisItems",
+                type: "text",
+                nullable: true,
+                oldClrType: typeof(string),
+                oldType: "TEXT",
+                oldNullable: true);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "Description",
+                table: "SwotAnalysisItems",
+                type: "text",
+                nullable: false,
+                oldClrType: typeof(string),
+                oldType: "TEXT");
+
+            migrationBuilder.AlterColumn<DateTime>(
+                name: "CreatedAt",
+                table: "SwotAnalysisItems",
+                type: "timestamp with time zone",
+                nullable: false,
+                oldClrType: typeof(string),
+                oldType: "TEXT");
+
+            migrationBuilder.AlterColumn<string>(
+                name: "ConsultantComment",
+                table: "SwotAnalysisItems",
+                type: "text",
+                nullable: true,
+                oldClrType: typeof(string),
+                oldType: "TEXT",
+                oldNullable: true);
+
+            migrationBuilder.AlterColumn<int>(
+                name: "ClientCompanyId",
+                table: "SwotAnalysisItems",
+                type: "integer",
+                nullable: false,
+                oldClrType: typeof(int),
+                oldType: "INTEGER");
+
+            migrationBuilder.AlterColumn<string>(
+                name: "Category",
+                table: "SwotAnalysisItems",
+                type: "character varying(80)",
+                maxLength: 80,
+                nullable: false,
+                oldClrType: typeof(string),
+                oldType: "TEXT",
+                oldMaxLength: 80);
+
+            migrationBuilder.AlterColumn<int>(
+                name: "Id",
+                table: "SwotAnalysisItems",
+                type: "integer",
+                nullable: false,
+                oldClrType: typeof(int),
+                oldType: "INTEGER")
+                .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "SectionTitle",
+                table: "ReportSections",
+                type: "character varying(180)",
+                maxLength: 180,
+                nullable: false,
+                oldClrType: typeof(string),
+                oldType: "TEXT",
+                oldMaxLength: 180);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "SectionStatus",
+                table: "ReportSections",
+                type: "character varying(80)",
+                maxLength: 80,
+                nullable: false,
+                oldClrType: typeof(string),
+                oldType: "TEXT",
+                oldMaxLength: 80);
+
+            migrationBuilder.AlterColumn<int>(
+                name: "SectionOrder",
+                table: "ReportSections",
+                type: "integer",
+                nullable: false,
+                oldClrType: typeof(int),
+                oldType: "INTEGER");
+
+            migrationBuilder.AlterColumn<string>(
+                name: "SectionContent",
+                table: "ReportSections",
+                type: "text",
+                nullable: true,
+                oldClrType: typeof(string),
+                oldType: "TEXT",
+                oldNullable: true);
+
+            migrationBuilder.AlterColumn<DateTime>(
+                name: "LastModifiedAt",
+                table: "ReportSections",
+                type: "timestamp with time zone",
+                nullable: true,
+                oldClrType: typeof(string),
+                oldType: "TEXT",
+                oldNullable: true);
+
+            migrationBuilder.AlterColumn<DateTime>(
+                name: "CreatedAt",
+                table: "ReportSections",
+                type: "timestamp with time zone",
+                nullable: false,
+                oldClrType: typeof(string),
+                oldType: "TEXT");
+
+            migrationBuilder.AlterColumn<int>(
+                name: "ClientReportId",
+                table: "ReportSections",
+                type: "integer",
+                nullable: false,
+                oldClrType: typeof(int),
+                oldType: "INTEGER");
+
+            migrationBuilder.AlterColumn<int>(
+                name: "Id",
+                table: "ReportSections",
+                type: "integer",
+                nullable: false,
+                oldClrType: typeof(int),
+                oldType: "INTEGER")
+                .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn);
+
+            migrationBuilder.AlterColumn<int>(
+                name: "TechnologyReadinessScore",
+                table: "ReadinessScores",
+                type: "integer",
+                nullable: false,
+                oldClrType: typeof(int),
+                oldType: "INTEGER");
+
+            migrationBuilder.AlterColumn<string>(
+                name: "ScoringSummary",
+                table: "ReadinessScores",
+                type: "text",
+                nullable: true,
+                oldClrType: typeof(string),
+                oldType: "TEXT",
+                oldNullable: true);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "ScoreCategory",
+                table: "ReadinessScores",
+                type: "character varying(80)",
+                maxLength: 80,
+                nullable: false,
+                oldClrType: typeof(string),
+                oldType: "TEXT",
+                oldMaxLength: 80);
+
+            migrationBuilder.AlterColumn<int>(
+                name: "ProcessReadinessScore",
+                table: "ReadinessScores",
+                type: "integer",
+                nullable: false,
+                oldClrType: typeof(int),
+                oldType: "INTEGER");
+
+            migrationBuilder.AlterColumn<int>(
+                name: "PeopleGovernanceScore",
+                table: "ReadinessScores",
+                type: "integer",
+                nullable: false,
+                oldClrType: typeof(int),
+                oldType: "INTEGER");
+
+            migrationBuilder.AlterColumn<int>(
+                name: "OverallScore",
+                table: "ReadinessScores",
+                type: "integer",
+                nullable: false,
+                oldClrType: typeof(int),
+                oldType: "INTEGER");
+
+            migrationBuilder.AlterColumn<DateTime>(
+                name: "LastModifiedAt",
+                table: "ReadinessScores",
+                type: "timestamp with time zone",
+                nullable: true,
+                oldClrType: typeof(string),
+                oldType: "TEXT",
+                oldNullable: true);
+
+            migrationBuilder.AlterColumn<int>(
+                name: "DataReadinessScore",
+                table: "ReadinessScores",
+                type: "integer",
+                nullable: false,
+                oldClrType: typeof(int),
+                oldType: "INTEGER");
+
+            migrationBuilder.AlterColumn<DateTime>(
+                name: "CreatedAt",
+                table: "ReadinessScores",
+                type: "timestamp with time zone",
+                nullable: false,
+                oldClrType: typeof(string),
+                oldType: "TEXT");
+
+            migrationBuilder.AlterColumn<int>(
+                name: "ClientCompanyId",
+                table: "ReadinessScores",
+                type: "integer",
+                nullable: false,
+                oldClrType: typeof(int),
+                oldType: "INTEGER");
+
+            migrationBuilder.AlterColumn<int>(
+                name: "BusinessClarityScore",
+                table: "ReadinessScores",
+                type: "integer",
+                nullable: false,
+                oldClrType: typeof(int),
+                oldType: "INTEGER");
+
+            migrationBuilder.AlterColumn<int>(
+                name: "Id",
+                table: "ReadinessScores",
+                type: "integer",
+                nullable: false,
+                oldClrType: typeof(int),
+                oldType: "INTEGER")
+                .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "WebhookSecret",
+                table: "ReadinessFormSettings",
+                type: "character varying(240)",
+                maxLength: 240,
+                nullable: true,
+                oldClrType: typeof(string),
+                oldType: "TEXT",
+                oldMaxLength: 240,
+                oldNullable: true);
+
+            migrationBuilder.AlterColumn<DateTime>(
+                name: "LastModifiedAt",
+                table: "ReadinessFormSettings",
+                type: "timestamp with time zone",
+                nullable: true,
+                oldClrType: typeof(string),
+                oldType: "TEXT",
+                oldNullable: true);
+
+            migrationBuilder.AlterColumn<bool>(
+                name: "IsActive",
+                table: "ReadinessFormSettings",
+                type: "boolean",
+                nullable: false,
+                oldClrType: typeof(int),
+                oldType: "INTEGER");
+
+            migrationBuilder.AlterColumn<string>(
+                name: "EmailSubjectTemplate",
+                table: "ReadinessFormSettings",
+                type: "character varying(240)",
+                maxLength: 240,
+                nullable: false,
+                oldClrType: typeof(string),
+                oldType: "TEXT",
+                oldMaxLength: 240);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "EmailBodyTemplate",
+                table: "ReadinessFormSettings",
+                type: "text",
+                nullable: false,
+                oldClrType: typeof(string),
+                oldType: "TEXT");
+
+            migrationBuilder.AlterColumn<string>(
+                name: "DefaultFormUrl",
+                table: "ReadinessFormSettings",
+                type: "character varying(1000)",
+                maxLength: 1000,
+                nullable: true,
+                oldClrType: typeof(string),
+                oldType: "TEXT",
+                oldMaxLength: 1000,
+                oldNullable: true);
+
+            migrationBuilder.AlterColumn<DateTime>(
+                name: "CreatedAt",
+                table: "ReadinessFormSettings",
+                type: "timestamp with time zone",
+                nullable: false,
+                oldClrType: typeof(string),
+                oldType: "TEXT");
+
+            migrationBuilder.AlterColumn<string>(
+                name: "ClientReferenceEntryId",
+                table: "ReadinessFormSettings",
+                type: "character varying(120)",
+                maxLength: 120,
+                nullable: true,
+                oldClrType: typeof(string),
+                oldType: "TEXT",
+                oldMaxLength: 120,
+                oldNullable: true);
+
+            migrationBuilder.AlterColumn<int>(
+                name: "Id",
+                table: "ReadinessFormSettings",
+                type: "integer",
+                nullable: false,
+                oldClrType: typeof(int),
+                oldType: "INTEGER")
+                .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "Summary",
+                table: "ReadinessAssessments",
+                type: "text",
+                nullable: true,
+                oldClrType: typeof(string),
+                oldType: "TEXT",
+                oldNullable: true);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "SentToEmail",
+                table: "ReadinessAssessments",
+                type: "character varying(160)",
+                maxLength: 160,
+                nullable: true,
+                oldClrType: typeof(string),
+                oldType: "TEXT",
+                oldMaxLength: 160,
+                oldNullable: true);
+
+            migrationBuilder.AlterColumn<DateTime>(
+                name: "SentAt",
+                table: "ReadinessAssessments",
+                type: "timestamp with time zone",
+                nullable: true,
+                oldClrType: typeof(string),
+                oldType: "TEXT",
+                oldNullable: true);
+
+            migrationBuilder.AlterColumn<DateTime>(
+                name: "ResponseReceivedAt",
+                table: "ReadinessAssessments",
+                type: "timestamp with time zone",
+                nullable: true,
+                oldClrType: typeof(string),
+                oldType: "TEXT",
+                oldNullable: true);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "RawResponseJson",
+                table: "ReadinessAssessments",
+                type: "text",
+                nullable: true,
+                oldClrType: typeof(string),
+                oldType: "TEXT",
+                oldNullable: true);
+
+            migrationBuilder.AlterColumn<DateTime>(
+                name: "LastReminderSentAt",
+                table: "ReadinessAssessments",
+                type: "timestamp with time zone",
+                nullable: true,
+                oldClrType: typeof(string),
+                oldType: "TEXT",
+                oldNullable: true);
+
+            migrationBuilder.AlterColumn<DateTime>(
+                name: "LastModifiedAt",
+                table: "ReadinessAssessments",
+                type: "timestamp with time zone",
+                nullable: true,
+                oldClrType: typeof(string),
+                oldType: "TEXT",
+                oldNullable: true);
+
+            migrationBuilder.AlterColumn<DateTime>(
+                name: "ImportedAt",
+                table: "ReadinessAssessments",
+                type: "timestamp with time zone",
+                nullable: true,
+                oldClrType: typeof(string),
+                oldType: "TEXT",
+                oldNullable: true);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "GeneratedFormUrl",
+                table: "ReadinessAssessments",
+                type: "character varying(1200)",
+                maxLength: 1200,
+                nullable: true,
+                oldClrType: typeof(string),
+                oldType: "TEXT",
+                oldMaxLength: 1200,
+                oldNullable: true);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "FormUrl",
+                table: "ReadinessAssessments",
+                type: "character varying(500)",
+                maxLength: 500,
+                nullable: true,
+                oldClrType: typeof(string),
+                oldType: "TEXT",
+                oldMaxLength: 500,
+                oldNullable: true);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "FormStatus",
+                table: "ReadinessAssessments",
+                type: "character varying(80)",
+                maxLength: 80,
+                nullable: false,
+                oldClrType: typeof(string),
+                oldType: "TEXT",
+                oldMaxLength: 80);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "ExternalResponseId",
+                table: "ReadinessAssessments",
+                type: "character varying(180)",
+                maxLength: 180,
+                nullable: true,
+                oldClrType: typeof(string),
+                oldType: "TEXT",
+                oldMaxLength: 180,
+                oldNullable: true);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "CustomFormUrl",
+                table: "ReadinessAssessments",
+                type: "character varying(1000)",
+                maxLength: 1000,
+                nullable: true,
+                oldClrType: typeof(string),
+                oldType: "TEXT",
+                oldMaxLength: 1000,
+                oldNullable: true);
+
+            migrationBuilder.AlterColumn<DateTime>(
+                name: "CreatedAt",
+                table: "ReadinessAssessments",
+                type: "timestamp with time zone",
+                nullable: false,
+                oldClrType: typeof(string),
+                oldType: "TEXT");
+
+            migrationBuilder.AlterColumn<DateTime>(
+                name: "CompletedAt",
+                table: "ReadinessAssessments",
+                type: "timestamp with time zone",
+                nullable: true,
+                oldClrType: typeof(string),
+                oldType: "TEXT",
+                oldNullable: true);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "ClientToken",
+                table: "ReadinessAssessments",
+                type: "character varying(80)",
+                maxLength: 80,
+                nullable: true,
+                oldClrType: typeof(string),
+                oldType: "TEXT",
+                oldMaxLength: 80,
+                oldNullable: true);
+
+            migrationBuilder.AlterColumn<int>(
+                name: "ClientCompanyId",
+                table: "ReadinessAssessments",
+                type: "integer",
+                nullable: false,
+                oldClrType: typeof(int),
+                oldType: "INTEGER");
+
+            migrationBuilder.AlterColumn<int>(
+                name: "Id",
+                table: "ReadinessAssessments",
+                type: "integer",
+                nullable: false,
+                oldClrType: typeof(int),
+                oldType: "INTEGER")
+                .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "TranscriptText",
+                table: "MeetingTranscripts",
+                type: "text",
+                nullable: false,
+                oldClrType: typeof(string),
+                oldType: "TEXT");
+
+            migrationBuilder.AlterColumn<string>(
+                name: "Summary",
+                table: "MeetingTranscripts",
+                type: "text",
+                nullable: true,
+                oldClrType: typeof(string),
+                oldType: "TEXT",
+                oldNullable: true);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "SessionTitle",
+                table: "MeetingTranscripts",
+                type: "character varying(180)",
+                maxLength: 180,
+                nullable: false,
+                oldClrType: typeof(string),
+                oldType: "TEXT",
+                oldMaxLength: 180);
+
+            migrationBuilder.AlterColumn<DateTime>(
+                name: "SessionDate",
+                table: "MeetingTranscripts",
+                type: "timestamp with time zone",
+                nullable: false,
+                oldClrType: typeof(string),
+                oldType: "TEXT");
+
+            migrationBuilder.AlterColumn<string>(
+                name: "KeyDecisions",
+                table: "MeetingTranscripts",
+                type: "text",
+                nullable: true,
+                oldClrType: typeof(string),
+                oldType: "TEXT",
+                oldNullable: true);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "FollowUpQuestions",
+                table: "MeetingTranscripts",
+                type: "text",
+                nullable: true,
+                oldClrType: typeof(string),
+                oldType: "TEXT",
+                oldNullable: true);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "CreatedBy",
+                table: "MeetingTranscripts",
+                type: "character varying(120)",
+                maxLength: 120,
+                nullable: true,
+                oldClrType: typeof(string),
+                oldType: "TEXT",
+                oldMaxLength: 120,
+                oldNullable: true);
+
+            migrationBuilder.AlterColumn<DateTime>(
+                name: "CreatedAt",
+                table: "MeetingTranscripts",
+                type: "timestamp with time zone",
+                nullable: false,
+                oldClrType: typeof(string),
+                oldType: "TEXT");
+
+            migrationBuilder.AlterColumn<int>(
+                name: "ClientCompanyId",
+                table: "MeetingTranscripts",
+                type: "integer",
+                nullable: false,
+                oldClrType: typeof(int),
+                oldType: "INTEGER");
+
+            migrationBuilder.AlterColumn<int>(
+                name: "Id",
+                table: "MeetingTranscripts",
+                type: "integer",
+                nullable: false,
+                oldClrType: typeof(int),
+                oldType: "INTEGER")
+                .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "Topic",
+                table: "IndustryInsights",
+                type: "character varying(180)",
+                maxLength: 180,
+                nullable: false,
+                oldClrType: typeof(string),
+                oldType: "TEXT",
+                oldMaxLength: 180);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "Status",
+                table: "IndustryInsights",
+                type: "character varying(80)",
+                maxLength: 80,
+                nullable: false,
+                oldClrType: typeof(string),
+                oldType: "TEXT",
+                oldMaxLength: 80);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "SourceType",
+                table: "IndustryInsights",
+                type: "character varying(80)",
+                maxLength: 80,
+                nullable: false,
+                oldClrType: typeof(string),
+                oldType: "TEXT",
+                oldMaxLength: 80);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "Relevance",
+                table: "IndustryInsights",
+                type: "text",
+                nullable: true,
+                oldClrType: typeof(string),
+                oldType: "TEXT",
+                oldNullable: true);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "InsightText",
+                table: "IndustryInsights",
+                type: "text",
+                nullable: false,
+                oldClrType: typeof(string),
+                oldType: "TEXT");
+
+            migrationBuilder.AlterColumn<DateTime>(
+                name: "CreatedAt",
+                table: "IndustryInsights",
+                type: "timestamp with time zone",
+                nullable: false,
+                oldClrType: typeof(string),
+                oldType: "TEXT");
+
+            migrationBuilder.AlterColumn<int>(
+                name: "ClientCompanyId",
+                table: "IndustryInsights",
+                type: "integer",
+                nullable: false,
+                oldClrType: typeof(int),
+                oldType: "INTEGER");
+
+            migrationBuilder.AlterColumn<int>(
+                name: "Id",
+                table: "IndustryInsights",
+                type: "integer",
+                nullable: false,
+                oldClrType: typeof(int),
+                oldType: "INTEGER")
+                .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "SuggestedFollowUpQuestion",
+                table: "GapAnalysisItems",
+                type: "text",
+                nullable: true,
+                oldClrType: typeof(string),
+                oldType: "TEXT",
+                oldNullable: true);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "SuggestedAction",
+                table: "GapAnalysisItems",
+                type: "text",
+                nullable: true,
+                oldClrType: typeof(string),
+                oldType: "TEXT",
+                oldNullable: true);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "Status",
+                table: "GapAnalysisItems",
+                type: "character varying(80)",
+                maxLength: 80,
+                nullable: false,
+                oldClrType: typeof(string),
+                oldType: "TEXT",
+                oldMaxLength: 80);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "Severity",
+                table: "GapAnalysisItems",
+                type: "character varying(80)",
+                maxLength: 80,
+                nullable: false,
+                oldClrType: typeof(string),
+                oldType: "TEXT",
+                oldMaxLength: 80);
+
+            migrationBuilder.AlterColumn<DateTime>(
+                name: "LastModifiedAt",
+                table: "GapAnalysisItems",
+                type: "timestamp with time zone",
+                nullable: true,
+                oldClrType: typeof(string),
+                oldType: "TEXT",
+                oldNullable: true);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "IssueDescription",
+                table: "GapAnalysisItems",
+                type: "text",
+                nullable: false,
+                oldClrType: typeof(string),
+                oldType: "TEXT");
+
+            migrationBuilder.AlterColumn<string>(
+                name: "Impact",
+                table: "GapAnalysisItems",
+                type: "text",
+                nullable: true,
+                oldClrType: typeof(string),
+                oldType: "TEXT",
+                oldNullable: true);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "GapArea",
+                table: "GapAnalysisItems",
+                type: "character varying(80)",
+                maxLength: 80,
+                nullable: false,
+                oldClrType: typeof(string),
+                oldType: "TEXT",
+                oldMaxLength: 80);
+
+            migrationBuilder.AlterColumn<DateTime>(
+                name: "CreatedAt",
+                table: "GapAnalysisItems",
+                type: "timestamp with time zone",
+                nullable: false,
+                oldClrType: typeof(string),
+                oldType: "TEXT");
+
+            migrationBuilder.AlterColumn<int>(
+                name: "ClientCompanyId",
+                table: "GapAnalysisItems",
+                type: "integer",
+                nullable: false,
+                oldClrType: typeof(int),
+                oldType: "INTEGER");
+
+            migrationBuilder.AlterColumn<int>(
+                name: "Id",
+                table: "GapAnalysisItems",
+                type: "integer",
+                nullable: false,
+                oldClrType: typeof(int),
+                oldType: "INTEGER")
+                .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "NoteType",
+                table: "ConsultantNotes",
+                type: "character varying(80)",
+                maxLength: 80,
+                nullable: false,
+                oldClrType: typeof(string),
+                oldType: "TEXT",
+                oldMaxLength: 80);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "NoteTitle",
+                table: "ConsultantNotes",
+                type: "character varying(180)",
+                maxLength: 180,
+                nullable: false,
+                oldClrType: typeof(string),
+                oldType: "TEXT",
+                oldMaxLength: 180);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "NoteText",
+                table: "ConsultantNotes",
+                type: "text",
+                nullable: false,
+                oldClrType: typeof(string),
+                oldType: "TEXT");
+
+            migrationBuilder.AlterColumn<DateTime>(
+                name: "LastModifiedAt",
+                table: "ConsultantNotes",
+                type: "timestamp with time zone",
+                nullable: true,
+                oldClrType: typeof(string),
+                oldType: "TEXT",
+                oldNullable: true);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "CreatedBy",
+                table: "ConsultantNotes",
+                type: "character varying(120)",
+                maxLength: 120,
+                nullable: true,
+                oldClrType: typeof(string),
+                oldType: "TEXT",
+                oldMaxLength: 120,
+                oldNullable: true);
+
+            migrationBuilder.AlterColumn<DateTime>(
+                name: "CreatedAt",
+                table: "ConsultantNotes",
+                type: "timestamp with time zone",
+                nullable: false,
+                oldClrType: typeof(string),
+                oldType: "TEXT");
+
+            migrationBuilder.AlterColumn<int>(
+                name: "ClientCompanyId",
+                table: "ConsultantNotes",
+                type: "integer",
+                nullable: false,
+                oldClrType: typeof(int),
+                oldType: "INTEGER");
+
+            migrationBuilder.AlterColumn<int>(
+                name: "Id",
+                table: "ConsultantNotes",
+                type: "integer",
+                nullable: false,
+                oldClrType: typeof(int),
+                oldType: "INTEGER")
+                .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "WebsiteUrl",
+                table: "CompetitorInsights",
+                type: "character varying(240)",
+                maxLength: 240,
+                nullable: true,
+                oldClrType: typeof(string),
+                oldType: "TEXT",
+                oldMaxLength: 240,
+                oldNullable: true);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "WeaknessComparedToClient",
+                table: "CompetitorInsights",
+                type: "text",
+                nullable: true,
+                oldClrType: typeof(string),
+                oldType: "TEXT",
+                oldNullable: true);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "StrengthComparedToClient",
+                table: "CompetitorInsights",
+                type: "text",
+                nullable: true,
+                oldClrType: typeof(string),
+                oldType: "TEXT",
+                oldNullable: true);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "Status",
+                table: "CompetitorInsights",
+                type: "character varying(80)",
+                maxLength: 80,
+                nullable: false,
+                oldClrType: typeof(string),
+                oldType: "TEXT",
+                oldMaxLength: 80);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "SourceNotes",
+                table: "CompetitorInsights",
+                type: "text",
+                nullable: true,
+                oldClrType: typeof(string),
+                oldType: "TEXT",
+                oldNullable: true);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "InsightText",
+                table: "CompetitorInsights",
+                type: "text",
+                nullable: false,
+                oldClrType: typeof(string),
+                oldType: "TEXT");
+
+            migrationBuilder.AlterColumn<DateTime>(
+                name: "CreatedAt",
+                table: "CompetitorInsights",
+                type: "timestamp with time zone",
+                nullable: false,
+                oldClrType: typeof(string),
+                oldType: "TEXT");
+
+            migrationBuilder.AlterColumn<string>(
+                name: "CompetitorName",
+                table: "CompetitorInsights",
+                type: "character varying(180)",
+                maxLength: 180,
+                nullable: false,
+                oldClrType: typeof(string),
+                oldType: "TEXT",
+                oldMaxLength: 180);
+
+            migrationBuilder.AlterColumn<int>(
+                name: "ClientCompanyId",
+                table: "CompetitorInsights",
+                type: "integer",
+                nullable: false,
+                oldClrType: typeof(int),
+                oldType: "INTEGER");
+
+            migrationBuilder.AlterColumn<string>(
+                name: "AiUseCasesObserved",
+                table: "CompetitorInsights",
+                type: "text",
+                nullable: true,
+                oldClrType: typeof(string),
+                oldType: "TEXT",
+                oldNullable: true);
+
+            migrationBuilder.AlterColumn<int>(
+                name: "Id",
+                table: "CompetitorInsights",
+                type: "integer",
+                nullable: false,
+                oldClrType: typeof(int),
+                oldType: "INTEGER")
+                .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "Status",
+                table: "ClientWorkflowSteps",
+                type: "character varying(80)",
+                maxLength: 80,
+                nullable: false,
+                oldClrType: typeof(string),
+                oldType: "TEXT",
+                oldMaxLength: 80);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "StageName",
+                table: "ClientWorkflowSteps",
+                type: "character varying(120)",
+                maxLength: 120,
+                nullable: false,
+                oldClrType: typeof(string),
+                oldType: "TEXT",
+                oldMaxLength: 120);
+
+            migrationBuilder.AlterColumn<int>(
+                name: "DisplayOrder",
+                table: "ClientWorkflowSteps",
+                type: "integer",
+                nullable: false,
+                oldClrType: typeof(int),
+                oldType: "INTEGER");
+
+            migrationBuilder.AlterColumn<DateTime>(
+                name: "CompletedAt",
+                table: "ClientWorkflowSteps",
+                type: "timestamp with time zone",
+                nullable: true,
+                oldClrType: typeof(string),
+                oldType: "TEXT",
+                oldNullable: true);
+
+            migrationBuilder.AlterColumn<int>(
+                name: "ClientCompanyId",
+                table: "ClientWorkflowSteps",
+                type: "integer",
+                nullable: false,
+                oldClrType: typeof(int),
+                oldType: "INTEGER");
+
+            migrationBuilder.AlterColumn<int>(
+                name: "Id",
+                table: "ClientWorkflowSteps",
+                type: "integer",
+                nullable: false,
+                oldClrType: typeof(int),
+                oldType: "INTEGER")
+                .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "TaskType",
+                table: "ClientTasks",
+                type: "character varying(80)",
+                maxLength: 80,
+                nullable: false,
+                oldClrType: typeof(string),
+                oldType: "TEXT",
+                oldMaxLength: 80);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "TaskTitle",
+                table: "ClientTasks",
+                type: "character varying(180)",
+                maxLength: 180,
+                nullable: false,
+                oldClrType: typeof(string),
+                oldType: "TEXT",
+                oldMaxLength: 180);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "TaskDescription",
+                table: "ClientTasks",
+                type: "text",
+                nullable: true,
+                oldClrType: typeof(string),
+                oldType: "TEXT",
+                oldNullable: true);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "Status",
+                table: "ClientTasks",
+                type: "character varying(80)",
+                maxLength: 80,
+                nullable: false,
+                oldClrType: typeof(string),
+                oldType: "TEXT",
+                oldMaxLength: 80);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "Priority",
+                table: "ClientTasks",
+                type: "character varying(80)",
+                maxLength: 80,
+                nullable: false,
+                oldClrType: typeof(string),
+                oldType: "TEXT",
+                oldMaxLength: 80);
+
+            migrationBuilder.AlterColumn<DateTime>(
+                name: "LastModifiedAt",
+                table: "ClientTasks",
+                type: "timestamp with time zone",
+                nullable: true,
+                oldClrType: typeof(string),
+                oldType: "TEXT",
+                oldNullable: true);
+
+            migrationBuilder.AlterColumn<DateTime>(
+                name: "DueDate",
+                table: "ClientTasks",
+                type: "timestamp with time zone",
+                nullable: true,
+                oldClrType: typeof(string),
+                oldType: "TEXT",
+                oldNullable: true);
+
+            migrationBuilder.AlterColumn<DateTime>(
+                name: "CreatedAt",
+                table: "ClientTasks",
+                type: "timestamp with time zone",
+                nullable: false,
+                oldClrType: typeof(string),
+                oldType: "TEXT");
+
+            migrationBuilder.AlterColumn<int>(
+                name: "ClientCompanyId",
+                table: "ClientTasks",
+                type: "integer",
+                nullable: false,
+                oldClrType: typeof(int),
+                oldType: "INTEGER");
+
+            migrationBuilder.AlterColumn<string>(
+                name: "AssignedTo",
+                table: "ClientTasks",
+                type: "character varying(120)",
+                maxLength: 120,
+                nullable: true,
+                oldClrType: typeof(string),
+                oldType: "TEXT",
+                oldMaxLength: 120,
+                oldNullable: true);
+
+            migrationBuilder.AlterColumn<int>(
+                name: "Id",
+                table: "ClientTasks",
+                type: "integer",
+                nullable: false,
+                oldClrType: typeof(int),
+                oldType: "INTEGER")
+                .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn);
+
+            migrationBuilder.AlterColumn<int>(
+                name: "VersionNumber",
+                table: "ClientReports",
+                type: "integer",
+                nullable: false,
+                oldClrType: typeof(int),
+                oldType: "INTEGER");
+
+            migrationBuilder.AlterColumn<DateTime>(
+                name: "ReviewedAt",
+                table: "ClientReports",
+                type: "timestamp with time zone",
+                nullable: true,
+                oldClrType: typeof(string),
+                oldType: "TEXT",
+                oldNullable: true);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "ReportTitle",
+                table: "ClientReports",
+                type: "character varying(220)",
+                maxLength: 220,
+                nullable: false,
+                oldClrType: typeof(string),
+                oldType: "TEXT",
+                oldMaxLength: 220);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "ReportStatus",
+                table: "ClientReports",
+                type: "character varying(80)",
+                maxLength: 80,
+                nullable: false,
+                oldClrType: typeof(string),
+                oldType: "TEXT",
+                oldMaxLength: 80);
+
+            migrationBuilder.AlterColumn<DateTime>(
+                name: "LastModifiedAt",
+                table: "ClientReports",
+                type: "timestamp with time zone",
+                nullable: true,
+                oldClrType: typeof(string),
+                oldType: "TEXT",
+                oldNullable: true);
+
+            migrationBuilder.AlterColumn<DateTime>(
+                name: "GeneratedAt",
+                table: "ClientReports",
+                type: "timestamp with time zone",
+                nullable: true,
+                oldClrType: typeof(string),
+                oldType: "TEXT",
+                oldNullable: true);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "FinalReportContent",
+                table: "ClientReports",
+                type: "text",
+                nullable: true,
+                oldClrType: typeof(string),
+                oldType: "TEXT",
+                oldNullable: true);
+
+            migrationBuilder.AlterColumn<DateTime>(
+                name: "DeliveredAt",
+                table: "ClientReports",
+                type: "timestamp with time zone",
+                nullable: true,
+                oldClrType: typeof(string),
+                oldType: "TEXT",
+                oldNullable: true);
+
+            migrationBuilder.AlterColumn<DateTime>(
+                name: "CreatedAt",
+                table: "ClientReports",
+                type: "timestamp with time zone",
+                nullable: false,
+                oldClrType: typeof(string),
+                oldType: "TEXT");
+
+            migrationBuilder.AlterColumn<int>(
+                name: "ClientCompanyId",
+                table: "ClientReports",
+                type: "integer",
+                nullable: false,
+                oldClrType: typeof(int),
+                oldType: "INTEGER");
+
+            migrationBuilder.AlterColumn<int>(
+                name: "Id",
+                table: "ClientReports",
+                type: "integer",
+                nullable: false,
+                oldClrType: typeof(int),
+                oldType: "INTEGER")
+                .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn);
+
+            migrationBuilder.AlterColumn<bool>(
+                name: "UsedInReport",
+                table: "ClientDocuments",
+                type: "boolean",
+                nullable: false,
+                oldClrType: typeof(int),
+                oldType: "INTEGER");
+
+            migrationBuilder.AlterColumn<string>(
+                name: "UploadedBy",
+                table: "ClientDocuments",
+                type: "character varying(120)",
+                maxLength: 120,
+                nullable: true,
+                oldClrType: typeof(string),
+                oldType: "TEXT",
+                oldMaxLength: 120,
+                oldNullable: true);
+
+            migrationBuilder.AlterColumn<DateTime>(
+                name: "UploadedAt",
+                table: "ClientDocuments",
+                type: "timestamp with time zone",
+                nullable: false,
+                oldClrType: typeof(string),
+                oldType: "TEXT");
+
+            migrationBuilder.AlterColumn<string>(
+                name: "KeyInsights",
+                table: "ClientDocuments",
+                type: "text",
+                nullable: true,
+                oldClrType: typeof(string),
+                oldType: "TEXT",
+                oldNullable: true);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "FilePath",
+                table: "ClientDocuments",
+                type: "character varying(500)",
+                maxLength: 500,
+                nullable: true,
+                oldClrType: typeof(string),
+                oldType: "TEXT",
+                oldMaxLength: 500,
+                oldNullable: true);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "FileName",
+                table: "ClientDocuments",
+                type: "character varying(240)",
+                maxLength: 240,
+                nullable: false,
+                oldClrType: typeof(string),
+                oldType: "TEXT",
+                oldMaxLength: 240);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "DocumentType",
+                table: "ClientDocuments",
+                type: "character varying(80)",
+                maxLength: 80,
+                nullable: false,
+                oldClrType: typeof(string),
+                oldType: "TEXT",
+                oldMaxLength: 80);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "Description",
+                table: "ClientDocuments",
+                type: "text",
+                nullable: true,
+                oldClrType: typeof(string),
+                oldType: "TEXT",
+                oldNullable: true);
+
+            migrationBuilder.AlterColumn<DateTime>(
+                name: "CreatedAt",
+                table: "ClientDocuments",
+                type: "timestamp with time zone",
+                nullable: false,
+                oldClrType: typeof(string),
+                oldType: "TEXT");
+
+            migrationBuilder.AlterColumn<int>(
+                name: "ClientCompanyId",
+                table: "ClientDocuments",
+                type: "integer",
+                nullable: false,
+                oldClrType: typeof(int),
+                oldType: "INTEGER");
+
+            migrationBuilder.AlterColumn<string>(
+                name: "AiSummary",
+                table: "ClientDocuments",
+                type: "text",
+                nullable: true,
+                oldClrType: typeof(string),
+                oldType: "TEXT",
+                oldNullable: true);
+
+            migrationBuilder.AlterColumn<int>(
+                name: "Id",
+                table: "ClientDocuments",
+                type: "integer",
+                nullable: false,
+                oldClrType: typeof(int),
+                oldType: "INTEGER")
+                .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "WebsiteUrl",
+                table: "ClientCompanies",
+                type: "character varying(240)",
+                maxLength: 240,
+                nullable: true,
+                oldClrType: typeof(string),
+                oldType: "TEXT",
+                oldMaxLength: 240,
+                oldNullable: true);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "RevenueRange",
+                table: "ClientCompanies",
+                type: "character varying(80)",
+                maxLength: 80,
+                nullable: true,
+                oldClrType: typeof(string),
+                oldType: "TEXT",
+                oldMaxLength: 80,
+                oldNullable: true);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "Region",
+                table: "ClientCompanies",
+                type: "character varying(80)",
+                maxLength: 80,
+                nullable: true,
+                oldClrType: typeof(string),
+                oldType: "TEXT",
+                oldMaxLength: 80,
+                oldNullable: true);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "Priority",
+                table: "ClientCompanies",
+                type: "character varying(80)",
+                maxLength: 80,
+                nullable: false,
+                oldClrType: typeof(string),
+                oldType: "TEXT",
+                oldMaxLength: 80);
+
+            migrationBuilder.AlterColumn<decimal>(
+                name: "OverallReadinessScore",
+                table: "ClientCompanies",
+                type: "numeric(5,2)",
+                precision: 5,
+                scale: 2,
+                nullable: true,
+                oldClrType: typeof(string),
+                oldType: "TEXT",
+                oldPrecision: 5,
+                oldScale: 2,
+                oldNullable: true);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "NextAction",
+                table: "ClientCompanies",
+                type: "character varying(240)",
+                maxLength: 240,
+                nullable: true,
+                oldClrType: typeof(string),
+                oldType: "TEXT",
+                oldMaxLength: 240,
+                oldNullable: true);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "LastModifiedBy",
+                table: "ClientCompanies",
+                type: "character varying(120)",
+                maxLength: 120,
+                nullable: true,
+                oldClrType: typeof(string),
+                oldType: "TEXT",
+                oldMaxLength: 120,
+                oldNullable: true);
+
+            migrationBuilder.AlterColumn<DateTime>(
+                name: "LastModifiedAt",
+                table: "ClientCompanies",
+                type: "timestamp with time zone",
+                nullable: true,
+                oldClrType: typeof(string),
+                oldType: "TEXT",
+                oldNullable: true);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "KeyRisksSummary",
+                table: "ClientCompanies",
+                type: "text",
+                nullable: true,
+                oldClrType: typeof(string),
+                oldType: "TEXT",
+                oldNullable: true);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "Industry",
+                table: "ClientCompanies",
+                type: "character varying(120)",
+                maxLength: 120,
+                nullable: true,
+                oldClrType: typeof(string),
+                oldType: "TEXT",
+                oldMaxLength: 120,
+                oldNullable: true);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "CurrentStage",
+                table: "ClientCompanies",
+                type: "character varying(80)",
+                maxLength: 80,
+                nullable: false,
+                oldClrType: typeof(string),
+                oldType: "TEXT",
+                oldMaxLength: 80);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "CreatedBy",
+                table: "ClientCompanies",
+                type: "character varying(120)",
+                maxLength: 120,
+                nullable: true,
+                oldClrType: typeof(string),
+                oldType: "TEXT",
+                oldMaxLength: 120,
+                oldNullable: true);
+
+            migrationBuilder.AlterColumn<DateTime>(
+                name: "CreatedAt",
+                table: "ClientCompanies",
+                type: "timestamp with time zone",
+                nullable: false,
+                oldClrType: typeof(string),
+                oldType: "TEXT");
+
+            migrationBuilder.AlterColumn<string>(
+                name: "Country",
+                table: "ClientCompanies",
+                type: "character varying(80)",
+                maxLength: 80,
+                nullable: true,
+                oldClrType: typeof(string),
+                oldType: "TEXT",
+                oldMaxLength: 80,
+                oldNullable: true);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "ContactPersonPhone",
+                table: "ClientCompanies",
+                type: "character varying(80)",
+                maxLength: 80,
+                nullable: true,
+                oldClrType: typeof(string),
+                oldType: "TEXT",
+                oldMaxLength: 80,
+                oldNullable: true);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "ContactPersonName",
+                table: "ClientCompanies",
+                type: "character varying(120)",
+                maxLength: 120,
+                nullable: true,
+                oldClrType: typeof(string),
+                oldType: "TEXT",
+                oldMaxLength: 120,
+                oldNullable: true);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "ContactPersonEmail",
+                table: "ClientCompanies",
+                type: "character varying(160)",
+                maxLength: 160,
+                nullable: true,
+                oldClrType: typeof(string),
+                oldType: "TEXT",
+                oldMaxLength: 160,
+                oldNullable: true);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "ConsultingPackage",
+                table: "ClientCompanies",
+                type: "character varying(120)",
+                maxLength: 120,
+                nullable: true,
+                oldClrType: typeof(string),
+                oldType: "TEXT",
+                oldMaxLength: 120,
+                oldNullable: true);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "CompanySizeRange",
+                table: "ClientCompanies",
+                type: "character varying(80)",
+                maxLength: 80,
+                nullable: true,
+                oldClrType: typeof(string),
+                oldType: "TEXT",
+                oldMaxLength: 80,
+                oldNullable: true);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "CompanyName",
+                table: "ClientCompanies",
+                type: "character varying(160)",
+                maxLength: 160,
+                nullable: false,
+                oldClrType: typeof(string),
+                oldType: "TEXT",
+                oldMaxLength: 160);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "BusinessModel",
+                table: "ClientCompanies",
+                type: "character varying(120)",
+                maxLength: 120,
+                nullable: true,
+                oldClrType: typeof(string),
+                oldType: "TEXT",
+                oldMaxLength: 120,
+                oldNullable: true);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "AssignedConsultant",
+                table: "ClientCompanies",
+                type: "character varying(120)",
+                maxLength: 120,
+                nullable: true,
+                oldClrType: typeof(string),
+                oldType: "TEXT",
+                oldMaxLength: 120,
+                oldNullable: true);
+
+            migrationBuilder.AlterColumn<int>(
+                name: "Id",
+                table: "ClientCompanies",
+                type: "integer",
+                nullable: false,
+                oldClrType: typeof(int),
+                oldType: "INTEGER")
+                .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "Description",
+                table: "ClientActivityLogs",
+                type: "text",
+                nullable: false,
+                oldClrType: typeof(string),
+                oldType: "TEXT");
+
+            migrationBuilder.AlterColumn<string>(
+                name: "CreatedBy",
+                table: "ClientActivityLogs",
+                type: "character varying(120)",
+                maxLength: 120,
+                nullable: true,
+                oldClrType: typeof(string),
+                oldType: "TEXT",
+                oldMaxLength: 120,
+                oldNullable: true);
+
+            migrationBuilder.AlterColumn<DateTime>(
+                name: "CreatedAt",
+                table: "ClientActivityLogs",
+                type: "timestamp with time zone",
+                nullable: false,
+                oldClrType: typeof(string),
+                oldType: "TEXT");
+
+            migrationBuilder.AlterColumn<int>(
+                name: "ClientCompanyId",
+                table: "ClientActivityLogs",
+                type: "integer",
+                nullable: false,
+                oldClrType: typeof(int),
+                oldType: "INTEGER");
+
+            migrationBuilder.AlterColumn<string>(
+                name: "ActivityType",
+                table: "ClientActivityLogs",
+                type: "character varying(120)",
+                maxLength: 120,
+                nullable: false,
+                oldClrType: typeof(string),
+                oldType: "TEXT",
+                oldMaxLength: 120);
+
+            migrationBuilder.AlterColumn<int>(
+                name: "Id",
+                table: "ClientActivityLogs",
+                type: "integer",
+                nullable: false,
+                oldClrType: typeof(int),
+                oldType: "INTEGER")
+                .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "SectionName",
+                table: "AssessmentAnswers",
+                type: "character varying(120)",
+                maxLength: 120,
+                nullable: false,
+                oldClrType: typeof(string),
+                oldType: "TEXT",
+                oldMaxLength: 120);
+
+            migrationBuilder.AlterColumn<int>(
+                name: "ReadinessAssessmentId",
+                table: "AssessmentAnswers",
+                type: "integer",
+                nullable: false,
+                oldClrType: typeof(int),
+                oldType: "INTEGER");
+
+            migrationBuilder.AlterColumn<string>(
+                name: "QuestionText",
+                table: "AssessmentAnswers",
+                type: "text",
+                nullable: false,
+                oldClrType: typeof(string),
+                oldType: "TEXT");
+
+            migrationBuilder.AlterColumn<bool>(
+                name: "IsMandatory",
+                table: "AssessmentAnswers",
+                type: "boolean",
+                nullable: false,
+                oldClrType: typeof(int),
+                oldType: "INTEGER");
+
+            migrationBuilder.AlterColumn<DateTime>(
+                name: "CreatedAt",
+                table: "AssessmentAnswers",
+                type: "timestamp with time zone",
+                nullable: false,
+                oldClrType: typeof(string),
+                oldType: "TEXT");
+
+            migrationBuilder.AlterColumn<string>(
+                name: "CompletenessStatus",
+                table: "AssessmentAnswers",
+                type: "character varying(80)",
+                maxLength: 80,
+                nullable: false,
+                oldClrType: typeof(string),
+                oldType: "TEXT",
+                oldMaxLength: 80);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "AnswerType",
+                table: "AssessmentAnswers",
+                type: "character varying(80)",
+                maxLength: 80,
+                nullable: true,
+                oldClrType: typeof(string),
+                oldType: "TEXT",
+                oldMaxLength: 80,
+                oldNullable: true);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "AnswerText",
+                table: "AssessmentAnswers",
+                type: "text",
+                nullable: true,
+                oldClrType: typeof(string),
+                oldType: "TEXT",
+                oldNullable: true);
+
+            migrationBuilder.AlterColumn<int>(
+                name: "Id",
+                table: "AssessmentAnswers",
+                type: "integer",
+                nullable: false,
+                oldClrType: typeof(int),
+                oldType: "INTEGER")
+                .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn);
+
+            migrationBuilder.AlterColumn<int>(
+                name: "StrategicFitScore",
+                table: "AIUseCaseScores",
+                type: "integer",
+                nullable: false,
+                oldClrType: typeof(int),
+                oldType: "INTEGER");
+
+            migrationBuilder.AlterColumn<string>(
+                name: "ScoringComment",
+                table: "AIUseCaseScores",
+                type: "text",
+                nullable: true,
+                oldClrType: typeof(string),
+                oldType: "TEXT",
+                oldNullable: true);
+
+            migrationBuilder.AlterColumn<int>(
+                name: "RoiScore",
+                table: "AIUseCaseScores",
+                type: "integer",
+                nullable: false,
+                oldClrType: typeof(int),
+                oldType: "INTEGER");
+
+            migrationBuilder.AlterColumn<int>(
+                name: "RiskSafetyScore",
+                table: "AIUseCaseScores",
+                type: "integer",
+                nullable: false,
+                oldClrType: typeof(int),
+                oldType: "INTEGER");
+
+            migrationBuilder.AlterColumn<decimal>(
+                name: "PriorityScore",
+                table: "AIUseCaseScores",
+                type: "numeric(4,2)",
+                precision: 4,
+                scale: 2,
+                nullable: false,
+                oldClrType: typeof(string),
+                oldType: "TEXT",
+                oldPrecision: 4,
+                oldScale: 2);
+
+            migrationBuilder.AlterColumn<DateTime>(
+                name: "LastModifiedAt",
+                table: "AIUseCaseScores",
+                type: "timestamp with time zone",
+                nullable: true,
+                oldClrType: typeof(string),
+                oldType: "TEXT",
+                oldNullable: true);
+
+            migrationBuilder.AlterColumn<int>(
+                name: "FeasibilityScore",
+                table: "AIUseCaseScores",
+                type: "integer",
+                nullable: false,
+                oldClrType: typeof(int),
+                oldType: "INTEGER");
+
+            migrationBuilder.AlterColumn<int>(
+                name: "DataReadinessScore",
+                table: "AIUseCaseScores",
+                type: "integer",
+                nullable: false,
+                oldClrType: typeof(int),
+                oldType: "INTEGER");
+
+            migrationBuilder.AlterColumn<DateTime>(
+                name: "CreatedAt",
+                table: "AIUseCaseScores",
+                type: "timestamp with time zone",
+                nullable: false,
+                oldClrType: typeof(string),
+                oldType: "TEXT");
+
+            migrationBuilder.AlterColumn<int>(
+                name: "AIUseCaseId",
+                table: "AIUseCaseScores",
+                type: "integer",
+                nullable: false,
+                oldClrType: typeof(int),
+                oldType: "INTEGER");
+
+            migrationBuilder.AlterColumn<int>(
+                name: "Id",
+                table: "AIUseCaseScores",
+                type: "integer",
+                nullable: false,
+                oldClrType: typeof(int),
+                oldType: "INTEGER")
+                .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "Title",
+                table: "AIUseCases",
+                type: "character varying(180)",
+                maxLength: 180,
+                nullable: false,
+                oldClrType: typeof(string),
+                oldType: "TEXT",
+                oldMaxLength: 180);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "TimeToValue",
+                table: "AIUseCases",
+                type: "character varying(80)",
+                maxLength: 80,
+                nullable: false,
+                oldClrType: typeof(string),
+                oldType: "TEXT",
+                oldMaxLength: 80);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "Status",
+                table: "AIUseCases",
+                type: "character varying(80)",
+                maxLength: 80,
+                nullable: false,
+                oldClrType: typeof(string),
+                oldType: "TEXT",
+                oldMaxLength: 80);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "RiskLevel",
+                table: "AIUseCases",
+                type: "character varying(80)",
+                maxLength: 80,
+                nullable: false,
+                oldClrType: typeof(string),
+                oldType: "TEXT",
+                oldMaxLength: 80);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "RequiredData",
+                table: "AIUseCases",
+                type: "text",
+                nullable: true,
+                oldClrType: typeof(string),
+                oldType: "TEXT",
+                oldNullable: true);
+
+            migrationBuilder.AlterColumn<DateTime>(
+                name: "LastModifiedAt",
+                table: "AIUseCases",
+                type: "timestamp with time zone",
+                nullable: true,
+                oldClrType: typeof(string),
+                oldType: "TEXT",
+                oldNullable: true);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "ImplementationComplexity",
+                table: "AIUseCases",
+                type: "character varying(80)",
+                maxLength: 80,
+                nullable: false,
+                oldClrType: typeof(string),
+                oldType: "TEXT",
+                oldMaxLength: 80);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "ExpectedBenefit",
+                table: "AIUseCases",
+                type: "text",
+                nullable: true,
+                oldClrType: typeof(string),
+                oldType: "TEXT",
+                oldNullable: true);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "Description",
+                table: "AIUseCases",
+                type: "text",
+                nullable: false,
+                oldClrType: typeof(string),
+                oldType: "TEXT");
+
+            migrationBuilder.AlterColumn<string>(
+                name: "Department",
+                table: "AIUseCases",
+                type: "character varying(120)",
+                maxLength: 120,
+                nullable: true,
+                oldClrType: typeof(string),
+                oldType: "TEXT",
+                oldMaxLength: 120,
+                oldNullable: true);
+
+            migrationBuilder.AlterColumn<DateTime>(
+                name: "CreatedAt",
+                table: "AIUseCases",
+                type: "timestamp with time zone",
+                nullable: false,
+                oldClrType: typeof(string),
+                oldType: "TEXT");
+
+            migrationBuilder.AlterColumn<int>(
+                name: "ClientCompanyId",
+                table: "AIUseCases",
+                type: "integer",
+                nullable: false,
+                oldClrType: typeof(int),
+                oldType: "INTEGER");
+
+            migrationBuilder.AlterColumn<string>(
+                name: "BusinessProblem",
+                table: "AIUseCases",
+                type: "text",
+                nullable: true,
+                oldClrType: typeof(string),
+                oldType: "TEXT",
+                oldNullable: true);
+
+            migrationBuilder.AlterColumn<int>(
+                name: "Id",
+                table: "AIUseCases",
+                type: "integer",
+                nullable: false,
+                oldClrType: typeof(int),
+                oldType: "INTEGER")
+                .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "Title",
+                table: "AIRoadmapItems",
+                type: "character varying(180)",
+                maxLength: 180,
+                nullable: false,
+                oldClrType: typeof(string),
+                oldType: "TEXT",
+                oldMaxLength: 180);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "Status",
+                table: "AIRoadmapItems",
+                type: "character varying(80)",
+                maxLength: 80,
+                nullable: false,
+                oldClrType: typeof(string),
+                oldType: "TEXT",
+                oldMaxLength: 80);
+
+            migrationBuilder.AlterColumn<int>(
+                name: "RelatedUseCaseId",
+                table: "AIRoadmapItems",
+                type: "integer",
+                nullable: true,
+                oldClrType: typeof(int),
+                oldType: "INTEGER",
+                oldNullable: true);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "Phase",
+                table: "AIRoadmapItems",
+                type: "character varying(80)",
+                maxLength: 80,
+                nullable: false,
+                oldClrType: typeof(string),
+                oldType: "TEXT",
+                oldMaxLength: 80);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "Owner",
+                table: "AIRoadmapItems",
+                type: "character varying(120)",
+                maxLength: 120,
+                nullable: true,
+                oldClrType: typeof(string),
+                oldType: "TEXT",
+                oldMaxLength: 120,
+                oldNullable: true);
+
+            migrationBuilder.AlterColumn<DateTime>(
+                name: "LastModifiedAt",
+                table: "AIRoadmapItems",
+                type: "timestamp with time zone",
+                nullable: true,
+                oldClrType: typeof(string),
+                oldType: "TEXT",
+                oldNullable: true);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "ExpectedOutcome",
+                table: "AIRoadmapItems",
+                type: "text",
+                nullable: true,
+                oldClrType: typeof(string),
+                oldType: "TEXT",
+                oldNullable: true);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "Description",
+                table: "AIRoadmapItems",
+                type: "text",
+                nullable: false,
+                oldClrType: typeof(string),
+                oldType: "TEXT");
+
+            migrationBuilder.AlterColumn<string>(
+                name: "Dependencies",
+                table: "AIRoadmapItems",
+                type: "text",
+                nullable: true,
+                oldClrType: typeof(string),
+                oldType: "TEXT",
+                oldNullable: true);
+
+            migrationBuilder.AlterColumn<DateTime>(
+                name: "CreatedAt",
+                table: "AIRoadmapItems",
+                type: "timestamp with time zone",
+                nullable: false,
+                oldClrType: typeof(string),
+                oldType: "TEXT");
+
+            migrationBuilder.AlterColumn<int>(
+                name: "ClientCompanyId",
+                table: "AIRoadmapItems",
+                type: "integer",
+                nullable: false,
+                oldClrType: typeof(int),
+                oldType: "INTEGER");
+
+            migrationBuilder.AlterColumn<int>(
+                name: "Id",
+                table: "AIRoadmapItems",
+                type: "integer",
+                nullable: false,
+                oldClrType: typeof(int),
+                oldType: "INTEGER")
+                .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn);
+
+            migrationBuilder.AlterColumn<int>(
+                name: "VersionNumber",
+                table: "AIAnalysisOutputs",
+                type: "integer",
+                nullable: false,
+                oldClrType: typeof(int),
+                oldType: "INTEGER");
+
+            migrationBuilder.AlterColumn<string>(
+                name: "Title",
+                table: "AIAnalysisOutputs",
+                type: "character varying(180)",
+                maxLength: 180,
+                nullable: false,
+                oldClrType: typeof(string),
+                oldType: "TEXT",
+                oldMaxLength: 180);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "Status",
+                table: "AIAnalysisOutputs",
+                type: "character varying(80)",
+                maxLength: 80,
+                nullable: false,
+                oldClrType: typeof(string),
+                oldType: "TEXT",
+                oldMaxLength: 80);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "OutputContent",
+                table: "AIAnalysisOutputs",
+                type: "text",
+                nullable: false,
+                oldClrType: typeof(string),
+                oldType: "TEXT");
+
+            migrationBuilder.AlterColumn<DateTime>(
+                name: "LastModifiedAt",
+                table: "AIAnalysisOutputs",
+                type: "timestamp with time zone",
+                nullable: true,
+                oldClrType: typeof(string),
+                oldType: "TEXT",
+                oldNullable: true);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "InputSummary",
+                table: "AIAnalysisOutputs",
+                type: "text",
+                nullable: true,
+                oldClrType: typeof(string),
+                oldType: "TEXT",
+                oldNullable: true);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "GeneratedBy",
+                table: "AIAnalysisOutputs",
+                type: "character varying(120)",
+                maxLength: 120,
+                nullable: true,
+                oldClrType: typeof(string),
+                oldType: "TEXT",
+                oldMaxLength: 120,
+                oldNullable: true);
+
+            migrationBuilder.AlterColumn<DateTime>(
+                name: "GeneratedAt",
+                table: "AIAnalysisOutputs",
+                type: "timestamp with time zone",
+                nullable: true,
+                oldClrType: typeof(string),
+                oldType: "TEXT",
+                oldNullable: true);
+
+            migrationBuilder.AlterColumn<DateTime>(
+                name: "CreatedAt",
+                table: "AIAnalysisOutputs",
+                type: "timestamp with time zone",
+                nullable: false,
+                oldClrType: typeof(string),
+                oldType: "TEXT");
+
+            migrationBuilder.AlterColumn<int>(
+                name: "ClientCompanyId",
+                table: "AIAnalysisOutputs",
+                type: "integer",
+                nullable: false,
+                oldClrType: typeof(int),
+                oldType: "INTEGER");
+
+            migrationBuilder.AlterColumn<string>(
+                name: "ApprovedBy",
+                table: "AIAnalysisOutputs",
+                type: "character varying(120)",
+                maxLength: 120,
+                nullable: true,
+                oldClrType: typeof(string),
+                oldType: "TEXT",
+                oldMaxLength: 120,
+                oldNullable: true);
+
+            migrationBuilder.AlterColumn<DateTime>(
+                name: "ApprovedAt",
+                table: "AIAnalysisOutputs",
+                type: "timestamp with time zone",
+                nullable: true,
+                oldClrType: typeof(string),
+                oldType: "TEXT",
+                oldNullable: true);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "AnalysisType",
+                table: "AIAnalysisOutputs",
+                type: "character varying(80)",
+                maxLength: 80,
+                nullable: false,
+                oldClrType: typeof(string),
+                oldType: "TEXT",
+                oldMaxLength: 80);
+
+            migrationBuilder.AlterColumn<int>(
+                name: "Id",
+                table: "AIAnalysisOutputs",
+                type: "integer",
+                nullable: false,
+                oldClrType: typeof(int),
+                oldType: "INTEGER")
+                .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn);
+        }
+
+        /// <inheritdoc />
+        protected override void Down(MigrationBuilder migrationBuilder)
+        {
+            if (!migrationBuilder.ActiveProvider.Contains("Npgsql", StringComparison.Ordinal))
+            {
+                return;
+            }
+
+            migrationBuilder.AlterColumn<string>(
+                name: "Status",
+                table: "SwotAnalysisItems",
+                type: "TEXT",
+                maxLength: 80,
+                nullable: false,
+                oldClrType: typeof(string),
+                oldType: "character varying(80)",
+                oldMaxLength: 80);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "LastModifiedAt",
+                table: "SwotAnalysisItems",
+                type: "TEXT",
+                nullable: true,
+                oldClrType: typeof(DateTime),
+                oldType: "timestamp with time zone",
+                oldNullable: true);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "EvidenceSource",
+                table: "SwotAnalysisItems",
+                type: "TEXT",
+                nullable: true,
+                oldClrType: typeof(string),
+                oldType: "text",
+                oldNullable: true);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "Description",
+                table: "SwotAnalysisItems",
+                type: "TEXT",
+                nullable: false,
+                oldClrType: typeof(string),
+                oldType: "text");
+
+            migrationBuilder.AlterColumn<string>(
+                name: "CreatedAt",
+                table: "SwotAnalysisItems",
+                type: "TEXT",
+                nullable: false,
+                oldClrType: typeof(DateTime),
+                oldType: "timestamp with time zone");
+
+            migrationBuilder.AlterColumn<string>(
+                name: "ConsultantComment",
+                table: "SwotAnalysisItems",
+                type: "TEXT",
+                nullable: true,
+                oldClrType: typeof(string),
+                oldType: "text",
+                oldNullable: true);
+
+            migrationBuilder.AlterColumn<int>(
+                name: "ClientCompanyId",
+                table: "SwotAnalysisItems",
+                type: "INTEGER",
+                nullable: false,
+                oldClrType: typeof(int),
+                oldType: "integer");
+
+            migrationBuilder.AlterColumn<string>(
+                name: "Category",
+                table: "SwotAnalysisItems",
+                type: "TEXT",
+                maxLength: 80,
+                nullable: false,
+                oldClrType: typeof(string),
+                oldType: "character varying(80)",
+                oldMaxLength: 80);
+
+            migrationBuilder.AlterColumn<int>(
+                name: "Id",
+                table: "SwotAnalysisItems",
+                type: "INTEGER",
+                nullable: false,
+                oldClrType: typeof(int),
+                oldType: "integer")
+                .OldAnnotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "SectionTitle",
+                table: "ReportSections",
+                type: "TEXT",
+                maxLength: 180,
+                nullable: false,
+                oldClrType: typeof(string),
+                oldType: "character varying(180)",
+                oldMaxLength: 180);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "SectionStatus",
+                table: "ReportSections",
+                type: "TEXT",
+                maxLength: 80,
+                nullable: false,
+                oldClrType: typeof(string),
+                oldType: "character varying(80)",
+                oldMaxLength: 80);
+
+            migrationBuilder.AlterColumn<int>(
+                name: "SectionOrder",
+                table: "ReportSections",
+                type: "INTEGER",
+                nullable: false,
+                oldClrType: typeof(int),
+                oldType: "integer");
+
+            migrationBuilder.AlterColumn<string>(
+                name: "SectionContent",
+                table: "ReportSections",
+                type: "TEXT",
+                nullable: true,
+                oldClrType: typeof(string),
+                oldType: "text",
+                oldNullable: true);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "LastModifiedAt",
+                table: "ReportSections",
+                type: "TEXT",
+                nullable: true,
+                oldClrType: typeof(DateTime),
+                oldType: "timestamp with time zone",
+                oldNullable: true);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "CreatedAt",
+                table: "ReportSections",
+                type: "TEXT",
+                nullable: false,
+                oldClrType: typeof(DateTime),
+                oldType: "timestamp with time zone");
+
+            migrationBuilder.AlterColumn<int>(
+                name: "ClientReportId",
+                table: "ReportSections",
+                type: "INTEGER",
+                nullable: false,
+                oldClrType: typeof(int),
+                oldType: "integer");
+
+            migrationBuilder.AlterColumn<int>(
+                name: "Id",
+                table: "ReportSections",
+                type: "INTEGER",
+                nullable: false,
+                oldClrType: typeof(int),
+                oldType: "integer")
+                .OldAnnotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn);
+
+            migrationBuilder.AlterColumn<int>(
+                name: "TechnologyReadinessScore",
+                table: "ReadinessScores",
+                type: "INTEGER",
+                nullable: false,
+                oldClrType: typeof(int),
+                oldType: "integer");
+
+            migrationBuilder.AlterColumn<string>(
+                name: "ScoringSummary",
+                table: "ReadinessScores",
+                type: "TEXT",
+                nullable: true,
+                oldClrType: typeof(string),
+                oldType: "text",
+                oldNullable: true);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "ScoreCategory",
+                table: "ReadinessScores",
+                type: "TEXT",
+                maxLength: 80,
+                nullable: false,
+                oldClrType: typeof(string),
+                oldType: "character varying(80)",
+                oldMaxLength: 80);
+
+            migrationBuilder.AlterColumn<int>(
+                name: "ProcessReadinessScore",
+                table: "ReadinessScores",
+                type: "INTEGER",
+                nullable: false,
+                oldClrType: typeof(int),
+                oldType: "integer");
+
+            migrationBuilder.AlterColumn<int>(
+                name: "PeopleGovernanceScore",
+                table: "ReadinessScores",
+                type: "INTEGER",
+                nullable: false,
+                oldClrType: typeof(int),
+                oldType: "integer");
+
+            migrationBuilder.AlterColumn<int>(
+                name: "OverallScore",
+                table: "ReadinessScores",
+                type: "INTEGER",
+                nullable: false,
+                oldClrType: typeof(int),
+                oldType: "integer");
+
+            migrationBuilder.AlterColumn<string>(
+                name: "LastModifiedAt",
+                table: "ReadinessScores",
+                type: "TEXT",
+                nullable: true,
+                oldClrType: typeof(DateTime),
+                oldType: "timestamp with time zone",
+                oldNullable: true);
+
+            migrationBuilder.AlterColumn<int>(
+                name: "DataReadinessScore",
+                table: "ReadinessScores",
+                type: "INTEGER",
+                nullable: false,
+                oldClrType: typeof(int),
+                oldType: "integer");
+
+            migrationBuilder.AlterColumn<string>(
+                name: "CreatedAt",
+                table: "ReadinessScores",
+                type: "TEXT",
+                nullable: false,
+                oldClrType: typeof(DateTime),
+                oldType: "timestamp with time zone");
+
+            migrationBuilder.AlterColumn<int>(
+                name: "ClientCompanyId",
+                table: "ReadinessScores",
+                type: "INTEGER",
+                nullable: false,
+                oldClrType: typeof(int),
+                oldType: "integer");
+
+            migrationBuilder.AlterColumn<int>(
+                name: "BusinessClarityScore",
+                table: "ReadinessScores",
+                type: "INTEGER",
+                nullable: false,
+                oldClrType: typeof(int),
+                oldType: "integer");
+
+            migrationBuilder.AlterColumn<int>(
+                name: "Id",
+                table: "ReadinessScores",
+                type: "INTEGER",
+                nullable: false,
+                oldClrType: typeof(int),
+                oldType: "integer")
+                .OldAnnotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "WebhookSecret",
+                table: "ReadinessFormSettings",
+                type: "TEXT",
+                maxLength: 240,
+                nullable: true,
+                oldClrType: typeof(string),
+                oldType: "character varying(240)",
+                oldMaxLength: 240,
+                oldNullable: true);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "LastModifiedAt",
+                table: "ReadinessFormSettings",
+                type: "TEXT",
+                nullable: true,
+                oldClrType: typeof(DateTime),
+                oldType: "timestamp with time zone",
+                oldNullable: true);
+
+            migrationBuilder.AlterColumn<int>(
+                name: "IsActive",
+                table: "ReadinessFormSettings",
+                type: "INTEGER",
+                nullable: false,
+                oldClrType: typeof(bool),
+                oldType: "boolean");
+
+            migrationBuilder.AlterColumn<string>(
+                name: "EmailSubjectTemplate",
+                table: "ReadinessFormSettings",
+                type: "TEXT",
+                maxLength: 240,
+                nullable: false,
+                oldClrType: typeof(string),
+                oldType: "character varying(240)",
+                oldMaxLength: 240);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "EmailBodyTemplate",
+                table: "ReadinessFormSettings",
+                type: "TEXT",
+                nullable: false,
+                oldClrType: typeof(string),
+                oldType: "text");
+
+            migrationBuilder.AlterColumn<string>(
+                name: "DefaultFormUrl",
+                table: "ReadinessFormSettings",
+                type: "TEXT",
+                maxLength: 1000,
+                nullable: true,
+                oldClrType: typeof(string),
+                oldType: "character varying(1000)",
+                oldMaxLength: 1000,
+                oldNullable: true);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "CreatedAt",
+                table: "ReadinessFormSettings",
+                type: "TEXT",
+                nullable: false,
+                oldClrType: typeof(DateTime),
+                oldType: "timestamp with time zone");
+
+            migrationBuilder.AlterColumn<string>(
+                name: "ClientReferenceEntryId",
+                table: "ReadinessFormSettings",
+                type: "TEXT",
+                maxLength: 120,
+                nullable: true,
+                oldClrType: typeof(string),
+                oldType: "character varying(120)",
+                oldMaxLength: 120,
+                oldNullable: true);
+
+            migrationBuilder.AlterColumn<int>(
+                name: "Id",
+                table: "ReadinessFormSettings",
+                type: "INTEGER",
+                nullable: false,
+                oldClrType: typeof(int),
+                oldType: "integer")
+                .OldAnnotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "Summary",
+                table: "ReadinessAssessments",
+                type: "TEXT",
+                nullable: true,
+                oldClrType: typeof(string),
+                oldType: "text",
+                oldNullable: true);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "SentToEmail",
+                table: "ReadinessAssessments",
+                type: "TEXT",
+                maxLength: 160,
+                nullable: true,
+                oldClrType: typeof(string),
+                oldType: "character varying(160)",
+                oldMaxLength: 160,
+                oldNullable: true);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "SentAt",
+                table: "ReadinessAssessments",
+                type: "TEXT",
+                nullable: true,
+                oldClrType: typeof(DateTime),
+                oldType: "timestamp with time zone",
+                oldNullable: true);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "ResponseReceivedAt",
+                table: "ReadinessAssessments",
+                type: "TEXT",
+                nullable: true,
+                oldClrType: typeof(DateTime),
+                oldType: "timestamp with time zone",
+                oldNullable: true);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "RawResponseJson",
+                table: "ReadinessAssessments",
+                type: "TEXT",
+                nullable: true,
+                oldClrType: typeof(string),
+                oldType: "text",
+                oldNullable: true);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "LastReminderSentAt",
+                table: "ReadinessAssessments",
+                type: "TEXT",
+                nullable: true,
+                oldClrType: typeof(DateTime),
+                oldType: "timestamp with time zone",
+                oldNullable: true);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "LastModifiedAt",
+                table: "ReadinessAssessments",
+                type: "TEXT",
+                nullable: true,
+                oldClrType: typeof(DateTime),
+                oldType: "timestamp with time zone",
+                oldNullable: true);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "ImportedAt",
+                table: "ReadinessAssessments",
+                type: "TEXT",
+                nullable: true,
+                oldClrType: typeof(DateTime),
+                oldType: "timestamp with time zone",
+                oldNullable: true);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "GeneratedFormUrl",
+                table: "ReadinessAssessments",
+                type: "TEXT",
+                maxLength: 1200,
+                nullable: true,
+                oldClrType: typeof(string),
+                oldType: "character varying(1200)",
+                oldMaxLength: 1200,
+                oldNullable: true);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "FormUrl",
+                table: "ReadinessAssessments",
+                type: "TEXT",
+                maxLength: 500,
+                nullable: true,
+                oldClrType: typeof(string),
+                oldType: "character varying(500)",
+                oldMaxLength: 500,
+                oldNullable: true);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "FormStatus",
+                table: "ReadinessAssessments",
+                type: "TEXT",
+                maxLength: 80,
+                nullable: false,
+                oldClrType: typeof(string),
+                oldType: "character varying(80)",
+                oldMaxLength: 80);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "ExternalResponseId",
+                table: "ReadinessAssessments",
+                type: "TEXT",
+                maxLength: 180,
+                nullable: true,
+                oldClrType: typeof(string),
+                oldType: "character varying(180)",
+                oldMaxLength: 180,
+                oldNullable: true);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "CustomFormUrl",
+                table: "ReadinessAssessments",
+                type: "TEXT",
+                maxLength: 1000,
+                nullable: true,
+                oldClrType: typeof(string),
+                oldType: "character varying(1000)",
+                oldMaxLength: 1000,
+                oldNullable: true);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "CreatedAt",
+                table: "ReadinessAssessments",
+                type: "TEXT",
+                nullable: false,
+                oldClrType: typeof(DateTime),
+                oldType: "timestamp with time zone");
+
+            migrationBuilder.AlterColumn<string>(
+                name: "CompletedAt",
+                table: "ReadinessAssessments",
+                type: "TEXT",
+                nullable: true,
+                oldClrType: typeof(DateTime),
+                oldType: "timestamp with time zone",
+                oldNullable: true);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "ClientToken",
+                table: "ReadinessAssessments",
+                type: "TEXT",
+                maxLength: 80,
+                nullable: true,
+                oldClrType: typeof(string),
+                oldType: "character varying(80)",
+                oldMaxLength: 80,
+                oldNullable: true);
+
+            migrationBuilder.AlterColumn<int>(
+                name: "ClientCompanyId",
+                table: "ReadinessAssessments",
+                type: "INTEGER",
+                nullable: false,
+                oldClrType: typeof(int),
+                oldType: "integer");
+
+            migrationBuilder.AlterColumn<int>(
+                name: "Id",
+                table: "ReadinessAssessments",
+                type: "INTEGER",
+                nullable: false,
+                oldClrType: typeof(int),
+                oldType: "integer")
+                .OldAnnotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "TranscriptText",
+                table: "MeetingTranscripts",
+                type: "TEXT",
+                nullable: false,
+                oldClrType: typeof(string),
+                oldType: "text");
+
+            migrationBuilder.AlterColumn<string>(
+                name: "Summary",
+                table: "MeetingTranscripts",
+                type: "TEXT",
+                nullable: true,
+                oldClrType: typeof(string),
+                oldType: "text",
+                oldNullable: true);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "SessionTitle",
+                table: "MeetingTranscripts",
+                type: "TEXT",
+                maxLength: 180,
+                nullable: false,
+                oldClrType: typeof(string),
+                oldType: "character varying(180)",
+                oldMaxLength: 180);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "SessionDate",
+                table: "MeetingTranscripts",
+                type: "TEXT",
+                nullable: false,
+                oldClrType: typeof(DateTime),
+                oldType: "timestamp with time zone");
+
+            migrationBuilder.AlterColumn<string>(
+                name: "KeyDecisions",
+                table: "MeetingTranscripts",
+                type: "TEXT",
+                nullable: true,
+                oldClrType: typeof(string),
+                oldType: "text",
+                oldNullable: true);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "FollowUpQuestions",
+                table: "MeetingTranscripts",
+                type: "TEXT",
+                nullable: true,
+                oldClrType: typeof(string),
+                oldType: "text",
+                oldNullable: true);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "CreatedBy",
+                table: "MeetingTranscripts",
+                type: "TEXT",
+                maxLength: 120,
+                nullable: true,
+                oldClrType: typeof(string),
+                oldType: "character varying(120)",
+                oldMaxLength: 120,
+                oldNullable: true);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "CreatedAt",
+                table: "MeetingTranscripts",
+                type: "TEXT",
+                nullable: false,
+                oldClrType: typeof(DateTime),
+                oldType: "timestamp with time zone");
+
+            migrationBuilder.AlterColumn<int>(
+                name: "ClientCompanyId",
+                table: "MeetingTranscripts",
+                type: "INTEGER",
+                nullable: false,
+                oldClrType: typeof(int),
+                oldType: "integer");
+
+            migrationBuilder.AlterColumn<int>(
+                name: "Id",
+                table: "MeetingTranscripts",
+                type: "INTEGER",
+                nullable: false,
+                oldClrType: typeof(int),
+                oldType: "integer")
+                .OldAnnotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "Topic",
+                table: "IndustryInsights",
+                type: "TEXT",
+                maxLength: 180,
+                nullable: false,
+                oldClrType: typeof(string),
+                oldType: "character varying(180)",
+                oldMaxLength: 180);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "Status",
+                table: "IndustryInsights",
+                type: "TEXT",
+                maxLength: 80,
+                nullable: false,
+                oldClrType: typeof(string),
+                oldType: "character varying(80)",
+                oldMaxLength: 80);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "SourceType",
+                table: "IndustryInsights",
+                type: "TEXT",
+                maxLength: 80,
+                nullable: false,
+                oldClrType: typeof(string),
+                oldType: "character varying(80)",
+                oldMaxLength: 80);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "Relevance",
+                table: "IndustryInsights",
+                type: "TEXT",
+                nullable: true,
+                oldClrType: typeof(string),
+                oldType: "text",
+                oldNullable: true);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "InsightText",
+                table: "IndustryInsights",
+                type: "TEXT",
+                nullable: false,
+                oldClrType: typeof(string),
+                oldType: "text");
+
+            migrationBuilder.AlterColumn<string>(
+                name: "CreatedAt",
+                table: "IndustryInsights",
+                type: "TEXT",
+                nullable: false,
+                oldClrType: typeof(DateTime),
+                oldType: "timestamp with time zone");
+
+            migrationBuilder.AlterColumn<int>(
+                name: "ClientCompanyId",
+                table: "IndustryInsights",
+                type: "INTEGER",
+                nullable: false,
+                oldClrType: typeof(int),
+                oldType: "integer");
+
+            migrationBuilder.AlterColumn<int>(
+                name: "Id",
+                table: "IndustryInsights",
+                type: "INTEGER",
+                nullable: false,
+                oldClrType: typeof(int),
+                oldType: "integer")
+                .OldAnnotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "SuggestedFollowUpQuestion",
+                table: "GapAnalysisItems",
+                type: "TEXT",
+                nullable: true,
+                oldClrType: typeof(string),
+                oldType: "text",
+                oldNullable: true);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "SuggestedAction",
+                table: "GapAnalysisItems",
+                type: "TEXT",
+                nullable: true,
+                oldClrType: typeof(string),
+                oldType: "text",
+                oldNullable: true);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "Status",
+                table: "GapAnalysisItems",
+                type: "TEXT",
+                maxLength: 80,
+                nullable: false,
+                oldClrType: typeof(string),
+                oldType: "character varying(80)",
+                oldMaxLength: 80);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "Severity",
+                table: "GapAnalysisItems",
+                type: "TEXT",
+                maxLength: 80,
+                nullable: false,
+                oldClrType: typeof(string),
+                oldType: "character varying(80)",
+                oldMaxLength: 80);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "LastModifiedAt",
+                table: "GapAnalysisItems",
+                type: "TEXT",
+                nullable: true,
+                oldClrType: typeof(DateTime),
+                oldType: "timestamp with time zone",
+                oldNullable: true);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "IssueDescription",
+                table: "GapAnalysisItems",
+                type: "TEXT",
+                nullable: false,
+                oldClrType: typeof(string),
+                oldType: "text");
+
+            migrationBuilder.AlterColumn<string>(
+                name: "Impact",
+                table: "GapAnalysisItems",
+                type: "TEXT",
+                nullable: true,
+                oldClrType: typeof(string),
+                oldType: "text",
+                oldNullable: true);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "GapArea",
+                table: "GapAnalysisItems",
+                type: "TEXT",
+                maxLength: 80,
+                nullable: false,
+                oldClrType: typeof(string),
+                oldType: "character varying(80)",
+                oldMaxLength: 80);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "CreatedAt",
+                table: "GapAnalysisItems",
+                type: "TEXT",
+                nullable: false,
+                oldClrType: typeof(DateTime),
+                oldType: "timestamp with time zone");
+
+            migrationBuilder.AlterColumn<int>(
+                name: "ClientCompanyId",
+                table: "GapAnalysisItems",
+                type: "INTEGER",
+                nullable: false,
+                oldClrType: typeof(int),
+                oldType: "integer");
+
+            migrationBuilder.AlterColumn<int>(
+                name: "Id",
+                table: "GapAnalysisItems",
+                type: "INTEGER",
+                nullable: false,
+                oldClrType: typeof(int),
+                oldType: "integer")
+                .OldAnnotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "NoteType",
+                table: "ConsultantNotes",
+                type: "TEXT",
+                maxLength: 80,
+                nullable: false,
+                oldClrType: typeof(string),
+                oldType: "character varying(80)",
+                oldMaxLength: 80);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "NoteTitle",
+                table: "ConsultantNotes",
+                type: "TEXT",
+                maxLength: 180,
+                nullable: false,
+                oldClrType: typeof(string),
+                oldType: "character varying(180)",
+                oldMaxLength: 180);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "NoteText",
+                table: "ConsultantNotes",
+                type: "TEXT",
+                nullable: false,
+                oldClrType: typeof(string),
+                oldType: "text");
+
+            migrationBuilder.AlterColumn<string>(
+                name: "LastModifiedAt",
+                table: "ConsultantNotes",
+                type: "TEXT",
+                nullable: true,
+                oldClrType: typeof(DateTime),
+                oldType: "timestamp with time zone",
+                oldNullable: true);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "CreatedBy",
+                table: "ConsultantNotes",
+                type: "TEXT",
+                maxLength: 120,
+                nullable: true,
+                oldClrType: typeof(string),
+                oldType: "character varying(120)",
+                oldMaxLength: 120,
+                oldNullable: true);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "CreatedAt",
+                table: "ConsultantNotes",
+                type: "TEXT",
+                nullable: false,
+                oldClrType: typeof(DateTime),
+                oldType: "timestamp with time zone");
+
+            migrationBuilder.AlterColumn<int>(
+                name: "ClientCompanyId",
+                table: "ConsultantNotes",
+                type: "INTEGER",
+                nullable: false,
+                oldClrType: typeof(int),
+                oldType: "integer");
+
+            migrationBuilder.AlterColumn<int>(
+                name: "Id",
+                table: "ConsultantNotes",
+                type: "INTEGER",
+                nullable: false,
+                oldClrType: typeof(int),
+                oldType: "integer")
+                .OldAnnotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "WebsiteUrl",
+                table: "CompetitorInsights",
+                type: "TEXT",
+                maxLength: 240,
+                nullable: true,
+                oldClrType: typeof(string),
+                oldType: "character varying(240)",
+                oldMaxLength: 240,
+                oldNullable: true);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "WeaknessComparedToClient",
+                table: "CompetitorInsights",
+                type: "TEXT",
+                nullable: true,
+                oldClrType: typeof(string),
+                oldType: "text",
+                oldNullable: true);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "StrengthComparedToClient",
+                table: "CompetitorInsights",
+                type: "TEXT",
+                nullable: true,
+                oldClrType: typeof(string),
+                oldType: "text",
+                oldNullable: true);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "Status",
+                table: "CompetitorInsights",
+                type: "TEXT",
+                maxLength: 80,
+                nullable: false,
+                oldClrType: typeof(string),
+                oldType: "character varying(80)",
+                oldMaxLength: 80);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "SourceNotes",
+                table: "CompetitorInsights",
+                type: "TEXT",
+                nullable: true,
+                oldClrType: typeof(string),
+                oldType: "text",
+                oldNullable: true);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "InsightText",
+                table: "CompetitorInsights",
+                type: "TEXT",
+                nullable: false,
+                oldClrType: typeof(string),
+                oldType: "text");
+
+            migrationBuilder.AlterColumn<string>(
+                name: "CreatedAt",
+                table: "CompetitorInsights",
+                type: "TEXT",
+                nullable: false,
+                oldClrType: typeof(DateTime),
+                oldType: "timestamp with time zone");
+
+            migrationBuilder.AlterColumn<string>(
+                name: "CompetitorName",
+                table: "CompetitorInsights",
+                type: "TEXT",
+                maxLength: 180,
+                nullable: false,
+                oldClrType: typeof(string),
+                oldType: "character varying(180)",
+                oldMaxLength: 180);
+
+            migrationBuilder.AlterColumn<int>(
+                name: "ClientCompanyId",
+                table: "CompetitorInsights",
+                type: "INTEGER",
+                nullable: false,
+                oldClrType: typeof(int),
+                oldType: "integer");
+
+            migrationBuilder.AlterColumn<string>(
+                name: "AiUseCasesObserved",
+                table: "CompetitorInsights",
+                type: "TEXT",
+                nullable: true,
+                oldClrType: typeof(string),
+                oldType: "text",
+                oldNullable: true);
+
+            migrationBuilder.AlterColumn<int>(
+                name: "Id",
+                table: "CompetitorInsights",
+                type: "INTEGER",
+                nullable: false,
+                oldClrType: typeof(int),
+                oldType: "integer")
+                .OldAnnotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "Status",
+                table: "ClientWorkflowSteps",
+                type: "TEXT",
+                maxLength: 80,
+                nullable: false,
+                oldClrType: typeof(string),
+                oldType: "character varying(80)",
+                oldMaxLength: 80);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "StageName",
+                table: "ClientWorkflowSteps",
+                type: "TEXT",
+                maxLength: 120,
+                nullable: false,
+                oldClrType: typeof(string),
+                oldType: "character varying(120)",
+                oldMaxLength: 120);
+
+            migrationBuilder.AlterColumn<int>(
+                name: "DisplayOrder",
+                table: "ClientWorkflowSteps",
+                type: "INTEGER",
+                nullable: false,
+                oldClrType: typeof(int),
+                oldType: "integer");
+
+            migrationBuilder.AlterColumn<string>(
+                name: "CompletedAt",
+                table: "ClientWorkflowSteps",
+                type: "TEXT",
+                nullable: true,
+                oldClrType: typeof(DateTime),
+                oldType: "timestamp with time zone",
+                oldNullable: true);
+
+            migrationBuilder.AlterColumn<int>(
+                name: "ClientCompanyId",
+                table: "ClientWorkflowSteps",
+                type: "INTEGER",
+                nullable: false,
+                oldClrType: typeof(int),
+                oldType: "integer");
+
+            migrationBuilder.AlterColumn<int>(
+                name: "Id",
+                table: "ClientWorkflowSteps",
+                type: "INTEGER",
+                nullable: false,
+                oldClrType: typeof(int),
+                oldType: "integer")
+                .OldAnnotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "TaskType",
+                table: "ClientTasks",
+                type: "TEXT",
+                maxLength: 80,
+                nullable: false,
+                oldClrType: typeof(string),
+                oldType: "character varying(80)",
+                oldMaxLength: 80);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "TaskTitle",
+                table: "ClientTasks",
+                type: "TEXT",
+                maxLength: 180,
+                nullable: false,
+                oldClrType: typeof(string),
+                oldType: "character varying(180)",
+                oldMaxLength: 180);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "TaskDescription",
+                table: "ClientTasks",
+                type: "TEXT",
+                nullable: true,
+                oldClrType: typeof(string),
+                oldType: "text",
+                oldNullable: true);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "Status",
+                table: "ClientTasks",
+                type: "TEXT",
+                maxLength: 80,
+                nullable: false,
+                oldClrType: typeof(string),
+                oldType: "character varying(80)",
+                oldMaxLength: 80);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "Priority",
+                table: "ClientTasks",
+                type: "TEXT",
+                maxLength: 80,
+                nullable: false,
+                oldClrType: typeof(string),
+                oldType: "character varying(80)",
+                oldMaxLength: 80);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "LastModifiedAt",
+                table: "ClientTasks",
+                type: "TEXT",
+                nullable: true,
+                oldClrType: typeof(DateTime),
+                oldType: "timestamp with time zone",
+                oldNullable: true);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "DueDate",
+                table: "ClientTasks",
+                type: "TEXT",
+                nullable: true,
+                oldClrType: typeof(DateTime),
+                oldType: "timestamp with time zone",
+                oldNullable: true);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "CreatedAt",
+                table: "ClientTasks",
+                type: "TEXT",
+                nullable: false,
+                oldClrType: typeof(DateTime),
+                oldType: "timestamp with time zone");
+
+            migrationBuilder.AlterColumn<int>(
+                name: "ClientCompanyId",
+                table: "ClientTasks",
+                type: "INTEGER",
+                nullable: false,
+                oldClrType: typeof(int),
+                oldType: "integer");
+
+            migrationBuilder.AlterColumn<string>(
+                name: "AssignedTo",
+                table: "ClientTasks",
+                type: "TEXT",
+                maxLength: 120,
+                nullable: true,
+                oldClrType: typeof(string),
+                oldType: "character varying(120)",
+                oldMaxLength: 120,
+                oldNullable: true);
+
+            migrationBuilder.AlterColumn<int>(
+                name: "Id",
+                table: "ClientTasks",
+                type: "INTEGER",
+                nullable: false,
+                oldClrType: typeof(int),
+                oldType: "integer")
+                .OldAnnotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn);
+
+            migrationBuilder.AlterColumn<int>(
+                name: "VersionNumber",
+                table: "ClientReports",
+                type: "INTEGER",
+                nullable: false,
+                oldClrType: typeof(int),
+                oldType: "integer");
+
+            migrationBuilder.AlterColumn<string>(
+                name: "ReviewedAt",
+                table: "ClientReports",
+                type: "TEXT",
+                nullable: true,
+                oldClrType: typeof(DateTime),
+                oldType: "timestamp with time zone",
+                oldNullable: true);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "ReportTitle",
+                table: "ClientReports",
+                type: "TEXT",
+                maxLength: 220,
+                nullable: false,
+                oldClrType: typeof(string),
+                oldType: "character varying(220)",
+                oldMaxLength: 220);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "ReportStatus",
+                table: "ClientReports",
+                type: "TEXT",
+                maxLength: 80,
+                nullable: false,
+                oldClrType: typeof(string),
+                oldType: "character varying(80)",
+                oldMaxLength: 80);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "LastModifiedAt",
+                table: "ClientReports",
+                type: "TEXT",
+                nullable: true,
+                oldClrType: typeof(DateTime),
+                oldType: "timestamp with time zone",
+                oldNullable: true);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "GeneratedAt",
+                table: "ClientReports",
+                type: "TEXT",
+                nullable: true,
+                oldClrType: typeof(DateTime),
+                oldType: "timestamp with time zone",
+                oldNullable: true);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "FinalReportContent",
+                table: "ClientReports",
+                type: "TEXT",
+                nullable: true,
+                oldClrType: typeof(string),
+                oldType: "text",
+                oldNullable: true);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "DeliveredAt",
+                table: "ClientReports",
+                type: "TEXT",
+                nullable: true,
+                oldClrType: typeof(DateTime),
+                oldType: "timestamp with time zone",
+                oldNullable: true);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "CreatedAt",
+                table: "ClientReports",
+                type: "TEXT",
+                nullable: false,
+                oldClrType: typeof(DateTime),
+                oldType: "timestamp with time zone");
+
+            migrationBuilder.AlterColumn<int>(
+                name: "ClientCompanyId",
+                table: "ClientReports",
+                type: "INTEGER",
+                nullable: false,
+                oldClrType: typeof(int),
+                oldType: "integer");
+
+            migrationBuilder.AlterColumn<int>(
+                name: "Id",
+                table: "ClientReports",
+                type: "INTEGER",
+                nullable: false,
+                oldClrType: typeof(int),
+                oldType: "integer")
+                .OldAnnotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn);
+
+            migrationBuilder.AlterColumn<int>(
+                name: "UsedInReport",
+                table: "ClientDocuments",
+                type: "INTEGER",
+                nullable: false,
+                oldClrType: typeof(bool),
+                oldType: "boolean");
+
+            migrationBuilder.AlterColumn<string>(
+                name: "UploadedBy",
+                table: "ClientDocuments",
+                type: "TEXT",
+                maxLength: 120,
+                nullable: true,
+                oldClrType: typeof(string),
+                oldType: "character varying(120)",
+                oldMaxLength: 120,
+                oldNullable: true);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "UploadedAt",
+                table: "ClientDocuments",
+                type: "TEXT",
+                nullable: false,
+                oldClrType: typeof(DateTime),
+                oldType: "timestamp with time zone");
+
+            migrationBuilder.AlterColumn<string>(
+                name: "KeyInsights",
+                table: "ClientDocuments",
+                type: "TEXT",
+                nullable: true,
+                oldClrType: typeof(string),
+                oldType: "text",
+                oldNullable: true);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "FilePath",
+                table: "ClientDocuments",
+                type: "TEXT",
+                maxLength: 500,
+                nullable: true,
+                oldClrType: typeof(string),
+                oldType: "character varying(500)",
+                oldMaxLength: 500,
+                oldNullable: true);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "FileName",
+                table: "ClientDocuments",
+                type: "TEXT",
+                maxLength: 240,
+                nullable: false,
+                oldClrType: typeof(string),
+                oldType: "character varying(240)",
+                oldMaxLength: 240);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "DocumentType",
+                table: "ClientDocuments",
+                type: "TEXT",
+                maxLength: 80,
+                nullable: false,
+                oldClrType: typeof(string),
+                oldType: "character varying(80)",
+                oldMaxLength: 80);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "Description",
+                table: "ClientDocuments",
+                type: "TEXT",
+                nullable: true,
+                oldClrType: typeof(string),
+                oldType: "text",
+                oldNullable: true);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "CreatedAt",
+                table: "ClientDocuments",
+                type: "TEXT",
+                nullable: false,
+                oldClrType: typeof(DateTime),
+                oldType: "timestamp with time zone");
+
+            migrationBuilder.AlterColumn<int>(
+                name: "ClientCompanyId",
+                table: "ClientDocuments",
+                type: "INTEGER",
+                nullable: false,
+                oldClrType: typeof(int),
+                oldType: "integer");
+
+            migrationBuilder.AlterColumn<string>(
+                name: "AiSummary",
+                table: "ClientDocuments",
+                type: "TEXT",
+                nullable: true,
+                oldClrType: typeof(string),
+                oldType: "text",
+                oldNullable: true);
+
+            migrationBuilder.AlterColumn<int>(
+                name: "Id",
+                table: "ClientDocuments",
+                type: "INTEGER",
+                nullable: false,
+                oldClrType: typeof(int),
+                oldType: "integer")
+                .OldAnnotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "WebsiteUrl",
+                table: "ClientCompanies",
+                type: "TEXT",
+                maxLength: 240,
+                nullable: true,
+                oldClrType: typeof(string),
+                oldType: "character varying(240)",
+                oldMaxLength: 240,
+                oldNullable: true);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "RevenueRange",
+                table: "ClientCompanies",
+                type: "TEXT",
+                maxLength: 80,
+                nullable: true,
+                oldClrType: typeof(string),
+                oldType: "character varying(80)",
+                oldMaxLength: 80,
+                oldNullable: true);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "Region",
+                table: "ClientCompanies",
+                type: "TEXT",
+                maxLength: 80,
+                nullable: true,
+                oldClrType: typeof(string),
+                oldType: "character varying(80)",
+                oldMaxLength: 80,
+                oldNullable: true);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "Priority",
+                table: "ClientCompanies",
+                type: "TEXT",
+                maxLength: 80,
+                nullable: false,
+                oldClrType: typeof(string),
+                oldType: "character varying(80)",
+                oldMaxLength: 80);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "OverallReadinessScore",
+                table: "ClientCompanies",
+                type: "TEXT",
+                precision: 5,
+                scale: 2,
+                nullable: true,
+                oldClrType: typeof(decimal),
+                oldType: "numeric(5,2)",
+                oldPrecision: 5,
+                oldScale: 2,
+                oldNullable: true);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "NextAction",
+                table: "ClientCompanies",
+                type: "TEXT",
+                maxLength: 240,
+                nullable: true,
+                oldClrType: typeof(string),
+                oldType: "character varying(240)",
+                oldMaxLength: 240,
+                oldNullable: true);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "LastModifiedBy",
+                table: "ClientCompanies",
+                type: "TEXT",
+                maxLength: 120,
+                nullable: true,
+                oldClrType: typeof(string),
+                oldType: "character varying(120)",
+                oldMaxLength: 120,
+                oldNullable: true);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "LastModifiedAt",
+                table: "ClientCompanies",
+                type: "TEXT",
+                nullable: true,
+                oldClrType: typeof(DateTime),
+                oldType: "timestamp with time zone",
+                oldNullable: true);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "KeyRisksSummary",
+                table: "ClientCompanies",
+                type: "TEXT",
+                nullable: true,
+                oldClrType: typeof(string),
+                oldType: "text",
+                oldNullable: true);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "Industry",
+                table: "ClientCompanies",
+                type: "TEXT",
+                maxLength: 120,
+                nullable: true,
+                oldClrType: typeof(string),
+                oldType: "character varying(120)",
+                oldMaxLength: 120,
+                oldNullable: true);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "CurrentStage",
+                table: "ClientCompanies",
+                type: "TEXT",
+                maxLength: 80,
+                nullable: false,
+                oldClrType: typeof(string),
+                oldType: "character varying(80)",
+                oldMaxLength: 80);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "CreatedBy",
+                table: "ClientCompanies",
+                type: "TEXT",
+                maxLength: 120,
+                nullable: true,
+                oldClrType: typeof(string),
+                oldType: "character varying(120)",
+                oldMaxLength: 120,
+                oldNullable: true);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "CreatedAt",
+                table: "ClientCompanies",
+                type: "TEXT",
+                nullable: false,
+                oldClrType: typeof(DateTime),
+                oldType: "timestamp with time zone");
+
+            migrationBuilder.AlterColumn<string>(
+                name: "Country",
+                table: "ClientCompanies",
+                type: "TEXT",
+                maxLength: 80,
+                nullable: true,
+                oldClrType: typeof(string),
+                oldType: "character varying(80)",
+                oldMaxLength: 80,
+                oldNullable: true);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "ContactPersonPhone",
+                table: "ClientCompanies",
+                type: "TEXT",
+                maxLength: 80,
+                nullable: true,
+                oldClrType: typeof(string),
+                oldType: "character varying(80)",
+                oldMaxLength: 80,
+                oldNullable: true);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "ContactPersonName",
+                table: "ClientCompanies",
+                type: "TEXT",
+                maxLength: 120,
+                nullable: true,
+                oldClrType: typeof(string),
+                oldType: "character varying(120)",
+                oldMaxLength: 120,
+                oldNullable: true);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "ContactPersonEmail",
+                table: "ClientCompanies",
+                type: "TEXT",
+                maxLength: 160,
+                nullable: true,
+                oldClrType: typeof(string),
+                oldType: "character varying(160)",
+                oldMaxLength: 160,
+                oldNullable: true);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "ConsultingPackage",
+                table: "ClientCompanies",
+                type: "TEXT",
+                maxLength: 120,
+                nullable: true,
+                oldClrType: typeof(string),
+                oldType: "character varying(120)",
+                oldMaxLength: 120,
+                oldNullable: true);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "CompanySizeRange",
+                table: "ClientCompanies",
+                type: "TEXT",
+                maxLength: 80,
+                nullable: true,
+                oldClrType: typeof(string),
+                oldType: "character varying(80)",
+                oldMaxLength: 80,
+                oldNullable: true);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "CompanyName",
+                table: "ClientCompanies",
+                type: "TEXT",
+                maxLength: 160,
+                nullable: false,
+                oldClrType: typeof(string),
+                oldType: "character varying(160)",
+                oldMaxLength: 160);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "BusinessModel",
+                table: "ClientCompanies",
+                type: "TEXT",
+                maxLength: 120,
+                nullable: true,
+                oldClrType: typeof(string),
+                oldType: "character varying(120)",
+                oldMaxLength: 120,
+                oldNullable: true);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "AssignedConsultant",
+                table: "ClientCompanies",
+                type: "TEXT",
+                maxLength: 120,
+                nullable: true,
+                oldClrType: typeof(string),
+                oldType: "character varying(120)",
+                oldMaxLength: 120,
+                oldNullable: true);
+
+            migrationBuilder.AlterColumn<int>(
+                name: "Id",
+                table: "ClientCompanies",
+                type: "INTEGER",
+                nullable: false,
+                oldClrType: typeof(int),
+                oldType: "integer")
+                .OldAnnotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "Description",
+                table: "ClientActivityLogs",
+                type: "TEXT",
+                nullable: false,
+                oldClrType: typeof(string),
+                oldType: "text");
+
+            migrationBuilder.AlterColumn<string>(
+                name: "CreatedBy",
+                table: "ClientActivityLogs",
+                type: "TEXT",
+                maxLength: 120,
+                nullable: true,
+                oldClrType: typeof(string),
+                oldType: "character varying(120)",
+                oldMaxLength: 120,
+                oldNullable: true);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "CreatedAt",
+                table: "ClientActivityLogs",
+                type: "TEXT",
+                nullable: false,
+                oldClrType: typeof(DateTime),
+                oldType: "timestamp with time zone");
+
+            migrationBuilder.AlterColumn<int>(
+                name: "ClientCompanyId",
+                table: "ClientActivityLogs",
+                type: "INTEGER",
+                nullable: false,
+                oldClrType: typeof(int),
+                oldType: "integer");
+
+            migrationBuilder.AlterColumn<string>(
+                name: "ActivityType",
+                table: "ClientActivityLogs",
+                type: "TEXT",
+                maxLength: 120,
+                nullable: false,
+                oldClrType: typeof(string),
+                oldType: "character varying(120)",
+                oldMaxLength: 120);
+
+            migrationBuilder.AlterColumn<int>(
+                name: "Id",
+                table: "ClientActivityLogs",
+                type: "INTEGER",
+                nullable: false,
+                oldClrType: typeof(int),
+                oldType: "integer")
+                .OldAnnotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "SectionName",
+                table: "AssessmentAnswers",
+                type: "TEXT",
+                maxLength: 120,
+                nullable: false,
+                oldClrType: typeof(string),
+                oldType: "character varying(120)",
+                oldMaxLength: 120);
+
+            migrationBuilder.AlterColumn<int>(
+                name: "ReadinessAssessmentId",
+                table: "AssessmentAnswers",
+                type: "INTEGER",
+                nullable: false,
+                oldClrType: typeof(int),
+                oldType: "integer");
+
+            migrationBuilder.AlterColumn<string>(
+                name: "QuestionText",
+                table: "AssessmentAnswers",
+                type: "TEXT",
+                nullable: false,
+                oldClrType: typeof(string),
+                oldType: "text");
+
+            migrationBuilder.AlterColumn<int>(
+                name: "IsMandatory",
+                table: "AssessmentAnswers",
+                type: "INTEGER",
+                nullable: false,
+                oldClrType: typeof(bool),
+                oldType: "boolean");
+
+            migrationBuilder.AlterColumn<string>(
+                name: "CreatedAt",
+                table: "AssessmentAnswers",
+                type: "TEXT",
+                nullable: false,
+                oldClrType: typeof(DateTime),
+                oldType: "timestamp with time zone");
+
+            migrationBuilder.AlterColumn<string>(
+                name: "CompletenessStatus",
+                table: "AssessmentAnswers",
+                type: "TEXT",
+                maxLength: 80,
+                nullable: false,
+                oldClrType: typeof(string),
+                oldType: "character varying(80)",
+                oldMaxLength: 80);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "AnswerType",
+                table: "AssessmentAnswers",
+                type: "TEXT",
+                maxLength: 80,
+                nullable: true,
+                oldClrType: typeof(string),
+                oldType: "character varying(80)",
+                oldMaxLength: 80,
+                oldNullable: true);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "AnswerText",
+                table: "AssessmentAnswers",
+                type: "TEXT",
+                nullable: true,
+                oldClrType: typeof(string),
+                oldType: "text",
+                oldNullable: true);
+
+            migrationBuilder.AlterColumn<int>(
+                name: "Id",
+                table: "AssessmentAnswers",
+                type: "INTEGER",
+                nullable: false,
+                oldClrType: typeof(int),
+                oldType: "integer")
+                .OldAnnotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn);
+
+            migrationBuilder.AlterColumn<int>(
+                name: "StrategicFitScore",
+                table: "AIUseCaseScores",
+                type: "INTEGER",
+                nullable: false,
+                oldClrType: typeof(int),
+                oldType: "integer");
+
+            migrationBuilder.AlterColumn<string>(
+                name: "ScoringComment",
+                table: "AIUseCaseScores",
+                type: "TEXT",
+                nullable: true,
+                oldClrType: typeof(string),
+                oldType: "text",
+                oldNullable: true);
+
+            migrationBuilder.AlterColumn<int>(
+                name: "RoiScore",
+                table: "AIUseCaseScores",
+                type: "INTEGER",
+                nullable: false,
+                oldClrType: typeof(int),
+                oldType: "integer");
+
+            migrationBuilder.AlterColumn<int>(
+                name: "RiskSafetyScore",
+                table: "AIUseCaseScores",
+                type: "INTEGER",
+                nullable: false,
+                oldClrType: typeof(int),
+                oldType: "integer");
+
+            migrationBuilder.AlterColumn<string>(
+                name: "PriorityScore",
+                table: "AIUseCaseScores",
+                type: "TEXT",
+                precision: 4,
+                scale: 2,
+                nullable: false,
+                oldClrType: typeof(decimal),
+                oldType: "numeric(4,2)",
+                oldPrecision: 4,
+                oldScale: 2);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "LastModifiedAt",
+                table: "AIUseCaseScores",
+                type: "TEXT",
+                nullable: true,
+                oldClrType: typeof(DateTime),
+                oldType: "timestamp with time zone",
+                oldNullable: true);
+
+            migrationBuilder.AlterColumn<int>(
+                name: "FeasibilityScore",
+                table: "AIUseCaseScores",
+                type: "INTEGER",
+                nullable: false,
+                oldClrType: typeof(int),
+                oldType: "integer");
+
+            migrationBuilder.AlterColumn<int>(
+                name: "DataReadinessScore",
+                table: "AIUseCaseScores",
+                type: "INTEGER",
+                nullable: false,
+                oldClrType: typeof(int),
+                oldType: "integer");
+
+            migrationBuilder.AlterColumn<string>(
+                name: "CreatedAt",
+                table: "AIUseCaseScores",
+                type: "TEXT",
+                nullable: false,
+                oldClrType: typeof(DateTime),
+                oldType: "timestamp with time zone");
+
+            migrationBuilder.AlterColumn<int>(
+                name: "AIUseCaseId",
+                table: "AIUseCaseScores",
+                type: "INTEGER",
+                nullable: false,
+                oldClrType: typeof(int),
+                oldType: "integer");
+
+            migrationBuilder.AlterColumn<int>(
+                name: "Id",
+                table: "AIUseCaseScores",
+                type: "INTEGER",
+                nullable: false,
+                oldClrType: typeof(int),
+                oldType: "integer")
+                .OldAnnotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "Title",
+                table: "AIUseCases",
+                type: "TEXT",
+                maxLength: 180,
+                nullable: false,
+                oldClrType: typeof(string),
+                oldType: "character varying(180)",
+                oldMaxLength: 180);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "TimeToValue",
+                table: "AIUseCases",
+                type: "TEXT",
+                maxLength: 80,
+                nullable: false,
+                oldClrType: typeof(string),
+                oldType: "character varying(80)",
+                oldMaxLength: 80);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "Status",
+                table: "AIUseCases",
+                type: "TEXT",
+                maxLength: 80,
+                nullable: false,
+                oldClrType: typeof(string),
+                oldType: "character varying(80)",
+                oldMaxLength: 80);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "RiskLevel",
+                table: "AIUseCases",
+                type: "TEXT",
+                maxLength: 80,
+                nullable: false,
+                oldClrType: typeof(string),
+                oldType: "character varying(80)",
+                oldMaxLength: 80);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "RequiredData",
+                table: "AIUseCases",
+                type: "TEXT",
+                nullable: true,
+                oldClrType: typeof(string),
+                oldType: "text",
+                oldNullable: true);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "LastModifiedAt",
+                table: "AIUseCases",
+                type: "TEXT",
+                nullable: true,
+                oldClrType: typeof(DateTime),
+                oldType: "timestamp with time zone",
+                oldNullable: true);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "ImplementationComplexity",
+                table: "AIUseCases",
+                type: "TEXT",
+                maxLength: 80,
+                nullable: false,
+                oldClrType: typeof(string),
+                oldType: "character varying(80)",
+                oldMaxLength: 80);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "ExpectedBenefit",
+                table: "AIUseCases",
+                type: "TEXT",
+                nullable: true,
+                oldClrType: typeof(string),
+                oldType: "text",
+                oldNullable: true);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "Description",
+                table: "AIUseCases",
+                type: "TEXT",
+                nullable: false,
+                oldClrType: typeof(string),
+                oldType: "text");
+
+            migrationBuilder.AlterColumn<string>(
+                name: "Department",
+                table: "AIUseCases",
+                type: "TEXT",
+                maxLength: 120,
+                nullable: true,
+                oldClrType: typeof(string),
+                oldType: "character varying(120)",
+                oldMaxLength: 120,
+                oldNullable: true);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "CreatedAt",
+                table: "AIUseCases",
+                type: "TEXT",
+                nullable: false,
+                oldClrType: typeof(DateTime),
+                oldType: "timestamp with time zone");
+
+            migrationBuilder.AlterColumn<int>(
+                name: "ClientCompanyId",
+                table: "AIUseCases",
+                type: "INTEGER",
+                nullable: false,
+                oldClrType: typeof(int),
+                oldType: "integer");
+
+            migrationBuilder.AlterColumn<string>(
+                name: "BusinessProblem",
+                table: "AIUseCases",
+                type: "TEXT",
+                nullable: true,
+                oldClrType: typeof(string),
+                oldType: "text",
+                oldNullable: true);
+
+            migrationBuilder.AlterColumn<int>(
+                name: "Id",
+                table: "AIUseCases",
+                type: "INTEGER",
+                nullable: false,
+                oldClrType: typeof(int),
+                oldType: "integer")
+                .OldAnnotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "Title",
+                table: "AIRoadmapItems",
+                type: "TEXT",
+                maxLength: 180,
+                nullable: false,
+                oldClrType: typeof(string),
+                oldType: "character varying(180)",
+                oldMaxLength: 180);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "Status",
+                table: "AIRoadmapItems",
+                type: "TEXT",
+                maxLength: 80,
+                nullable: false,
+                oldClrType: typeof(string),
+                oldType: "character varying(80)",
+                oldMaxLength: 80);
+
+            migrationBuilder.AlterColumn<int>(
+                name: "RelatedUseCaseId",
+                table: "AIRoadmapItems",
+                type: "INTEGER",
+                nullable: true,
+                oldClrType: typeof(int),
+                oldType: "integer",
+                oldNullable: true);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "Phase",
+                table: "AIRoadmapItems",
+                type: "TEXT",
+                maxLength: 80,
+                nullable: false,
+                oldClrType: typeof(string),
+                oldType: "character varying(80)",
+                oldMaxLength: 80);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "Owner",
+                table: "AIRoadmapItems",
+                type: "TEXT",
+                maxLength: 120,
+                nullable: true,
+                oldClrType: typeof(string),
+                oldType: "character varying(120)",
+                oldMaxLength: 120,
+                oldNullable: true);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "LastModifiedAt",
+                table: "AIRoadmapItems",
+                type: "TEXT",
+                nullable: true,
+                oldClrType: typeof(DateTime),
+                oldType: "timestamp with time zone",
+                oldNullable: true);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "ExpectedOutcome",
+                table: "AIRoadmapItems",
+                type: "TEXT",
+                nullable: true,
+                oldClrType: typeof(string),
+                oldType: "text",
+                oldNullable: true);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "Description",
+                table: "AIRoadmapItems",
+                type: "TEXT",
+                nullable: false,
+                oldClrType: typeof(string),
+                oldType: "text");
+
+            migrationBuilder.AlterColumn<string>(
+                name: "Dependencies",
+                table: "AIRoadmapItems",
+                type: "TEXT",
+                nullable: true,
+                oldClrType: typeof(string),
+                oldType: "text",
+                oldNullable: true);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "CreatedAt",
+                table: "AIRoadmapItems",
+                type: "TEXT",
+                nullable: false,
+                oldClrType: typeof(DateTime),
+                oldType: "timestamp with time zone");
+
+            migrationBuilder.AlterColumn<int>(
+                name: "ClientCompanyId",
+                table: "AIRoadmapItems",
+                type: "INTEGER",
+                nullable: false,
+                oldClrType: typeof(int),
+                oldType: "integer");
+
+            migrationBuilder.AlterColumn<int>(
+                name: "Id",
+                table: "AIRoadmapItems",
+                type: "INTEGER",
+                nullable: false,
+                oldClrType: typeof(int),
+                oldType: "integer")
+                .OldAnnotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn);
+
+            migrationBuilder.AlterColumn<int>(
+                name: "VersionNumber",
+                table: "AIAnalysisOutputs",
+                type: "INTEGER",
+                nullable: false,
+                oldClrType: typeof(int),
+                oldType: "integer");
+
+            migrationBuilder.AlterColumn<string>(
+                name: "Title",
+                table: "AIAnalysisOutputs",
+                type: "TEXT",
+                maxLength: 180,
+                nullable: false,
+                oldClrType: typeof(string),
+                oldType: "character varying(180)",
+                oldMaxLength: 180);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "Status",
+                table: "AIAnalysisOutputs",
+                type: "TEXT",
+                maxLength: 80,
+                nullable: false,
+                oldClrType: typeof(string),
+                oldType: "character varying(80)",
+                oldMaxLength: 80);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "OutputContent",
+                table: "AIAnalysisOutputs",
+                type: "TEXT",
+                nullable: false,
+                oldClrType: typeof(string),
+                oldType: "text");
+
+            migrationBuilder.AlterColumn<string>(
+                name: "LastModifiedAt",
+                table: "AIAnalysisOutputs",
+                type: "TEXT",
+                nullable: true,
+                oldClrType: typeof(DateTime),
+                oldType: "timestamp with time zone",
+                oldNullable: true);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "InputSummary",
+                table: "AIAnalysisOutputs",
+                type: "TEXT",
+                nullable: true,
+                oldClrType: typeof(string),
+                oldType: "text",
+                oldNullable: true);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "GeneratedBy",
+                table: "AIAnalysisOutputs",
+                type: "TEXT",
+                maxLength: 120,
+                nullable: true,
+                oldClrType: typeof(string),
+                oldType: "character varying(120)",
+                oldMaxLength: 120,
+                oldNullable: true);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "GeneratedAt",
+                table: "AIAnalysisOutputs",
+                type: "TEXT",
+                nullable: true,
+                oldClrType: typeof(DateTime),
+                oldType: "timestamp with time zone",
+                oldNullable: true);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "CreatedAt",
+                table: "AIAnalysisOutputs",
+                type: "TEXT",
+                nullable: false,
+                oldClrType: typeof(DateTime),
+                oldType: "timestamp with time zone");
+
+            migrationBuilder.AlterColumn<int>(
+                name: "ClientCompanyId",
+                table: "AIAnalysisOutputs",
+                type: "INTEGER",
+                nullable: false,
+                oldClrType: typeof(int),
+                oldType: "integer");
+
+            migrationBuilder.AlterColumn<string>(
+                name: "ApprovedBy",
+                table: "AIAnalysisOutputs",
+                type: "TEXT",
+                maxLength: 120,
+                nullable: true,
+                oldClrType: typeof(string),
+                oldType: "character varying(120)",
+                oldMaxLength: 120,
+                oldNullable: true);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "ApprovedAt",
+                table: "AIAnalysisOutputs",
+                type: "TEXT",
+                nullable: true,
+                oldClrType: typeof(DateTime),
+                oldType: "timestamp with time zone",
+                oldNullable: true);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "AnalysisType",
+                table: "AIAnalysisOutputs",
+                type: "TEXT",
+                maxLength: 80,
+                nullable: false,
+                oldClrType: typeof(string),
+                oldType: "character varying(80)",
+                oldMaxLength: 80);
+
+            migrationBuilder.AlterColumn<int>(
+                name: "Id",
+                table: "AIAnalysisOutputs",
+                type: "INTEGER",
+                nullable: false,
+                oldClrType: typeof(int),
+                oldType: "integer")
+                .OldAnnotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn);
+        }
+    }
+}

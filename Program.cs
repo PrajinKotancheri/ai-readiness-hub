@@ -1,6 +1,7 @@
 using AI_Readiness_Hub.Data;
 using AI_Readiness_Hub.Services;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 
 var seedOnly = args.Any(arg => arg.Equals("--seed-only", StringComparison.OrdinalIgnoreCase));
 var filteredArgs = args
@@ -53,6 +54,7 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
     }
 
     options.UseSqlite(builder.Configuration.GetConnectionString("SqliteConnection") ?? "Data Source=ai-readiness-hub.db");
+    options.ConfigureWarnings(warnings => warnings.Ignore(RelationalEventId.PendingModelChangesWarning));
 });
 builder.Services.AddScoped<IAIConsultingAnalysisService, MockAIConsultingAnalysisService>();
 builder.Services.AddScoped<IClientDocumentSummaryService, MockClientDocumentSummaryService>();
