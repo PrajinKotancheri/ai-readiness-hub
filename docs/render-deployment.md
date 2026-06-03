@@ -13,7 +13,7 @@ This app is prepared for Render deployment with Docker and PostgreSQL. SQLite is
 ```text
 ASPNETCORE_ENVIRONMENT=Production
 ASPNETCORE_URLS=http://0.0.0.0:10000
-ConnectionStrings__DefaultConnection=Host=aws-0-eu-west-1.pooler.supabase.com;Port=6543;Database=postgres;Username=postgres.qjctwirulyswwhtthvht;Password=YOUR_PASSWORD;SSL Mode=Require;Trust Server Certificate=true;Pooling=false;Timeout=60;Command Timeout=60
+ConnectionStrings__DefaultConnection=Host=<supabase-host>;Port=6543;Database=postgres;Username=<supabase-user>;Password=<supabase-password>;SSL Mode=Require;Trust Server Certificate=true;Pooling=false;Timeout=60;Command Timeout=60
 RunMigrationsOnStartup=true
 ```
 
@@ -48,7 +48,7 @@ Configure these values in the running app at `/Settings/ReadinessForm`:
 The Google Apps Script webhook URL should use:
 
 ```text
-https://YOUR-RENDER-APP.onrender.com/api/google-forms/assessment-response
+https://ai-readiness-hub.onrender.com/api/form-response
 ```
 
 ## Check Deployment
@@ -72,7 +72,7 @@ https://YOUR-APP.onrender.com/Dashboard
 - Missing PostgreSQL connection string: set `ConnectionStrings__DefaultConnection` to the Supabase PostgreSQL connection string.
 - Migrations not applied: check startup logs for `Applying database migrations...` and `Database migrations completed.`
 - Database provider configured incorrectly: remove `DatabaseProvider` or set it to `Postgres`; the app supports PostgreSQL only.
-- Webhook URL still localhost: update Apps Script to `https://YOUR-RENDER-APP.onrender.com/api/google-forms/assessment-response`.
+- Webhook URL still localhost: update Apps Script to `https://ai-readiness-hub.onrender.com/api/form-response`.
 - Missing email configuration: set `SMTP_PASSWORD`, `Smtp__FromEmail`, and optionally `Smtp__FromName`.
 - Google Form client token not submitted: confirm the form contains a `Client Reference ID` question and the generated link pre-fills it.
 - Wrong Client Reference Entry ID: inspect the Google Form prefilled link and update `/Settings/ReadinessForm`.

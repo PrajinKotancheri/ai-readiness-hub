@@ -33,6 +33,15 @@ builder.Logging.AddConfiguration(builder.Configuration.GetSection("Logging"));
 builder.Logging.AddConsole();
 
 builder.Services.AddRouting();
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("GoogleFormsWebhook", policy =>
+    {
+        policy.AllowAnyOrigin()
+            .AllowAnyHeader()
+            .AllowAnyMethod();
+    });
+});
 builder.Services.AddControllersWithViews()
     .AddApplicationPart(typeof(AI_Readiness_Hub.Controllers.DashboardController).Assembly);
 ValidateDatabaseConfiguration(builder.Configuration, builder.Environment);
@@ -67,6 +76,7 @@ if (!app.Environment.IsDevelopment())
 
 app.UseStaticFiles();
 app.UseRouting();
+app.UseCors();
 
 app.UseAuthorization();
 
