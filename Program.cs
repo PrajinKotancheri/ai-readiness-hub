@@ -70,6 +70,12 @@ app.UseRouting();
 
 app.UseAuthorization();
 
+app.MapGet("/", context =>
+{
+    context.Response.Redirect("/Dashboard");
+    return Task.CompletedTask;
+});
+
 app.UseEndpoints(endpoints =>
 {
     endpoints.MapStaticAssets();
