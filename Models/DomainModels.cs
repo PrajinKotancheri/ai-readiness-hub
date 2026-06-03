@@ -346,6 +346,40 @@ public class ClientWorkflowStep
     public DateTime? CompletedAt { get; set; }
 }
 
+public class ReadinessFormSettings
+{
+    public int Id { get; set; }
+
+    [Url, StringLength(1000)]
+    public string? DefaultFormUrl { get; set; }
+
+    [StringLength(120)]
+    public string? ClientReferenceEntryId { get; set; }
+
+    [StringLength(240)]
+    public string EmailSubjectTemplate { get; set; } = "AI Readiness Assessment for {{CompanyName}}";
+
+    public string EmailBodyTemplate { get; set; } = """
+        Hello {{ContactPersonName}},
+
+        Please complete the AI Readiness Assessment using the link below:
+
+        {{FormLink}}
+
+        This link is unique to your company. Please do not forward it.
+
+        Best regards,
+        {{AssignedConsultant}}
+        """;
+
+    [StringLength(240)]
+    public string? WebhookSecret { get; set; }
+
+    public bool IsActive { get; set; } = true;
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime? LastModifiedAt { get; set; }
+}
+
 public class ReadinessAssessment
 {
     public int Id { get; set; }
@@ -356,9 +390,27 @@ public class ReadinessAssessment
     [Url, StringLength(500)]
     public string? FormUrl { get; set; }
 
+    [StringLength(80)]
+    public string? ClientToken { get; set; }
+
+    [Url, StringLength(1200)]
+    public string? GeneratedFormUrl { get; set; }
+
+    [Url, StringLength(1000)]
+    public string? CustomFormUrl { get; set; }
+
+    [EmailAddress, StringLength(160)]
+    public string? SentToEmail { get; set; }
+
     public DateTime? SentAt { get; set; }
+    public DateTime? LastReminderSentAt { get; set; }
     public DateTime? CompletedAt { get; set; }
     public DateTime? ImportedAt { get; set; }
+    public DateTime? ResponseReceivedAt { get; set; }
+
+    [StringLength(180)]
+    public string? ExternalResponseId { get; set; }
+
     public string? RawResponseJson { get; set; }
     public string? Summary { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;

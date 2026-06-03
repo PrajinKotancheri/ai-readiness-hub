@@ -1,13 +1,14 @@
 using System.Text.Json;
 using AI_Readiness_Hub.Data;
 using AI_Readiness_Hub.Models;
+using AI_Readiness_Hub.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
 namespace AI_Readiness_Hub.Controllers;
 
 [Route("Assessments")]
-public class AssessmentsController(ApplicationDbContext context) : Controller
+public class AssessmentsController(ApplicationDbContext context, IReadinessFormService readinessFormService) : Controller
 {
     [HttpPost("MarkFormSent")]
     [ValidateAntiForgeryToken]
@@ -42,6 +43,74 @@ public class AssessmentsController(ApplicationDbContext context) : Controller
         await MarkWorkflowAsync(clientId, "Readiness Form Sent", WorkflowStepStatus.Completed);
         await LogAsync(clientId, "Form marked as sent", "Readiness assessment form marked as sent.");
         await context.SaveChangesAsync();
+        return RedirectToWorkspace(clientId);
+    }
+
+    [HttpPost("GenerateLink")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> GenerateLink(int clientId, string? customFormUrl)
+    {
+        try
+        {
+            await readinessFormService.EnsureGeneratedFormLinkAsync(clientId, customFormUrl);
+            TempData["SuccessMessage"] = "Unique Google Form link generated.";
+        }
+        catch (InvalidOperationException ex)
+        {
+            TempData["ErrorMessage"] = ex.Message;
+        }
+
+        return RedirectToWorkspace(clientId);
+    }
+
+    [HttpPost("UpdateCustomFormLink")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> UpdateCustomFormLink(int clientId, string? customFormUrl)
+    {
+        try
+        {
+            await readinessFormService.EnsureGeneratedFormLinkAsync(clientId, customFormUrl);
+            TempData["SuccessMessage"] = "Custom form link saved and unique link regenerated.";
+        }
+        catch (InvalidOperationException ex)
+        {
+            TempData["ErrorMessage"] = ex.Message;
+        }
+
+        return RedirectToWorkspace(clientId);
+    }
+
+    [HttpPost("SendReadinessForm")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> SendReadinessForm(int clientId)
+    {
+        try
+        {
+            var assessment = await readinessFormService.SendReadinessFormAsync(clientId);
+            TempData["SuccessMessage"] = $"Readiness form sent to {assessment.SentToEmail}.";
+        }
+        catch (InvalidOperationException ex)
+        {
+            TempData["ErrorMessage"] = ex.Message;
+        }
+
+        return RedirectToWorkspace(clientId);
+    }
+
+    [HttpPost("SendReminder")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> SendReminder(int clientId)
+    {
+        try
+        {
+            var assessment = await readinessFormService.SendReminderAsync(clientId);
+            TempData["SuccessMessage"] = $"Readiness form reminder sent to {assessment.SentToEmail}.";
+        }
+        catch (InvalidOperationException ex)
+        {
+            TempData["ErrorMessage"] = ex.Message;
+        }
+
         return RedirectToWorkspace(clientId);
     }
 

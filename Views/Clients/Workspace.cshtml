@@ -2,6 +2,8 @@
 @{
     ViewData["Title"] = $"{Model.Client.CompanyName} workspace";
     var client = Model.Client;
+    var assessment = Model.LatestAssessment;
+    var formSettings = Model.ReadinessFormSettings;
     var latestReportStatus = Model.LatestReport?.ReportStatus ?? ReportStatus.NotStarted;
 }
 
@@ -69,6 +71,15 @@
     </div>
 </section>
 
+@if (TempData["SuccessMessage"] is string successMessage)
+{
+    <div class="alert alert-success">@successMessage</div>
+}
+@if (TempData["ErrorMessage"] is string errorMessage)
+{
+    <div class="alert alert-danger">@errorMessage</div>
+}
+
 <section class="panel">
     <div class="panel-header">
         <h2 class="panel-title">Workflow timeline</h2>
@@ -122,7 +133,7 @@
                 <div class="action-group">
                     <div class="action-group-title">Intake</div>
                     <div class="action-strip">
-                        <button class="btn btn-outline-primary btn-sm" type="button" data-bs-toggle="tab" data-bs-target="#assessment">Import Assessment</button>
+                        <button class="btn btn-outline-primary btn-sm" type="button" data-bs-toggle="tab" data-bs-target="#assessment">Manual Import / Fallback</button>
                         <button class="btn btn-outline-primary btn-sm" type="button" data-bs-toggle="tab" data-bs-target="#documents">Upload Document</button>
                         <button class="btn btn-outline-primary btn-sm" type="button" data-bs-toggle="tab" data-bs-target="#notes">Add Note</button>
                     </div>
@@ -154,21 +165,93 @@
         <div class="tab-pane fade" id="assessment">
             <div class="row g-3">
                 <div class="col-lg-5">
-                    <h3 class="panel-title">Assessment status</h3>
-                    <p><span class="status-badge @((Model.LatestAssessment?.FormStatus ?? ReadinessFormStatus.NotSent).ToBadgeClass())">@((Model.LatestAssessment?.FormStatus ?? ReadinessFormStatus.NotSent).ToDisplayName())</span></p>
-                    <form asp-controller="Assessments" asp-action="MarkFormSent" method="post" class="mb-3">
-                        <input type="hidden" name="clientId" value="@client.Id" />
-                        <label class="form-label">Readiness form URL</label>
-                        <div class="input-group">
-                            <input name="formUrl" value="@Model.LatestAssessment?.FormUrl" class="form-control" />
-                            <button class="btn btn-primary" type="submit">Mark Form Sent</button>
+                    <div class="panel">
+                        <div class="panel-header">
+                            <h3 class="panel-title">Google Form delivery</h3>
+                            <span class="status-badge @((assessment?.FormStatus ?? ReadinessFormStatus.NotSent).ToBadgeClass())">@((assessment?.FormStatus ?? ReadinessFormStatus.NotSent).ToDisplayName())</span>
                         </div>
-                    </form>
-                    <form asp-controller="Assessments" asp-action="Import" method="post">
+
+                        <div class="detail-grid mb-3">
+                            <div>
+                                <div class="field-label">Default form URL</div>
+                                <div class="text-break">@(formSettings?.DefaultFormUrl ?? "Not configured")</div>
+                            </div>
+                            <div>
+                                <div class="field-label">Custom form URL</div>
+                                <div class="text-break">@(assessment?.CustomFormUrl ?? "Using default")</div>
+                            </div>
+                            <div>
+                                <div class="field-label">Client token</div>
+                                <code>@(assessment?.ClientToken ?? "Not generated")</code>
+                            </div>
+                            <div>
+                                <div class="field-label">Sent to email</div>
+                                <div>@(assessment?.SentToEmail ?? client.ContactPersonEmail ?? "No client email")</div>
+                            </div>
+                            <div>
+                                <div class="field-label">Sent date</div>
+                                <div>@(assessment?.SentAt?.ToString("yyyy-MM-dd HH:mm") ?? "Not sent")</div>
+                            </div>
+                            <div>
+                                <div class="field-label">Last reminder</div>
+                                <div>@(assessment?.LastReminderSentAt?.ToString("yyyy-MM-dd HH:mm") ?? "No reminder sent")</div>
+                            </div>
+                            <div>
+                                <div class="field-label">Response received</div>
+                                <div>@(assessment?.ResponseReceivedAt?.ToString("yyyy-MM-dd HH:mm") ?? "Not received")</div>
+                            </div>
+                            <div>
+                                <div class="field-label">External response ID</div>
+                                <div class="text-break">@(assessment?.ExternalResponseId ?? "Not available")</div>
+                            </div>
+                        </div>
+
+                        <label class="form-label">Generated unique form URL</label>
+                        <div class="copy-field mb-3">
+                            <textarea id="generatedFormUrl" class="form-control" rows="4" readonly>@assessment?.GeneratedFormUrl</textarea>
+                            <button class="btn btn-outline-secondary btn-sm" type="button" data-copy-target="generatedFormUrl">Copy form link</button>
+                        </div>
+
+                        @if (formSettings is null || string.IsNullOrWhiteSpace(formSettings.DefaultFormUrl) || string.IsNullOrWhiteSpace(formSettings.ClientReferenceEntryId))
+                        {
+                            <div class="empty-state mb-3">
+                                <strong>Google Form settings are incomplete.</strong>
+                                Add the default form URL and Client Reference Entry ID before sending forms.
+                                <div class="mt-2"><a asp-controller="Settings" asp-action="ReadinessForm">Open readiness form settings</a></div>
+                            </div>
+                        }
+
+                        <div class="action-strip mb-3">
+                            <form asp-controller="Assessments" asp-action="GenerateLink" method="post">
+                                <input type="hidden" name="clientId" value="@client.Id" />
+                                <button class="btn btn-outline-primary btn-sm" type="submit">Generate unique form link</button>
+                            </form>
+                            <form asp-controller="Assessments" asp-action="SendReadinessForm" method="post">
+                                <input type="hidden" name="clientId" value="@client.Id" />
+                                <button class="btn btn-primary btn-sm" type="submit">Send readiness form</button>
+                            </form>
+                            <form asp-controller="Assessments" asp-action="SendReminder" method="post">
+                                <input type="hidden" name="clientId" value="@client.Id" />
+                                <button class="btn btn-outline-primary btn-sm" type="submit">Send reminder</button>
+                            </form>
+                        </div>
+
+                        <form asp-controller="Assessments" asp-action="UpdateCustomFormLink" method="post" class="mb-3">
+                            <input type="hidden" name="clientId" value="@client.Id" />
+                            <label class="form-label">Client-specific form override</label>
+                            <div class="input-group">
+                                <input name="customFormUrl" value="@assessment?.CustomFormUrl" class="form-control" placeholder="Optional custom Google Form URL" />
+                                <button class="btn btn-outline-primary" type="submit">Edit custom form link</button>
+                            </div>
+                        </form>
+                    </div>
+
+                    <form asp-controller="Assessments" asp-action="Import" method="post" class="panel">
                         <input type="hidden" name="clientId" value="@client.Id" />
+                        <h3 class="panel-title">Manual Import / Fallback</h3>
                         <label class="form-label">Paste JSON or text answers</label>
                         <textarea name="rawResponseText" class="form-control" rows="8" placeholder="Section | Question | Answer"></textarea>
-                        <button class="btn btn-primary mt-2" type="submit">Import Assessment Answers</button>
+                        <button class="btn btn-primary mt-2" type="submit">Import assessment answers</button>
                     </form>
                 </div>
                 <div class="col-lg-7">

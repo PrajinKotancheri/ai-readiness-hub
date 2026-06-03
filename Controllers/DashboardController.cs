@@ -23,15 +23,21 @@ public class DashboardController(ApplicationDbContext context) : Controller
         var reports = clients
             .SelectMany(client => client.Reports)
             .ToList();
+        var assessments = clients
+            .SelectMany(client => client.ReadinessAssessments)
+            .ToList();
 
         var pendingTasks = clients
             .SelectMany(client => client.Tasks)
             .Where(task => task.Status is not ClientTaskStatus.Done)
             .ToList();
-        var formsSentNotCompleted = clients
-            .SelectMany(client => client.ReadinessAssessments)
+        var formsSentNotCompleted = assessments
             .Where(assessment => assessment.FormStatus == ReadinessFormStatus.Sent)
             .OrderBy(assessment => assessment.SentAt ?? assessment.CreatedAt)
+            .ToList();
+        var recentlyReceivedResponses = assessments
+            .Where(assessment => assessment.FormStatus is ReadinessFormStatus.Completed or ReadinessFormStatus.Imported)
+            .OrderByDescending(assessment => assessment.ResponseReceivedAt ?? assessment.CompletedAt ?? assessment.ImportedAt ?? assessment.LastModifiedAt ?? assessment.CreatedAt)
             .ToList();
         var reportsWaitingForReview = reports
             .Where(report => report.ReportStatus is ReportStatus.DraftGenerated or ReportStatus.InConsultantReview)
@@ -45,6 +51,12 @@ public class DashboardController(ApplicationDbContext context) : Controller
             OverdueTasks = pendingTasks.Count(task => task.DueDate.HasValue && task.DueDate.Value.Date < DateTime.UtcNow.Date),
             ReportsInReview = reportsWaitingForReview.Count,
             FormsAwaitingCompletion = formsSentNotCompleted.Count,
+            ClientsAwaitingFormResponse = clients.Count(client => client.ReadinessAssessments
+                .OrderByDescending(assessment => assessment.CreatedAt)
+                .FirstOrDefault()?.FormStatus == ReadinessFormStatus.Sent),
+            ResponsesReceivedNotReviewed = clients.Count(client =>
+                client.CurrentStage == ClientStage.AssessmentCompleted &&
+                client.ReadinessAssessments.Any(assessment => assessment.FormStatus is ReadinessFormStatus.Completed or ReadinessFormStatus.Imported)),
             ClientsByStage = Enum.GetValues<ClientStage>()
                 .ToDictionary(stage => stage, stage => clients.Count(client => client.CurrentStage == stage)),
             ReportsByStatus = Enum.GetValues<ReportStatus>()
@@ -56,6 +68,9 @@ public class DashboardController(ApplicationDbContext context) : Controller
                 .ToList(),
             FormsSentNotCompleted = formsSentNotCompleted
                 .Take(8)
+                .ToList(),
+            RecentlyReceivedAssessmentResponses = recentlyReceivedResponses
+                .Take(6)
                 .ToList(),
             ClientsWithMissingDocuments = clients
                 .Where(client => client.Documents.Count == 0 && client.CurrentStage >= ClientStage.AssessmentCompleted)

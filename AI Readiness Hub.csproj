@@ -6,6 +6,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <RootNamespace>AI_Readiness_Hub</RootNamespace>
     <NoWarn>$(NoWarn);ASP0014</NoWarn>
+    <UserSecretsId>f85a144e-7e24-491c-b12f-564fbc26bb32</UserSecretsId>
   </PropertyGroup>
 
   <ItemGroup>

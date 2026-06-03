@@ -6,6 +6,7 @@ public class ClientWorkspaceViewModel
 {
     public ClientCompany Client { get; set; } = new();
     public ReadinessAssessment? LatestAssessment { get; set; }
+    public ReadinessFormSettings? ReadinessFormSettings { get; set; }
     public ClientReport? LatestReport { get; set; }
     public ReadinessScore? LatestScore { get; set; }
     public IReadOnlyList<IGrouping<string, AssessmentAnswer>> AnswersBySection { get; set; } = [];

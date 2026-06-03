@@ -206,11 +206,16 @@ public class ClientsController(ApplicationDbContext context) : Controller
         var latestScore = client.ReadinessScores
             .OrderByDescending(score => score.CreatedAt)
             .FirstOrDefault();
+        var readinessFormSettings = await context.ReadinessFormSettings
+            .Where(settings => settings.IsActive)
+            .OrderByDescending(settings => settings.LastModifiedAt ?? settings.CreatedAt)
+            .FirstOrDefaultAsync();
 
         var viewModel = new ClientWorkspaceViewModel
         {
             Client = client,
             LatestAssessment = latestAssessment,
+            ReadinessFormSettings = readinessFormSettings,
             LatestReport = latestReport,
             LatestScore = latestScore,
             AnswersBySection = latestAssessment?.Answers

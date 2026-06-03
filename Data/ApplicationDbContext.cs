@@ -7,6 +7,7 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
 {
     public DbSet<ClientCompany> ClientCompanies => Set<ClientCompany>();
     public DbSet<ClientWorkflowStep> ClientWorkflowSteps => Set<ClientWorkflowStep>();
+    public DbSet<ReadinessFormSettings> ReadinessFormSettings => Set<ReadinessFormSettings>();
     public DbSet<ReadinessAssessment> ReadinessAssessments => Set<ReadinessAssessment>();
     public DbSet<AssessmentAnswer> AssessmentAnswers => Set<AssessmentAnswer>();
     public DbSet<ClientDocument> ClientDocuments => Set<ClientDocument>();
@@ -55,6 +56,15 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
 
         modelBuilder.Entity<ClientCompany>()
             .HasIndex(client => client.CompanyName);
+
+        modelBuilder.Entity<ReadinessFormSettings>()
+            .HasIndex(settings => settings.IsActive);
+
+        modelBuilder.Entity<ReadinessAssessment>()
+            .HasIndex(assessment => assessment.ClientToken);
+
+        modelBuilder.Entity<ReadinessAssessment>()
+            .HasIndex(assessment => assessment.ExternalResponseId);
 
         modelBuilder.Entity<ClientCompany>()
             .HasMany(client => client.ReadinessAssessments)

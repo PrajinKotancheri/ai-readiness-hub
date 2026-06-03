@@ -7,7 +7,7 @@
     <div>
         <div class="page-kicker">Consulting workflow</div>
         <h1 class="page-title">Dashboard</h1>
-        <p class="page-subtitle">Monitor AI readiness engagements, review queues, and next consultant actions.</p>
+        <p class="page-subtitle">Client assessment, analysis, roadmap, and report workspace for AI consultants.</p>
     </div>
 </div>
 
@@ -35,7 +35,17 @@
     <a class="metric-card" href="#forms">
         <span class="metric-icon">FM</span>
         <div class="metric-value">@Model.FormsAwaitingCompletion</div>
-        <div class="metric-label">Forms awaiting completion</div>
+        <div class="metric-label">Forms sent but not completed</div>
+    </a>
+    <a class="metric-card" href="#forms">
+        <span class="metric-icon">AR</span>
+        <div class="metric-value">@Model.ClientsAwaitingFormResponse</div>
+        <div class="metric-label">Clients awaiting response</div>
+    </a>
+    <a class="metric-card" href="#responses">
+        <span class="metric-icon">RR</span>
+        <div class="metric-value">@Model.ResponsesReceivedNotReviewed</div>
+        <div class="metric-label">Responses to review</div>
     </a>
 </section>
 
@@ -177,6 +187,33 @@
                 <div class="empty-state">
                     <strong>No forms awaiting completion.</strong>
                     Sent assessments that need client action will show here.
+                </div>
+            }
+        </section>
+
+        <section class="panel" id="responses">
+            <div class="panel-header">
+                <h2 class="panel-title">Recently received responses</h2>
+                <span class="status-badge status-info">@Model.RecentlyReceivedAssessmentResponses.Count shown</span>
+            </div>
+            @if (Model.RecentlyReceivedAssessmentResponses.Any())
+            {
+                @foreach (var assessment in Model.RecentlyReceivedAssessmentResponses)
+                {
+                    <div class="status-count-card mb-2">
+                        <div>
+                            <a asp-controller="Clients" asp-action="Workspace" asp-route-id="@assessment.ClientCompanyId">@assessment.ClientCompany?.CompanyName</a>
+                            <div class="table-note">Received @((assessment.ResponseReceivedAt ?? assessment.CompletedAt ?? assessment.ImportedAt ?? assessment.CreatedAt).ToString("yyyy-MM-dd"))</div>
+                        </div>
+                        <span class="status-badge @assessment.FormStatus.ToBadgeClass()">@assessment.FormStatus.ToDisplayName()</span>
+                    </div>
+                }
+            }
+            else
+            {
+                <div class="empty-state">
+                    <strong>No responses received yet.</strong>
+                    Completed Google Form submissions and manual imports will appear here.
                 </div>
             }
         </section>

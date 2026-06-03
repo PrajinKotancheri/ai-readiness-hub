@@ -835,10 +835,22 @@ namespace AI_Readiness_Hub.Migrations
                     b.Property<int>("ClientCompanyId")
                         .HasColumnType("INTEGER");
 
+                    b.Property<string>("ClientToken")
+                        .HasMaxLength(80)
+                        .HasColumnType("TEXT");
+
                     b.Property<DateTime?>("CompletedAt")
                         .HasColumnType("TEXT");
 
                     b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("CustomFormUrl")
+                        .HasMaxLength(1000)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ExternalResponseId")
+                        .HasMaxLength(180)
                         .HasColumnType("TEXT");
 
                     b.Property<string>("FormStatus")
@@ -850,16 +862,30 @@ namespace AI_Readiness_Hub.Migrations
                         .HasMaxLength(500)
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("GeneratedFormUrl")
+                        .HasMaxLength(1200)
+                        .HasColumnType("TEXT");
+
                     b.Property<DateTime?>("ImportedAt")
                         .HasColumnType("TEXT");
 
                     b.Property<DateTime?>("LastModifiedAt")
                         .HasColumnType("TEXT");
 
+                    b.Property<DateTime?>("LastReminderSentAt")
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("RawResponseJson")
                         .HasColumnType("TEXT");
 
+                    b.Property<DateTime?>("ResponseReceivedAt")
+                        .HasColumnType("TEXT");
+
                     b.Property<DateTime?>("SentAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("SentToEmail")
+                        .HasMaxLength(160)
                         .HasColumnType("TEXT");
 
                     b.Property<string>("Summary")
@@ -869,7 +895,54 @@ namespace AI_Readiness_Hub.Migrations
 
                     b.HasIndex("ClientCompanyId");
 
+                    b.HasIndex("ClientToken");
+
+                    b.HasIndex("ExternalResponseId");
+
                     b.ToTable("ReadinessAssessments");
+                });
+
+            modelBuilder.Entity("AI_Readiness_Hub.Models.ReadinessFormSettings", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("ClientReferenceEntryId")
+                        .HasMaxLength(120)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("DefaultFormUrl")
+                        .HasMaxLength(1000)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("EmailBodyTemplate")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("EmailSubjectTemplate")
+                        .IsRequired()
+                        .HasMaxLength(240)
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime?>("LastModifiedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("WebhookSecret")
+                        .HasMaxLength(240)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("IsActive");
+
+                    b.ToTable("ReadinessFormSettings");
                 });
 
             modelBuilder.Entity("AI_Readiness_Hub.Models.ReadinessScore", b =>

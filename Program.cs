@@ -6,17 +6,27 @@ var seedOnly = args.Any(arg => arg.Equals("--seed-only", StringComparison.Ordina
 var filteredArgs = args
     .Where(arg => !arg.Equals("--seed-only", StringComparison.OrdinalIgnoreCase))
     .ToArray();
+var environmentName = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT")
+    ?? Environment.GetEnvironmentVariable("DOTNET_ENVIRONMENT")
+    ?? Environments.Production;
 var builder = WebApplication.CreateEmptyBuilder(new WebApplicationOptions
 {
     ApplicationName = typeof(AI_Readiness_Hub.Controllers.DashboardController).Assembly.GetName().Name,
     Args = filteredArgs,
     ContentRootPath = Directory.GetCurrentDirectory(),
+    EnvironmentName = environmentName,
     WebRootPath = "wwwroot"
 });
 builder.WebHost.UseKestrel();
 builder.Configuration
     .AddJsonFile("appsettings.json", optional: true, reloadOnChange: false)
-    .AddJsonFile($"appsettings.{builder.Environment.EnvironmentName}.json", optional: true, reloadOnChange: false)
+    .AddJsonFile($"appsettings.{builder.Environment.EnvironmentName}.json", optional: true, reloadOnChange: false);
+if (builder.Environment.IsDevelopment())
+{
+    builder.Configuration.AddUserSecrets(typeof(AI_Readiness_Hub.Controllers.DashboardController).Assembly, optional: true, reloadOnChange: false);
+}
+
+builder.Configuration
     .AddEnvironmentVariables()
     .AddCommandLine(filteredArgs);
 builder.Logging.AddConfiguration(builder.Configuration.GetSection("Logging"));
@@ -31,7 +41,14 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
     if (provider.Equals("Postgres", StringComparison.OrdinalIgnoreCase) ||
         provider.Equals("PostgreSQL", StringComparison.OrdinalIgnoreCase))
     {
-        options.UseNpgsql(builder.Configuration.GetConnectionString("PostgresConnection"));
+        var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
+            ?? builder.Configuration.GetConnectionString("PostgresConnection");
+        if (string.IsNullOrWhiteSpace(connectionString))
+        {
+            throw new InvalidOperationException("ConnectionStrings:DefaultConnection or ConnectionStrings:PostgresConnection is required when DatabaseProvider=Postgres.");
+        }
+
+        options.UseNpgsql(connectionString);
         return;
     }
 
@@ -39,8 +56,12 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
 });
 builder.Services.AddScoped<IAIConsultingAnalysisService, MockAIConsultingAnalysisService>();
 builder.Services.AddScoped<IClientDocumentSummaryService, MockClientDocumentSummaryService>();
+builder.Services.AddScoped<IEmailService, SendGridEmailService>();
+builder.Services.AddScoped<IReadinessFormService, ReadinessFormService>();
 
 var app = builder.Build();
+
+ValidateEmailConfiguration(app);
 
 var configuredUrls = app.Configuration["urls"] ?? app.Configuration["ASPNETCORE_URLS"];
 if (!string.IsNullOrWhiteSpace(configuredUrls))
@@ -90,3 +111,37 @@ if (filteredArgs.All(arg => !arg.Equals("--ef-design-time", StringComparison.Ord
 }
 
 await app.RunAsync();
+
+static void ValidateEmailConfiguration(WebApplication app)
+{
+    var logger = app.Services
+        .GetRequiredService<ILoggerFactory>()
+        .CreateLogger("SendGridConfiguration");
+
+    var emailConfiguration = EmailConfiguration.From(app.Configuration);
+
+    if (app.Environment.IsDevelopment())
+    {
+        logger.LogInformation(
+            "Email configuration sources. SMTP_PASSWORD env: {ApiKeyEnv}; user-secrets: {ApiKeySecrets}; appsettings: {ApiKeyAppSettings}. Smtp:FromEmail env: {FromEmailEnv}; user-secrets: {FromEmailSecrets}; appsettings: {FromEmailAppSettings}. Smtp:FromName env: {FromNameEnv}; user-secrets: {FromNameSecrets}; appsettings: {FromNameAppSettings}.",
+            emailConfiguration.ApiKeySources.EnvironmentVariables,
+            emailConfiguration.ApiKeySources.UserSecrets,
+            emailConfiguration.ApiKeySources.AppSettings,
+            emailConfiguration.FromEmailSources.EnvironmentVariables,
+            emailConfiguration.FromEmailSources.UserSecrets,
+            emailConfiguration.FromEmailSources.AppSettings,
+            emailConfiguration.FromNameSources.EnvironmentVariables,
+            emailConfiguration.FromNameSources.UserSecrets,
+            emailConfiguration.FromNameSources.AppSettings);
+    }
+
+    if (!emailConfiguration.IsComplete)
+    {
+        logger.LogWarning(
+            "SendGrid email configuration missing. Email sending disabled. Missing keys: {MissingKeys}",
+            string.Join(", ", emailConfiguration.MissingRequiredKeys));
+        return;
+    }
+
+    logger.LogInformation("SendGrid email configuration loaded. Email sending enabled.");
+}

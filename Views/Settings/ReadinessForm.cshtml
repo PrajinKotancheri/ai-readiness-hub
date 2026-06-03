@@ -1,0 +1,65 @@
+@model ReadinessFormSettings
+@{
+    ViewData["Title"] = "Readiness form settings";
+}
+
+<div class="page-header">
+    <div>
+        <div class="page-kicker">Settings</div>
+        <h1 class="page-title">Readiness form</h1>
+        <p class="page-subtitle">Configure the Google Form link, prefill token field, email templates, and webhook secret.</p>
+    </div>
+</div>
+
+@if (TempData["SuccessMessage"] is string successMessage)
+{
+    <div class="alert alert-success">@successMessage</div>
+}
+
+<section class="panel">
+    <form asp-action="ReadinessForm" method="post" class="settings-form">
+        <input type="hidden" asp-for="Id" />
+        <input type="hidden" asp-for="CreatedAt" />
+        <input type="hidden" asp-for="IsActive" value="true" />
+
+        <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+
+        <div class="row g-3">
+            <div class="col-lg-8">
+                <label asp-for="DefaultFormUrl" class="form-label">Default Google Form URL</label>
+                <input asp-for="DefaultFormUrl" class="form-control" placeholder="https://docs.google.com/forms/d/e/FORM_ID/viewform?usp=header" />
+                <span asp-validation-for="DefaultFormUrl" class="text-danger"></span>
+            </div>
+            <div class="col-lg-4">
+                <label asp-for="ClientReferenceEntryId" class="form-label">Client Reference Entry ID</label>
+                <input asp-for="ClientReferenceEntryId" class="form-control" placeholder="entry.123456789" />
+                <span asp-validation-for="ClientReferenceEntryId" class="text-danger"></span>
+            </div>
+            <div class="col-lg-8">
+                <label asp-for="EmailSubjectTemplate" class="form-label">Email subject template</label>
+                <input asp-for="EmailSubjectTemplate" class="form-control" />
+                <span asp-validation-for="EmailSubjectTemplate" class="text-danger"></span>
+            </div>
+            <div class="col-lg-4">
+                <label asp-for="WebhookSecret" class="form-label">Webhook secret</label>
+                <input asp-for="WebhookSecret" class="form-control" autocomplete="off" />
+                <span asp-validation-for="WebhookSecret" class="text-danger"></span>
+            </div>
+            <div class="col-12">
+                <label asp-for="EmailBodyTemplate" class="form-label">Email body template</label>
+                <textarea asp-for="EmailBodyTemplate" class="form-control" rows="10"></textarea>
+                <span asp-validation-for="EmailBodyTemplate" class="text-danger"></span>
+                <div class="table-note mt-2">Available placeholders: {{CompanyName}}, {{ContactPersonName}}, {{FormLink}}, {{AssignedConsultant}}</div>
+            </div>
+        </div>
+
+        <div class="action-strip mt-3">
+            <button class="btn btn-primary" type="submit">Save settings</button>
+            <a class="btn btn-outline-secondary" asp-controller="Dashboard" asp-action="Index">Cancel</a>
+        </div>
+    </form>
+</section>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}
