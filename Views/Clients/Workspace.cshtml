@@ -1,0 +1,811 @@
+@model ClientWorkspaceViewModel
+@{
+    ViewData["Title"] = $"{Model.Client.CompanyName} workspace";
+    var client = Model.Client;
+    var latestReportStatus = Model.LatestReport?.ReportStatus ?? ReportStatus.NotStarted;
+}
+
+<section class="workspace-summary-card">
+    <div>
+        <div class="page-kicker">Client workspace</div>
+        <h1 class="workspace-title">@client.CompanyName</h1>
+        <p class="workspace-meta">@client.Industry · @client.Country @client.Region</p>
+        <div class="workspace-facts">
+            <div>
+                <div class="field-label">Website</div>
+                @if (!string.IsNullOrWhiteSpace(client.WebsiteUrl))
+                {
+                    <a href="@client.WebsiteUrl" target="_blank" rel="noreferrer">@client.WebsiteUrl</a>
+                }
+                else
+                {
+                    <span>Not set</span>
+                }
+            </div>
+            <div>
+                <div class="field-label">Contact person</div>
+                <div>@client.ContactPersonName</div>
+                <div class="table-note">@client.ContactPersonEmail</div>
+            </div>
+            <div>
+                <div class="field-label">Assigned consultant</div>
+                <div>@client.AssignedConsultant</div>
+            </div>
+            <div>
+                <div class="field-label">Package</div>
+                <div>@(client.ConsultingPackage ?? "Not set")</div>
+            </div>
+        </div>
+    </div>
+    <div class="summary-stat-grid">
+        <div class="summary-stat">
+            <div class="field-label">Current stage</div>
+            <span class="status-badge @client.CurrentStage.ToBadgeClass()">@client.CurrentStage.ToDisplayName()</span>
+        </div>
+        <div class="summary-stat">
+            <div class="field-label">Report status</div>
+            <span class="status-badge @latestReportStatus.ToBadgeClass()">@latestReportStatus.ToDisplayName()</span>
+        </div>
+        <div class="summary-stat">
+            <div class="field-label">Priority</div>
+            <span class="status-badge @client.Priority.ToBadgeClass()">@client.Priority.ToDisplayName()</span>
+        </div>
+        <div class="summary-stat">
+            <div class="field-label">Readiness score</div>
+            <div class="score-number">@(Model.LatestScore?.OverallScore.ToString() ?? client.OverallReadinessScore?.ToString("0.##") ?? "-")</div>
+        </div>
+    </div>
+    <div>
+        <div class="next-action-card">
+            <div class="field-label">Next action</div>
+            <div class="next-action-text">@(!string.IsNullOrWhiteSpace(client.NextAction) ? client.NextAction : "Define the next consultant action.")</div>
+            <div class="field-label">Key risks summary</div>
+            <p class="mb-3">@(!string.IsNullOrWhiteSpace(client.KeyRisksSummary) ? client.KeyRisksSummary : "No risk summary captured yet.")</p>
+            <div class="action-strip">
+                <a class="btn btn-primary btn-sm" asp-action="Edit" asp-route-id="@client.Id">Edit client</a>
+                <a class="btn btn-outline-secondary btn-sm" asp-action="Index">All clients</a>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section class="panel">
+    <div class="panel-header">
+        <h2 class="panel-title">Workflow timeline</h2>
+        <span class="table-note">Scroll horizontally to scan the full process.</span>
+    </div>
+    <div class="timeline-wrap">
+    <div class="timeline">
+        @foreach (var step in client.WorkflowSteps.OrderBy(step => step.DisplayOrder))
+        {
+            var timelineClass = step.Status switch
+            {
+                WorkflowStepStatus.Completed => "timeline-completed",
+                WorkflowStepStatus.InProgress => "timeline-current",
+                WorkflowStepStatus.Blocked => "timeline-blocked",
+                _ => "timeline-notstarted"
+            };
+            <div class="timeline-step @timelineClass">
+                <div class="timeline-node">@step.DisplayOrder</div>
+                <div class="timeline-card">
+                    <div class="timeline-label">@step.StageName</div>
+                    <span class="status-badge @step.Status.ToBadgeClass()">@step.Status.ToDisplayName()</span>
+                    <div class="table-note mt-2">@(step.CompletedAt?.ToString("yyyy-MM-dd") ?? "No completion date")</div>
+                </div>
+            </div>
+        }
+    </div>
+    </div>
+</section>
+
+<section class="panel tabs-shell">
+    <ul class="nav nav-tabs workflow-tabs" id="workspaceTabs" role="tablist">
+        <li class="nav-item" role="presentation"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#overview" type="button">Overview</button></li>
+        <li class="nav-item" role="presentation"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#assessment" type="button">Assessment Answers</button></li>
+        <li class="nav-item" role="presentation"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#documents" type="button">Documents</button></li>
+        <li class="nav-item" role="presentation"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#notes" type="button">Notes & Transcripts</button></li>
+        <li class="nav-item" role="presentation"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#analysis" type="button">AI Drafts</button></li>
+        <li class="nav-item" role="presentation"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#gap" type="button">Gap Analysis</button></li>
+        <li class="nav-item" role="presentation"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#swot" type="button">SWOT</button></li>
+        <li class="nav-item" role="presentation"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#insights" type="button">Industry & Competitors</button></li>
+        <li class="nav-item" role="presentation"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#usecases" type="button">Use Cases & Scoring</button></li>
+        <li class="nav-item" role="presentation"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#roadmap" type="button">Roadmap</button></li>
+        <li class="nav-item" role="presentation"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#reports" type="button">Reports</button></li>
+        <li class="nav-item" role="presentation"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tasks" type="button">Tasks / Follow-ups</button></li>
+        <li class="nav-item" role="presentation"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#activity" type="button">Activity Log</button></li>
+    </ul>
+
+    <div class="tab-content pt-3">
+        <div class="tab-pane fade show active" id="overview">
+            <form asp-controller="Analysis" asp-action="Generate" method="post" class="action-groups">
+                <input type="hidden" name="clientId" value="@client.Id" />
+                <div class="action-group">
+                    <div class="action-group-title">Intake</div>
+                    <div class="action-strip">
+                        <button class="btn btn-outline-primary btn-sm" type="button" data-bs-toggle="tab" data-bs-target="#assessment">Import Assessment</button>
+                        <button class="btn btn-outline-primary btn-sm" type="button" data-bs-toggle="tab" data-bs-target="#documents">Upload Document</button>
+                        <button class="btn btn-outline-primary btn-sm" type="button" data-bs-toggle="tab" data-bs-target="#notes">Add Note</button>
+                    </div>
+                </div>
+                <div class="action-group">
+                    <div class="action-group-title">Analysis</div>
+                    <div class="action-strip">
+                        <button class="btn btn-primary btn-sm" name="operation" value="company-summary">Company Summary</button>
+                        <button class="btn btn-primary btn-sm" name="operation" value="gap-analysis">Gap Analysis</button>
+                        <button class="btn btn-primary btn-sm" name="operation" value="swot">SWOT</button>
+                        <button class="btn btn-primary btn-sm" name="operation" value="use-cases">Use Cases</button>
+                        <button class="btn btn-primary btn-sm" name="operation" value="readiness-score">Score</button>
+                        <button class="btn btn-primary btn-sm" name="operation" value="roadmap">Roadmap</button>
+                    </div>
+                </div>
+                <div class="action-group">
+                    <div class="action-group-title">Report</div>
+                    <button class="btn btn-primary btn-sm" name="operation" value="report">Generate Report Draft</button>
+                </div>
+            </form>
+            <div class="metric-grid">
+                <div class="metric-card"><div class="metric-label">Assessment answers</div><div class="metric-value">@Model.AnswersBySection.Sum(group => group.Count())</div></div>
+                <div class="metric-card"><div class="metric-label">Documents</div><div class="metric-value">@client.Documents.Count</div></div>
+                <div class="metric-card"><div class="metric-label">Open gaps</div><div class="metric-value">@client.GapAnalysisItems.Count(item => item.Status == GapStatus.Open)</div></div>
+                <div class="metric-card"><div class="metric-label">AI use cases</div><div class="metric-value">@client.UseCases.Count</div></div>
+            </div>
+        </div>
+
+        <div class="tab-pane fade" id="assessment">
+            <div class="row g-3">
+                <div class="col-lg-5">
+                    <h3 class="panel-title">Assessment status</h3>
+                    <p><span class="status-badge @((Model.LatestAssessment?.FormStatus ?? ReadinessFormStatus.NotSent).ToBadgeClass())">@((Model.LatestAssessment?.FormStatus ?? ReadinessFormStatus.NotSent).ToDisplayName())</span></p>
+                    <form asp-controller="Assessments" asp-action="MarkFormSent" method="post" class="mb-3">
+                        <input type="hidden" name="clientId" value="@client.Id" />
+                        <label class="form-label">Readiness form URL</label>
+                        <div class="input-group">
+                            <input name="formUrl" value="@Model.LatestAssessment?.FormUrl" class="form-control" />
+                            <button class="btn btn-primary" type="submit">Mark Form Sent</button>
+                        </div>
+                    </form>
+                    <form asp-controller="Assessments" asp-action="Import" method="post">
+                        <input type="hidden" name="clientId" value="@client.Id" />
+                        <label class="form-label">Paste JSON or text answers</label>
+                        <textarea name="rawResponseText" class="form-control" rows="8" placeholder="Section | Question | Answer"></textarea>
+                        <button class="btn btn-primary mt-2" type="submit">Import Assessment Answers</button>
+                    </form>
+                </div>
+                <div class="col-lg-7">
+                    <h3 class="panel-title">Answers grouped by section</h3>
+                    @if (Model.AnswersBySection.Any())
+                    {
+                        @foreach (var answerGroup in Model.AnswersBySection)
+                        {
+                            <div class="mb-3">
+                                <div class="fw-semibold">@answerGroup.Key</div>
+                                <table class="table table-sm">
+                                    <thead><tr><th>Question</th><th>Answer</th><th>Status</th></tr></thead>
+                                    <tbody>
+                                        @foreach (var answer in answerGroup)
+                                        {
+                                            <tr>
+                                                <td>@answer.QuestionText</td>
+                                                <td>@answer.AnswerText</td>
+                                                <td><span class="status-badge @answer.CompletenessStatus.ToBadgeClass()">@answer.CompletenessStatus.ToDisplayName()</span></td>
+                                            </tr>
+                                        }
+                                    </tbody>
+                                </table>
+                            </div>
+                        }
+                    }
+                    else
+                    {
+                        <div class="empty-state mb-3">
+                            <strong>No assessment answers imported yet.</strong>
+                            Import pasted JSON/text or add answers manually to start the readiness review.
+                        </div>
+                    }
+                    <form asp-controller="Assessments" asp-action="AddAnswer" method="post" class="form-grid">
+                        <input type="hidden" name="clientId" value="@client.Id" />
+                        <input name="sectionName" class="form-control" placeholder="Section" />
+                        <input name="questionText" class="form-control" placeholder="Question" />
+                        <input name="answerType" class="form-control" placeholder="Answer type" />
+                        <label class="form-check align-self-center"><input name="isMandatory" value="true" class="form-check-input" type="checkbox" /> Mandatory</label>
+                        <textarea name="answerText" class="form-control compact-textarea form-grid-wide" placeholder="Answer"></textarea>
+                        <button class="btn btn-outline-primary" type="submit">Add manual answer</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <div class="tab-pane fade" id="documents">
+            <div class="row g-3">
+                <div class="col-lg-5">
+                    <h3 class="panel-title">Upload or register document</h3>
+                    <form asp-controller="Documents" asp-action="Create" method="post" enctype="multipart/form-data" class="form-grid">
+                        <input type="hidden" name="clientId" value="@client.Id" />
+                        <input name="FileName" class="form-control" placeholder="File name" />
+                        <input name="upload" type="file" class="form-control" />
+                        <select name="DocumentType" asp-items="Html.GetEnumSelectList<DocumentType>()" class="form-select"></select>
+                        <input name="UploadedBy" class="form-control" placeholder="Uploaded by" />
+                        <textarea name="Description" class="form-control compact-textarea form-grid-wide" placeholder="Description"></textarea>
+                        <textarea name="AiSummary" class="form-control compact-textarea form-grid-wide" placeholder="AI summary or leave blank for placeholder"></textarea>
+                        <textarea name="KeyInsights" class="form-control compact-textarea form-grid-wide" placeholder="Key insights"></textarea>
+                        <button class="btn btn-primary" type="submit">Upload Document</button>
+                    </form>
+                </div>
+                <div class="col-lg-7">
+                    <h3 class="panel-title">Client documents</h3>
+                    @if (client.Documents.Any())
+                    {
+                        @foreach (var document in client.Documents.OrderByDescending(item => item.UploadedAt))
+                        {
+                            <div class="panel">
+                                <div class="d-flex justify-content-between gap-2">
+                                    <div>
+                                        <div class="fw-semibold">@document.FileName</div>
+                                        <div class="table-note">@document.DocumentType.ToDisplayName() · @document.UploadedAt.ToString("yyyy-MM-dd")</div>
+                                    </div>
+                                    @if (!string.IsNullOrWhiteSpace(document.FilePath))
+                                    {
+                                        <a class="btn btn-outline-secondary btn-sm" href="@document.FilePath" target="_blank">Open</a>
+                                    }
+                                </div>
+                                <form asp-controller="Documents" asp-action="UpdateInsights" method="post" class="mt-2">
+                                    <input type="hidden" name="id" value="@document.Id" />
+                                    <label class="form-label">Summary</label>
+                                    <textarea name="aiSummary" class="form-control compact-textarea">@document.AiSummary</textarea>
+                                    <label class="form-label mt-2">Key insights</label>
+                                    <textarea name="keyInsights" class="form-control compact-textarea">@document.KeyInsights</textarea>
+                                    <input type="hidden" name="usedInReport" value="false" />
+                                    <label class="form-check mt-2">
+                                        @if (document.UsedInReport)
+                                        {
+                                            <input name="usedInReport" value="true" class="form-check-input" type="checkbox" checked />
+                                        }
+                                        else
+                                        {
+                                            <input name="usedInReport" value="true" class="form-check-input" type="checkbox" />
+                                        }
+                                        Used in report
+                                    </label>
+                                    <button class="btn btn-outline-primary btn-sm mt-2" type="submit">Save insights</button>
+                                </form>
+                            </div>
+                        }
+                    }
+                    else
+                    {
+                        <div class="empty-state">
+                            <strong>No documents uploaded yet.</strong>
+                            Upload or register client documents so summaries and report evidence can be captured.
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+
+        <div class="tab-pane fade" id="notes">
+            <div class="row g-3">
+                <div class="col-lg-6">
+                    <h3 class="panel-title">Add note</h3>
+                    <form asp-controller="Notes" asp-action="Create" method="post" class="form-grid">
+                        <input type="hidden" name="clientId" value="@client.Id" />
+                        <input name="NoteTitle" class="form-control" placeholder="Title" />
+                        <select name="NoteType" asp-items="Html.GetEnumSelectList<NoteType>()" class="form-select"></select>
+                        <input name="CreatedBy" class="form-control" placeholder="Created by" />
+                        <textarea name="NoteText" class="form-control compact-textarea form-grid-wide" placeholder="Note"></textarea>
+                        <button class="btn btn-primary" type="submit">Add Note</button>
+                    </form>
+                    <h3 class="panel-title mt-4">Notes</h3>
+                    @if (client.Notes.Any())
+                    {
+                        @foreach (var note in client.Notes.OrderByDescending(item => item.CreatedAt))
+                        {
+                            <div class="mb-3">
+                                <div class="fw-semibold">@note.NoteTitle <span class="status-badge status-neutral">@note.NoteType.ToDisplayName()</span></div>
+                                <div class="preline">@note.NoteText</div>
+                                <div class="table-note">@note.CreatedAt.ToString("yyyy-MM-dd HH:mm") · @note.CreatedBy</div>
+                            </div>
+                        }
+                    }
+                    else
+                    {
+                        <div class="empty-state">
+                            <strong>No consultant notes yet.</strong>
+                            Add discovery notes, decisions, assumptions, or follow-ups.
+                        </div>
+                    }
+                </div>
+                <div class="col-lg-6">
+                    <h3 class="panel-title">Add transcript</h3>
+                    <form asp-controller="Notes" asp-action="Transcript" method="post" class="form-grid">
+                        <input type="hidden" name="clientId" value="@client.Id" />
+                        <input name="SessionTitle" class="form-control" placeholder="Session title" />
+                        <input name="SessionDate" type="date" class="form-control" />
+                        <textarea name="TranscriptText" class="form-control compact-textarea form-grid-wide" placeholder="Transcript"></textarea>
+                        <textarea name="Summary" class="form-control compact-textarea form-grid-wide" placeholder="Summary"></textarea>
+                        <textarea name="KeyDecisions" class="form-control compact-textarea" placeholder="Key decisions"></textarea>
+                        <textarea name="FollowUpQuestions" class="form-control compact-textarea" placeholder="Follow-up questions"></textarea>
+                        <button class="btn btn-primary" type="submit">Add Transcript</button>
+                    </form>
+                    <h3 class="panel-title mt-4">Transcripts</h3>
+                    @if (client.MeetingTranscripts.Any())
+                    {
+                        @foreach (var transcript in client.MeetingTranscripts.OrderByDescending(item => item.SessionDate))
+                        {
+                            <div class="mb-3">
+                                <div class="fw-semibold">@transcript.SessionTitle</div>
+                                <div class="table-note">@transcript.SessionDate.ToString("yyyy-MM-dd")</div>
+                                <div class="preline">@transcript.Summary</div>
+                            </div>
+                        }
+                    }
+                    else
+                    {
+                        <div class="empty-state">
+                            <strong>No transcripts captured yet.</strong>
+                            Paste a session transcript after a consultant call.
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+
+        <div class="tab-pane fade" id="analysis">
+            <form asp-controller="Analysis" asp-action="Generate" method="post" class="action-strip mb-3">
+                <input type="hidden" name="clientId" value="@client.Id" />
+                <button class="btn btn-primary btn-sm" name="operation" value="company-summary">Generate Company Summary</button>
+                <button class="btn btn-primary btn-sm" name="operation" value="industry">Run Industry Analysis</button>
+                <button class="btn btn-primary btn-sm" name="operation" value="competitors">Run Competitor Insights</button>
+                <button class="btn btn-primary btn-sm" name="operation" value="score-use-cases">Score Use Cases</button>
+            </form>
+            @if (Model.LatestAnalysisOutputs.Any())
+            {
+                @foreach (var output in Model.LatestAnalysisOutputs)
+                {
+                    <div class="panel">
+                        <div class="d-flex justify-content-between gap-2 mb-2">
+                            <div>
+                                <div class="fw-semibold">@output.Title</div>
+                                <div class="table-note">@output.AnalysisType.ToDisplayName() · version @output.VersionNumber · @(output.GeneratedAt?.ToString("yyyy-MM-dd HH:mm") ?? "not generated")</div>
+                            </div>
+                            <span class="status-badge @output.Status.ToBadgeClass()">@output.Status.ToDisplayName()</span>
+                        </div>
+                        <form asp-controller="Analysis" asp-action="EditOutput" method="post">
+                            <input type="hidden" name="id" value="@output.Id" />
+                            <textarea name="outputContent" class="form-control" rows="7">@output.OutputContent</textarea>
+                            <select name="status" asp-items="Html.GetEnumSelectList<DraftStatus>()" class="form-select mt-2"></select>
+                            <button class="btn btn-outline-primary btn-sm mt-2" type="submit">Save draft</button>
+                        </form>
+                        <form asp-controller="Analysis" asp-action="ApproveOutput" method="post" class="mt-2">
+                            <input type="hidden" name="id" value="@output.Id" />
+                            <button class="btn btn-primary btn-sm" type="submit">Approve output</button>
+                        </form>
+                    </div>
+                }
+            }
+            else
+            {
+                <div class="empty-state">
+                    <strong>No AI drafts generated yet.</strong>
+                    Generate a company summary, industry insight, or use-case score to create editable drafts.
+                </div>
+            }
+        </div>
+
+        <div class="tab-pane fade" id="gap">
+            <form asp-controller="Analysis" asp-action="Generate" method="post" class="mb-3">
+                <input type="hidden" name="clientId" value="@client.Id" />
+                <button class="btn btn-primary" name="operation" value="gap-analysis">Generate Gap Analysis</button>
+            </form>
+            <form asp-controller="GapAnalysis" asp-action="Create" method="post" class="form-grid mb-3">
+                <input type="hidden" name="clientId" value="@client.Id" />
+                <select name="GapArea" asp-items="Html.GetEnumSelectList<GapArea>()" class="form-select"></select>
+                <select name="Severity" asp-items="Html.GetEnumSelectList<Severity>()" class="form-select"></select>
+                <textarea name="IssueDescription" class="form-control compact-textarea form-grid-wide" placeholder="Issue description"></textarea>
+                <textarea name="Impact" class="form-control compact-textarea" placeholder="Impact"></textarea>
+                <textarea name="SuggestedAction" class="form-control compact-textarea" placeholder="Suggested action"></textarea>
+                <button class="btn btn-outline-primary" type="submit">Add gap item</button>
+            </form>
+            @if (client.GapAnalysisItems.Any())
+            {
+                <div class="table-responsive">
+                    <table class="table">
+                        <thead><tr><th>Area</th><th>Issue</th><th>Severity</th><th>Status</th><th>Action</th></tr></thead>
+                        <tbody>
+                            @foreach (var gap in client.GapAnalysisItems.OrderByDescending(item => item.Severity))
+                            {
+                                <tr>
+                                    <td>@gap.GapArea.ToDisplayName()</td>
+                                    <td>
+                                        <div>@gap.IssueDescription</div>
+                                        <div class="table-note">@gap.SuggestedFollowUpQuestion</div>
+                                    </td>
+                                    <td><span class="status-badge @gap.Severity.ToBadgeClass()">@gap.Severity.ToDisplayName()</span></td>
+                                    <td><span class="status-badge @gap.Status.ToBadgeClass()">@gap.Status.ToDisplayName()</span></td>
+                                    <td>
+                                        <form asp-controller="GapAnalysis" asp-action="Update" method="post" class="d-flex gap-2">
+                                            <input type="hidden" name="id" value="@gap.Id" />
+                                            <select name="status" asp-items="Html.GetEnumSelectList<GapStatus>()" class="form-select form-select-sm"></select>
+                                            <select name="severity" asp-items="Html.GetEnumSelectList<Severity>()" class="form-select form-select-sm"></select>
+                                            <button class="btn btn-outline-primary btn-sm" type="submit">Update</button>
+                                        </form>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+            else
+            {
+                <div class="empty-state">
+                    <strong>No open gaps found.</strong>
+                    Generate gap analysis or add a gap item manually when assessment information is incomplete.
+                </div>
+            }
+        </div>
+
+        <div class="tab-pane fade" id="swot">
+            <form asp-controller="Analysis" asp-action="Generate" method="post" class="mb-3">
+                <input type="hidden" name="clientId" value="@client.Id" />
+                <button class="btn btn-primary" name="operation" value="swot">Generate SWOT</button>
+            </form>
+            <div class="swot-grid">
+                @foreach (var category in Enum.GetValues<SwotCategory>())
+                {
+                    var categoryItems = client.SwotItems.Where(item => item.Category == category).ToList();
+                    <div class="swot-quadrant">
+                        <h3 class="panel-title">@category.ToDisplayName()</h3>
+                        @if (categoryItems.Any())
+                        {
+                            @foreach (var item in categoryItems)
+                            {
+                                <div class="mb-3">
+                                    <div>@item.Description</div>
+                                    <div class="table-note">@item.EvidenceSource</div>
+                                    <span class="status-badge @item.Status.ToBadgeClass()">@item.Status.ToDisplayName()</span>
+                                    <form asp-controller="Swot" asp-action="UpdateStatus" method="post" class="mt-2">
+                                        <input type="hidden" name="id" value="@item.Id" />
+                                        <select name="status" asp-items="Html.GetEnumSelectList<ItemReviewStatus>()" class="form-select form-select-sm"></select>
+                                        <input name="consultantComment" class="form-control form-control-sm mt-1" placeholder="Consultant comment" />
+                                        <button class="btn btn-outline-primary btn-sm mt-1" type="submit">Save</button>
+                                    </form>
+                                </div>
+                            }
+                        }
+                        else
+                        {
+                            <div class="empty-state">
+                                <strong>No items yet.</strong>
+                                Add evidence or generate SWOT to populate this quadrant.
+                            </div>
+                        }
+                    </div>
+                }
+            </div>
+            <form asp-controller="Swot" asp-action="Create" method="post" class="form-grid mt-3">
+                <input type="hidden" name="clientId" value="@client.Id" />
+                <select name="Category" asp-items="Html.GetEnumSelectList<SwotCategory>()" class="form-select"></select>
+                <input name="EvidenceSource" class="form-control" placeholder="Evidence source" />
+                <textarea name="Description" class="form-control compact-textarea form-grid-wide" placeholder="Description"></textarea>
+                <button class="btn btn-outline-primary" type="submit">Add SWOT item</button>
+            </form>
+        </div>
+
+        <div class="tab-pane fade" id="insights">
+            <form asp-controller="Analysis" asp-action="Generate" method="post" class="action-strip mb-3">
+                <input type="hidden" name="clientId" value="@client.Id" />
+                <button class="btn btn-primary btn-sm" name="operation" value="industry">Run Industry Analysis</button>
+                <button class="btn btn-primary btn-sm" name="operation" value="competitors">Run Competitor Insights</button>
+            </form>
+            <div class="row g-3">
+                <div class="col-lg-6">
+                    <h3 class="panel-title">Industry insights</h3>
+                    @if (client.IndustryInsights.Any())
+                    {
+                        @foreach (var insight in client.IndustryInsights.OrderByDescending(item => item.CreatedAt))
+                        {
+                            <div class="mb-3">
+                                <div class="fw-semibold">@insight.Topic <span class="status-badge @insight.Status.ToBadgeClass()">@insight.Status.ToDisplayName()</span></div>
+                                <div class="preline">@insight.InsightText</div>
+                                <div class="table-note">@insight.SourceType.ToDisplayName()</div>
+                            </div>
+                        }
+                    }
+                    else
+                    {
+                        <div class="empty-state">
+                            <strong>No industry insights yet.</strong>
+                            Run industry analysis or add a sourced insight manually.
+                        </div>
+                    }
+                    <form asp-controller="Insights" asp-action="Industry" method="post" class="form-grid">
+                        <input type="hidden" name="clientId" value="@client.Id" />
+                        <input name="Topic" class="form-control" placeholder="Topic" />
+                        <select name="SourceType" asp-items="Html.GetEnumSelectList<InsightSourceType>()" class="form-select"></select>
+                        <textarea name="InsightText" class="form-control compact-textarea form-grid-wide" placeholder="Insight"></textarea>
+                        <button class="btn btn-outline-primary" type="submit">Add industry insight</button>
+                    </form>
+                </div>
+                <div class="col-lg-6">
+                    <h3 class="panel-title">Competitor insights</h3>
+                    @if (client.CompetitorInsights.Any())
+                    {
+                        @foreach (var insight in client.CompetitorInsights.OrderByDescending(item => item.CreatedAt))
+                        {
+                            <div class="mb-3">
+                                <div class="fw-semibold">@insight.CompetitorName <span class="status-badge @insight.Status.ToBadgeClass()">@insight.Status.ToDisplayName()</span></div>
+                                <div class="preline">@insight.InsightText</div>
+                                <div class="table-note">@insight.AiUseCasesObserved</div>
+                            </div>
+                        }
+                    }
+                    else
+                    {
+                        <div class="empty-state">
+                            <strong>No competitor insights yet.</strong>
+                            Run competitor insights or capture market notes from discovery.
+                        </div>
+                    }
+                    <form asp-controller="Insights" asp-action="Competitor" method="post" class="form-grid">
+                        <input type="hidden" name="clientId" value="@client.Id" />
+                        <input name="CompetitorName" class="form-control" placeholder="Competitor" />
+                        <input name="WebsiteUrl" class="form-control" placeholder="Website" />
+                        <textarea name="InsightText" class="form-control compact-textarea form-grid-wide" placeholder="Insight"></textarea>
+                        <textarea name="AiUseCasesObserved" class="form-control compact-textarea" placeholder="AI use cases observed"></textarea>
+                        <textarea name="SourceNotes" class="form-control compact-textarea" placeholder="Source notes"></textarea>
+                        <button class="btn btn-outline-primary" type="submit">Add competitor insight</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <div class="tab-pane fade" id="usecases">
+            <form asp-controller="Analysis" asp-action="Generate" method="post" class="action-strip mb-3">
+                <input type="hidden" name="clientId" value="@client.Id" />
+                <button class="btn btn-primary btn-sm" name="operation" value="use-cases">Generate AI Use Cases</button>
+                <button class="btn btn-primary btn-sm" name="operation" value="score-use-cases">Score Use Cases</button>
+            </form>
+            <form asp-controller="UseCases" asp-action="ShortlistTop3" method="post" class="mb-3">
+                <input type="hidden" name="clientId" value="@client.Id" />
+                <button class="btn btn-outline-primary btn-sm" type="submit">Shortlist top 3</button>
+            </form>
+            @if (Model.RankedUseCases.Any())
+            {
+                <div class="table-responsive">
+                    <table class="table">
+                        <thead><tr><th>Use case</th><th>Scores</th><th>Priority</th><th>Status</th><th>Update</th></tr></thead>
+                        <tbody>
+                            @foreach (var useCase in Model.RankedUseCases)
+                            {
+                                <tr>
+                                    <td>
+                                        <div class="fw-semibold">@useCase.Title</div>
+                                        <div>@useCase.Description</div>
+                                        <div class="table-note">@useCase.Department · @useCase.TimeToValue.ToDisplayName()</div>
+                                    </td>
+                                    <td>
+                                        @if (useCase.Score is not null)
+                                        {
+                                            <span>ROI @useCase.Score.RoiScore · Feas @useCase.Score.FeasibilityScore · Fit @useCase.Score.StrategicFitScore</span>
+                                        }
+                                        else
+                                        {
+                                            <span>Not scored</span>
+                                        }
+                                    </td>
+                                    <td class="fw-semibold">@(useCase.Score?.PriorityScore.ToString("0.##") ?? "-")</td>
+                                    <td><span class="status-badge @useCase.Status.ToBadgeClass()">@useCase.Status.ToDisplayName()</span></td>
+                                    <td>
+                                        <form asp-controller="UseCases" asp-action="Score" method="post" class="d-grid gap-1">
+                                            <input type="hidden" name="useCaseId" value="@useCase.Id" />
+                                            <input name="RoiScore" class="form-control form-control-sm" type="number" min="1" max="5" value="@(useCase.Score?.RoiScore ?? 3)" />
+                                            <input name="FeasibilityScore" class="form-control form-control-sm" type="number" min="1" max="5" value="@(useCase.Score?.FeasibilityScore ?? 3)" />
+                                            <input name="RiskSafetyScore" class="form-control form-control-sm" type="number" min="1" max="5" value="@(useCase.Score?.RiskSafetyScore ?? 3)" />
+                                            <input name="StrategicFitScore" class="form-control form-control-sm" type="number" min="1" max="5" value="@(useCase.Score?.StrategicFitScore ?? 3)" />
+                                            <input name="DataReadinessScore" class="form-control form-control-sm" type="number" min="1" max="5" value="@(useCase.Score?.DataReadinessScore ?? 3)" />
+                                            <button class="btn btn-outline-primary btn-sm" type="submit">Save score</button>
+                                        </form>
+                                        <form asp-controller="UseCases" asp-action="UpdateStatus" method="post" class="mt-2">
+                                            <input type="hidden" name="id" value="@useCase.Id" />
+                                            <select name="status" asp-items="Html.GetEnumSelectList<UseCaseStatus>()" class="form-select form-select-sm"></select>
+                                            <button class="btn btn-outline-secondary btn-sm mt-1" type="submit">Set status</button>
+                                        </form>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+            else
+            {
+                <div class="empty-state">
+                    <strong>No use cases ranked yet.</strong>
+                    Generate AI use cases or add an opportunity manually before scoring.
+                </div>
+            }
+            <form asp-controller="UseCases" asp-action="Create" method="post" class="form-grid">
+                <input type="hidden" name="clientId" value="@client.Id" />
+                <input name="Title" class="form-control" placeholder="Title" />
+                <input name="Department" class="form-control" placeholder="Department" />
+                <select name="ImplementationComplexity" asp-items="Html.GetEnumSelectList<ComplexityLevel>()" class="form-select"></select>
+                <select name="RiskLevel" asp-items="Html.GetEnumSelectList<RiskLevel>()" class="form-select"></select>
+                <textarea name="Description" class="form-control compact-textarea form-grid-wide" placeholder="Description"></textarea>
+                <button class="btn btn-outline-primary" type="submit">Add use case</button>
+            </form>
+        </div>
+
+        <div class="tab-pane fade" id="roadmap">
+            <form asp-controller="Analysis" asp-action="Generate" method="post" class="mb-3">
+                <input type="hidden" name="clientId" value="@client.Id" />
+                <button class="btn btn-primary" name="operation" value="roadmap">Generate Roadmap</button>
+            </form>
+            @if (Model.RoadmapByPhase.Any())
+            {
+                @foreach (var phase in Model.RoadmapByPhase)
+                {
+                    <h3 class="panel-title">@phase.Key.ToDisplayName()</h3>
+                    <div class="table-responsive">
+                        <table class="table table-sm">
+                            <thead><tr><th>Item</th><th>Owner</th><th>Outcome</th><th>Status</th><th></th></tr></thead>
+                            <tbody>
+                                @foreach (var item in phase)
+                                {
+                                    <tr>
+                                        <td><div class="fw-semibold">@item.Title</div><div>@item.Description</div></td>
+                                        <td>@item.Owner</td>
+                                        <td>@item.ExpectedOutcome</td>
+                                        <td><span class="status-badge @item.Status.ToBadgeClass()">@item.Status.ToDisplayName()</span></td>
+                                        <td>
+                                            <form asp-controller="Roadmap" asp-action="UpdateStatus" method="post">
+                                                <input type="hidden" name="id" value="@item.Id" />
+                                                <select name="status" asp-items="Html.GetEnumSelectList<ApprovalStatus>()" class="form-select form-select-sm"></select>
+                                                <button class="btn btn-outline-primary btn-sm mt-1" type="submit">Update</button>
+                                            </form>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+            }
+            else
+            {
+                <div class="empty-state">
+                    <strong>No roadmap items yet.</strong>
+                    Generate a roadmap after the use-case shortlist or add a phase manually.
+                </div>
+            }
+            <form asp-controller="Roadmap" asp-action="Create" method="post" class="form-grid">
+                <input type="hidden" name="clientId" value="@client.Id" />
+                <select name="Phase" asp-items="Html.GetEnumSelectList<RoadmapPhase>()" class="form-select"></select>
+                <input name="Title" class="form-control" placeholder="Title" />
+                <input name="Owner" class="form-control" placeholder="Owner" />
+                <textarea name="Description" class="form-control compact-textarea form-grid-wide" placeholder="Description"></textarea>
+                <textarea name="ExpectedOutcome" class="form-control compact-textarea" placeholder="Expected outcome"></textarea>
+                <textarea name="Dependencies" class="form-control compact-textarea" placeholder="Dependencies"></textarea>
+                <button class="btn btn-outline-primary" type="submit">Add roadmap item</button>
+            </form>
+        </div>
+
+        <div class="tab-pane fade" id="reports">
+            <form asp-controller="Analysis" asp-action="Generate" method="post" class="mb-3">
+                <input type="hidden" name="clientId" value="@client.Id" />
+                <button class="btn btn-primary" name="operation" value="report">Generate Report Draft</button>
+            </form>
+            @if (Model.LatestReport is not null)
+            {
+                <div class="d-flex justify-content-between flex-wrap gap-2 mb-3">
+                    <div>
+                        <h3 class="panel-title mb-1">@Model.LatestReport.ReportTitle</h3>
+                        <span class="status-badge @Model.LatestReport.ReportStatus.ToBadgeClass()">@Model.LatestReport.ReportStatus.ToDisplayName()</span>
+                    </div>
+                    <a class="btn btn-outline-secondary" asp-controller="Reports" asp-action="Export" asp-route-reportId="@Model.LatestReport.Id">Export markdown</a>
+                </div>
+                <form asp-controller="Reports" asp-action="UpdateStatus" method="post" class="d-flex flex-wrap gap-2 mb-3">
+                    <input type="hidden" name="reportId" value="@Model.LatestReport.Id" />
+                    <select name="reportStatus" asp-items="Html.GetEnumSelectList<ReportStatus>()" class="form-select w-auto"></select>
+                    <button class="btn btn-primary" type="submit">Change Report Status</button>
+                </form>
+                @foreach (var reportSection in Model.LatestReport.Sections.OrderBy(item => item.SectionOrder))
+                {
+                    <div class="panel">
+                        <div class="d-flex justify-content-between gap-2">
+                            <div class="fw-semibold">@reportSection.SectionOrder. @reportSection.SectionTitle</div>
+                            <span class="status-badge @reportSection.SectionStatus.ToBadgeClass()">@reportSection.SectionStatus.ToDisplayName()</span>
+                        </div>
+                        <form asp-controller="Reports" asp-action="Section" method="post" class="mt-2">
+                            <input type="hidden" name="sectionId" value="@reportSection.Id" />
+                            <textarea name="sectionContent" class="form-control" rows="5">@reportSection.SectionContent</textarea>
+                            <select name="sectionStatus" asp-items="Html.GetEnumSelectList<SectionStatus>()" class="form-select mt-2"></select>
+                            <button class="btn btn-outline-primary btn-sm mt-2" type="submit">Save section</button>
+                        </form>
+                    </div>
+                }
+            }
+            else
+            {
+                <div class="empty-state">
+                    <strong>No report draft yet.</strong>
+                    Generate a report draft once the assessment, analysis, and roadmap are ready.
+                </div>
+            }
+        </div>
+
+        <div class="tab-pane fade" id="tasks">
+            <form asp-controller="Tasks" asp-action="Create" method="post" class="form-grid mb-3">
+                <input type="hidden" name="clientId" value="@client.Id" />
+                <input name="TaskTitle" class="form-control" placeholder="Task title" />
+                <select name="TaskType" asp-items="Html.GetEnumSelectList<TaskType>()" class="form-select"></select>
+                <input name="AssignedTo" class="form-control" placeholder="Assigned to" />
+                <input name="DueDate" type="date" class="form-control" />
+                <select name="Priority" asp-items="Html.GetEnumSelectList<TaskPriority>()" class="form-select"></select>
+                <textarea name="TaskDescription" class="form-control compact-textarea form-grid-wide" placeholder="Description"></textarea>
+                <button class="btn btn-primary" type="submit">Add Follow-up Task</button>
+            </form>
+            @if (client.Tasks.Any())
+            {
+                <div class="table-responsive">
+                    <table class="table">
+                        <thead><tr><th>Task</th><th>Type</th><th>Due</th><th>Priority</th><th>Status</th><th></th></tr></thead>
+                        <tbody>
+                            @foreach (var task in client.Tasks.OrderBy(item => item.DueDate ?? DateTime.MaxValue))
+                            {
+                                <tr>
+                                    <td><div class="fw-semibold">@task.TaskTitle</div><div class="table-note">@task.TaskDescription</div></td>
+                                    <td>@task.TaskType.ToDisplayName()</td>
+                                    <td class="@(task.DueDate.HasValue && task.DueDate.Value.Date < DateTime.UtcNow.Date && task.Status != ClientTaskStatus.Done ? "overdue" : null)">@(task.DueDate?.ToString("yyyy-MM-dd") ?? "-")</td>
+                                    <td><span class="status-badge @task.Priority.ToBadgeClass()">@task.Priority.ToDisplayName()</span></td>
+                                    <td><span class="status-badge @task.Status.ToBadgeClass()">@task.Status.ToDisplayName()</span></td>
+                                    <td>
+                                        <form asp-controller="Tasks" asp-action="Complete" method="post">
+                                            <input type="hidden" name="id" value="@task.Id" />
+                                            <button class="btn btn-outline-primary btn-sm" type="submit">Complete</button>
+                                        </form>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+            else
+            {
+                <div class="empty-state">
+                    <strong>No follow-up tasks yet.</strong>
+                    Add the next consultant action, client reminder, or review checkpoint.
+                </div>
+            }
+        </div>
+
+        <div class="tab-pane fade" id="activity">
+            @if (client.ActivityLogs.Any())
+            {
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead><tr><th>Time</th><th>Type</th><th>Description</th><th>By</th></tr></thead>
+                        <tbody>
+                            @foreach (var activity in client.ActivityLogs.OrderByDescending(item => item.CreatedAt))
+                            {
+                                <tr>
+                                    <td>@activity.CreatedAt.ToString("yyyy-MM-dd HH:mm")</td>
+                                    <td>@activity.ActivityType</td>
+                                    <td>@activity.Description</td>
+                                    <td>@activity.CreatedBy</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+            else
+            {
+                <div class="empty-state">
+                    <strong>No activity logged yet.</strong>
+                    Client updates, generated drafts, and consultant actions will appear here.
+                </div>
+            }
+        </div>
+    </div>
+</section>

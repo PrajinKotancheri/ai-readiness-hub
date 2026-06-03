@@ -1,0 +1,21 @@
+@model ClientCompany
+@{
+    ViewData["Title"] = "Create client";
+}
+
+<div class="page-header">
+    <div>
+        <h1 class="page-title">Create client</h1>
+        <p class="page-subtitle">Set up a new consultant workspace.</p>
+    </div>
+</div>
+
+<section class="panel">
+    <form asp-action="Create" method="post">
+        <partial name="_ClientForm" model="Model" />
+    </form>
+</section>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

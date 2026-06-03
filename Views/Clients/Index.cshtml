@@ -1,0 +1,122 @@
+@model ClientIndexViewModel
+@{
+    ViewData["Title"] = "Clients";
+}
+
+<div class="page-header">
+    <div>
+        <div class="page-kicker">Client operations</div>
+        <h1 class="page-title">Clients</h1>
+        <p class="page-subtitle">Manage AI readiness assessment clients and consulting workflow.</p>
+    </div>
+    <a class="btn btn-primary" asp-action="Create">New client</a>
+</div>
+
+<section class="panel filter-bar">
+    <div class="panel-header">
+        <h2 class="panel-title">Filters</h2>
+        <span class="table-note">@Model.Clients.Count client@(Model.Clients.Count == 1 ? "" : "s") shown</span>
+    </div>
+    <form method="get" class="form-grid">
+        <div>
+            <label class="form-label">Stage</label>
+            <select asp-for="Stage" asp-items="Html.GetEnumSelectList<ClientStage>()" class="form-select">
+                <option value="">All stages</option>
+            </select>
+        </div>
+        <div>
+            <label class="form-label">Industry</label>
+            <select asp-for="Industry" class="form-select">
+                <option value="">All industries</option>
+                @foreach (var industry in Model.Industries)
+                {
+                    <option value="@industry">@industry</option>
+                }
+            </select>
+        </div>
+        <div>
+            <label class="form-label">Consultant</label>
+            <select asp-for="AssignedConsultant" class="form-select">
+                <option value="">All consultants</option>
+                @foreach (var consultant in Model.Consultants)
+                {
+                    <option value="@consultant">@consultant</option>
+                }
+            </select>
+        </div>
+        <div>
+            <label class="form-label">Report status</label>
+            <select asp-for="ReportStatus" asp-items="Html.GetEnumSelectList<ReportStatus>()" class="form-select">
+                <option value="">All statuses</option>
+            </select>
+        </div>
+        <div>
+            <label class="form-label">Priority</label>
+            <select asp-for="Priority" asp-items="Html.GetEnumSelectList<TaskPriority>()" class="form-select">
+                <option value="">All priorities</option>
+            </select>
+        </div>
+        <div>
+            <label class="form-label">Last modified from</label>
+            <input asp-for="LastModifiedFrom" type="date" class="form-control" />
+        </div>
+        <div class="align-self-end action-strip">
+            <button class="btn btn-primary" type="submit">Apply filters</button>
+            <a class="btn btn-outline-secondary" asp-action="Index">Reset</a>
+        </div>
+    </form>
+</section>
+
+<section class="panel">
+    <div class="panel-header">
+        <h2 class="panel-title">Client workspaces</h2>
+        <span class="table-note">Open a company to continue the readiness workflow.</span>
+    </div>
+    @if (Model.Clients.Any())
+    {
+        <div class="table-responsive">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Company</th>
+                        <th>Industry</th>
+                        <th>Stage</th>
+                        <th>Readiness form</th>
+                        <th>Report status</th>
+                        <th>Priority</th>
+                        <th>Next action</th>
+                        <th>Last updated</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var client in Model.Clients)
+                    {
+                        <tr>
+                            <td>
+                                <a class="client-link" asp-action="Workspace" asp-route-id="@client.Id">@client.CompanyName</a>
+                                <div class="table-note">Workspace</div>
+                            </td>
+                            <td>@client.Industry</td>
+                            <td><span class="status-badge @client.Stage.ToBadgeClass()">@client.Stage.ToDisplayName()</span></td>
+                            <td><span class="status-badge @client.ReadinessFormStatus.ToBadgeClass()">@client.ReadinessFormStatus.ToDisplayName()</span></td>
+                            <td><span class="status-badge @client.ReportStatus.ToBadgeClass()">@client.ReportStatus.ToDisplayName()</span></td>
+                            <td><span class="status-badge @client.Priority.ToBadgeClass()">@client.Priority.ToDisplayName()</span></td>
+                            <td>@client.NextAction</td>
+                            <td>@client.LastUpdated.ToString("yyyy-MM-dd")</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+    else
+    {
+        <div class="empty-state">
+            <strong>No clients match these filters.</strong>
+            Adjust the filters or create a new client workspace.
+            <div class="mt-3">
+                <a class="btn btn-primary btn-sm" asp-action="Create">New client</a>
+            </div>
+        </div>
+    }
+</section>

@@ -1,0 +1,48 @@
+@model ClientCompany
+@{
+    ViewData["Title"] = "Client details";
+}
+
+<div class="page-header">
+    <div>
+        <h1 class="page-title">@Model.CompanyName</h1>
+        <p class="page-subtitle">@Model.Industry</p>
+    </div>
+    <div class="action-strip">
+        <a class="btn btn-primary" asp-action="Workspace" asp-route-id="@Model.Id">Open workspace</a>
+        <a class="btn btn-outline-secondary" asp-action="Edit" asp-route-id="@Model.Id">Edit</a>
+    </div>
+</div>
+
+<section class="panel">
+    <div class="workspace-facts">
+        <div>
+            <div class="field-label">Stage</div>
+            <span class="status-badge @Model.CurrentStage.ToBadgeClass()">@Model.CurrentStage.ToDisplayName()</span>
+        </div>
+        <div>
+            <div class="field-label">Website</div>
+            @if (!string.IsNullOrWhiteSpace(Model.WebsiteUrl))
+            {
+                <a href="@Model.WebsiteUrl" target="_blank" rel="noreferrer">@Model.WebsiteUrl</a>
+            }
+        </div>
+        <div>
+            <div class="field-label">Contact</div>
+            <div>@Model.ContactPersonName</div>
+            <div class="table-note">@Model.ContactPersonEmail</div>
+        </div>
+        <div>
+            <div class="field-label">Assigned consultant</div>
+            <div>@Model.AssignedConsultant</div>
+        </div>
+        <div>
+            <div class="field-label">Readiness score</div>
+            <div>@(Model.OverallReadinessScore?.ToString("0.##") ?? "Not scored")</div>
+        </div>
+        <div>
+            <div class="field-label">Next action</div>
+            <div>@Model.NextAction</div>
+        </div>
+    </div>
+</section>

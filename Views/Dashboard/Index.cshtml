@@ -1,0 +1,221 @@
+@model DashboardViewModel
+@{
+    ViewData["Title"] = "Dashboard";
+}
+
+<div class="page-header">
+    <div>
+        <div class="page-kicker">Consulting workflow</div>
+        <h1 class="page-title">Dashboard</h1>
+        <p class="page-subtitle">Monitor AI readiness engagements, review queues, and next consultant actions.</p>
+    </div>
+</div>
+
+<section class="metric-grid mb-3">
+    <a class="metric-card" asp-controller="Clients" asp-action="Index">
+        <span class="metric-icon">TC</span>
+        <div class="metric-value">@Model.TotalClients</div>
+        <div class="metric-label">Total clients</div>
+    </a>
+    <a class="metric-card" asp-controller="Clients" asp-action="Index">
+        <span class="metric-icon">AC</span>
+        <div class="metric-value">@Model.ActiveClients</div>
+        <div class="metric-label">Active clients</div>
+    </a>
+    <a class="metric-card" asp-controller="Clients" asp-action="Index" asp-route-ReportStatus="@ReportStatus.InConsultantReview">
+        <span class="metric-icon">RV</span>
+        <div class="metric-value">@Model.ReportsInReview</div>
+        <div class="metric-label">Reports in review</div>
+    </a>
+    <a class="metric-card" href="#tasks">
+        <span class="metric-icon">OD</span>
+        <div class="metric-value">@Model.OverdueTasks</div>
+        <div class="metric-label">Overdue tasks</div>
+    </a>
+    <a class="metric-card" href="#forms">
+        <span class="metric-icon">FM</span>
+        <div class="metric-value">@Model.FormsAwaitingCompletion</div>
+        <div class="metric-label">Forms awaiting completion</div>
+    </a>
+</section>
+
+<div class="row g-3">
+    <div class="col-xl-7">
+        <section class="panel">
+            <div class="panel-header">
+                <h2 class="panel-title">Clients by stage</h2>
+                <a asp-controller="Clients" asp-action="Index">View clients</a>
+            </div>
+            <div class="dashboard-status-grid">
+                @foreach (var item in Model.ClientsByStage)
+                {
+                    <a class="status-count-card" asp-controller="Clients" asp-action="Index" asp-route-Stage="@item.Key">
+                        <span class="status-badge @item.Key.ToBadgeClass()">@item.Key.ToDisplayName()</span>
+                        <span class="status-count">@item.Value</span>
+                    </a>
+                }
+            </div>
+        </section>
+    </div>
+    <div class="col-xl-5">
+        <section class="panel">
+            <div class="panel-header">
+                <h2 class="panel-title">Report status overview</h2>
+                <span class="table-note">@Model.ReportsByStatus.Sum(item => item.Value) reports</span>
+            </div>
+            <div class="dashboard-status-grid">
+                @foreach (var item in Model.ReportsByStatus.Where(item => item.Value > 0 || item.Key is ReportStatus.DraftGenerated or ReportStatus.InConsultantReview or ReportStatus.ReadyForDelivery))
+                {
+                    <a class="status-count-card" asp-controller="Clients" asp-action="Index" asp-route-ReportStatus="@item.Key">
+                        <span class="status-badge @item.Key.ToBadgeClass()">@item.Key.ToDisplayName()</span>
+                        <span class="status-count">@item.Value</span>
+                    </a>
+                }
+            </div>
+        </section>
+    </div>
+</div>
+
+<div class="row g-3">
+    <div class="col-xl-7">
+        <section class="panel" id="tasks">
+            <div class="panel-header">
+                <h2 class="panel-title">Tasks and follow-ups</h2>
+                <span class="status-badge @(Model.OverdueTasks > 0 ? "status-risk" : "status-good")">@Model.OverdueTasks overdue</span>
+            </div>
+            @if (Model.PendingTasks.Any())
+            {
+                <div class="table-responsive">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>Task</th>
+                                <th>Client</th>
+                                <th>Due</th>
+                                <th>Priority</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var task in Model.PendingTasks)
+                            {
+                                <tr>
+                                    <td>
+                                        <div class="fw-semibold">@task.TaskTitle</div>
+                                        <div class="table-note">@task.TaskType.ToDisplayName()</div>
+                                    </td>
+                                    <td><a asp-controller="Clients" asp-action="Workspace" asp-route-id="@task.ClientCompanyId">@task.ClientCompany?.CompanyName</a></td>
+                                    <td class="@(task.DueDate.HasValue && task.DueDate.Value.Date < DateTime.UtcNow.Date ? "overdue" : null)">@(task.DueDate?.ToString("yyyy-MM-dd") ?? "No due date")</td>
+                                    <td><span class="status-badge @task.Priority.ToBadgeClass()">@task.Priority.ToDisplayName()</span></td>
+                                    <td><span class="status-badge @task.Status.ToBadgeClass()">@task.Status.ToDisplayName()</span></td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+            else
+            {
+                <div class="empty-state">
+                    <strong>No pending tasks.</strong>
+                    Follow-ups will appear here as client work progresses.
+                </div>
+            }
+        </section>
+    </div>
+    <div class="col-xl-5">
+        <section class="panel">
+            <div class="panel-header">
+                <h2 class="panel-title">Reports waiting for review</h2>
+                <span class="status-badge @ReportStatus.InConsultantReview.ToBadgeClass()">@Model.ReportsInReview total</span>
+            </div>
+            @if (Model.ReportsWaitingForReview.Any())
+            {
+                @foreach (var report in Model.ReportsWaitingForReview)
+                {
+                    <div class="status-count-card mb-2">
+                        <div>
+                            <a class="fw-semibold" asp-controller="Clients" asp-action="Workspace" asp-route-id="@report.ClientCompanyId">@report.ReportTitle</a>
+                            <div class="table-note">Generated @((report.GeneratedAt ?? report.CreatedAt).ToString("yyyy-MM-dd"))</div>
+                        </div>
+                        <span class="status-badge @report.ReportStatus.ToBadgeClass()">@report.ReportStatus.ToDisplayName()</span>
+                    </div>
+                }
+            }
+            else
+            {
+                <div class="empty-state">
+                    <strong>No reports waiting for review.</strong>
+                    Report drafts will appear here after generation.
+                </div>
+            }
+        </section>
+    </div>
+</div>
+
+<div class="row g-3">
+    <div class="col-xl-4">
+        <section class="panel" id="forms">
+            <div class="panel-header">
+                <h2 class="panel-title">Forms sent, not completed</h2>
+                <span class="status-badge @ReadinessFormStatus.Sent.ToBadgeClass()">@Model.FormsAwaitingCompletion open</span>
+            </div>
+            @if (Model.FormsSentNotCompleted.Any())
+            {
+                @foreach (var assessment in Model.FormsSentNotCompleted)
+                {
+                    <div class="status-count-card mb-2">
+                        <div>
+                            <a asp-controller="Clients" asp-action="Workspace" asp-route-id="@assessment.ClientCompanyId">@assessment.ClientCompany?.CompanyName</a>
+                            <div class="table-note">Sent @(assessment.SentAt?.ToString("yyyy-MM-dd") ?? "date unknown")</div>
+                        </div>
+                    </div>
+                }
+            }
+            else
+            {
+                <div class="empty-state">
+                    <strong>No forms awaiting completion.</strong>
+                    Sent assessments that need client action will show here.
+                </div>
+            }
+        </section>
+    </div>
+    <div class="col-xl-8">
+        <section class="panel">
+            <div class="panel-header">
+                <h2 class="panel-title">Recently updated clients</h2>
+                <a asp-controller="Clients" asp-action="Index">Open client list</a>
+            </div>
+            <div class="table-responsive">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Company</th>
+                            <th>Stage</th>
+                            <th>Report status</th>
+                            <th>Next action</th>
+                            <th>Last updated</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var client in Model.RecentlyUpdatedClients)
+                        {
+                            var reportStatus = client.Reports.OrderByDescending(report => report.VersionNumber).FirstOrDefault()?.ReportStatus ?? ReportStatus.NotStarted;
+                            <tr>
+                                <td>
+                                    <a class="client-link" asp-controller="Clients" asp-action="Workspace" asp-route-id="@client.Id">@client.CompanyName</a>
+                                    <div class="table-note">@client.Industry</div>
+                                </td>
+                                <td><span class="status-badge @client.CurrentStage.ToBadgeClass()">@client.CurrentStage.ToDisplayName()</span></td>
+                                <td><span class="status-badge @reportStatus.ToBadgeClass()">@reportStatus.ToDisplayName()</span></td>
+                                <td>@client.NextAction</td>
+                                <td>@((client.LastModifiedAt ?? client.CreatedAt).ToString("yyyy-MM-dd"))</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    </div>
+</div>
