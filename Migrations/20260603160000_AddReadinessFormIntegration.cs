@@ -2,6 +2,7 @@
 using AI_Readiness_Hub.Data;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
+using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
 #nullable disable
 
@@ -67,7 +68,7 @@ namespace AI_Readiness_Hub.Migrations
                 columns: table => new
                 {
                     Id = table.Column<int>(type: "INTEGER", nullable: false)
-                        .Annotation("Sqlite:Autoincrement", true),
+                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
                     DefaultFormUrl = table.Column<string>(type: "TEXT", maxLength: 1000, nullable: true),
                     ClientReferenceEntryId = table.Column<string>(type: "TEXT", maxLength: 120, nullable: true),
                     EmailSubjectTemplate = table.Column<string>(type: "TEXT", maxLength: 240, nullable: false),

@@ -1,6 +1,5 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Design;
-using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.Configuration;
 
 namespace AI_Readiness_Hub.Data;
@@ -9,33 +8,34 @@ public class ApplicationDbContextFactory : IDesignTimeDbContextFactory<Applicati
 {
     public ApplicationDbContext CreateDbContext(string[] args)
     {
+        var environmentName = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT")
+            ?? Environment.GetEnvironmentVariable("DOTNET_ENVIRONMENT")
+            ?? Environments.Development;
         var configuration = new ConfigurationBuilder()
             .SetBasePath(Directory.GetCurrentDirectory())
             .AddJsonFile("appsettings.json", optional: true, reloadOnChange: false)
+            .AddJsonFile($"appsettings.{environmentName}.json", optional: true, reloadOnChange: false)
+            .AddUserSecrets(typeof(ApplicationDbContextFactory).Assembly, optional: true, reloadOnChange: false)
             .AddEnvironmentVariables()
             .AddCommandLine(args)
             .Build();
 
+        var configuredProvider = configuration.GetValue<string>("DatabaseProvider");
+        if (!string.IsNullOrWhiteSpace(configuredProvider) &&
+            !configuredProvider.Equals("Postgres", StringComparison.OrdinalIgnoreCase) &&
+            !configuredProvider.Equals("PostgreSQL", StringComparison.OrdinalIgnoreCase))
+        {
+            throw new InvalidOperationException("AI Readiness Consultant Hub supports PostgreSQL only. Remove DatabaseProvider or set it to Postgres.");
+        }
+
         var optionsBuilder = new DbContextOptionsBuilder<ApplicationDbContext>();
-        var provider = configuration.GetValue<string>("DatabaseProvider") ?? "Sqlite";
-        if (provider.Equals("Postgres", StringComparison.OrdinalIgnoreCase) ||
-            provider.Equals("PostgreSQL", StringComparison.OrdinalIgnoreCase))
+        var connectionString = configuration.GetConnectionString("DefaultConnection");
+        if (string.IsNullOrWhiteSpace(connectionString))
         {
-            var connectionString = configuration.GetConnectionString("DefaultConnection")
-                ?? configuration.GetConnectionString("PostgresConnection");
-            if (string.IsNullOrWhiteSpace(connectionString))
-            {
-                throw new InvalidOperationException("ConnectionStrings:DefaultConnection or ConnectionStrings:PostgresConnection is required when DatabaseProvider=Postgres.");
-            }
-
-            optionsBuilder.UseNpgsql(connectionString);
-        }
-        else
-        {
-            optionsBuilder.UseSqlite(configuration.GetConnectionString("SqliteConnection") ?? "Data Source=ai-readiness-hub-design-time.db");
-            optionsBuilder.ConfigureWarnings(warnings => warnings.Ignore(RelationalEventId.PendingModelChangesWarning));
+            throw new InvalidOperationException("ConnectionStrings:DefaultConnection is required for PostgreSQL.");
         }
 
+        optionsBuilder.UseNpgsql(connectionString);
         return new ApplicationDbContext(optionsBuilder.Options);
     }
 }

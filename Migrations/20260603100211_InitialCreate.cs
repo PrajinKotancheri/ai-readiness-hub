@@ -1,5 +1,6 @@
 ﻿using System;
 using Microsoft.EntityFrameworkCore.Migrations;
+using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
 #nullable disable
 
@@ -16,7 +17,7 @@ namespace AI_Readiness_Hub.Migrations
                 columns: table => new
                 {
                     Id = table.Column<int>(type: "INTEGER", nullable: false)
-                        .Annotation("Sqlite:Autoincrement", true),
+                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
                     CompanyName = table.Column<string>(type: "TEXT", maxLength: 160, nullable: false),
                     Industry = table.Column<string>(type: "TEXT", maxLength: 120, nullable: true),
                     WebsiteUrl = table.Column<string>(type: "TEXT", maxLength: 240, nullable: true),
@@ -50,7 +51,7 @@ namespace AI_Readiness_Hub.Migrations
                 columns: table => new
                 {
                     Id = table.Column<int>(type: "INTEGER", nullable: false)
-                        .Annotation("Sqlite:Autoincrement", true),
+                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
                     ClientCompanyId = table.Column<int>(type: "INTEGER", nullable: false),
                     AnalysisType = table.Column<string>(type: "TEXT", maxLength: 80, nullable: false),
                     Title = table.Column<string>(type: "TEXT", maxLength: 180, nullable: false),
@@ -81,7 +82,7 @@ namespace AI_Readiness_Hub.Migrations
                 columns: table => new
                 {
                     Id = table.Column<int>(type: "INTEGER", nullable: false)
-                        .Annotation("Sqlite:Autoincrement", true),
+                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
                     ClientCompanyId = table.Column<int>(type: "INTEGER", nullable: false),
                     Title = table.Column<string>(type: "TEXT", maxLength: 180, nullable: false),
                     Description = table.Column<string>(type: "TEXT", nullable: false),
@@ -112,7 +113,7 @@ namespace AI_Readiness_Hub.Migrations
                 columns: table => new
                 {
                     Id = table.Column<int>(type: "INTEGER", nullable: false)
-                        .Annotation("Sqlite:Autoincrement", true),
+                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
                     ClientCompanyId = table.Column<int>(type: "INTEGER", nullable: false),
                     ActivityType = table.Column<string>(type: "TEXT", maxLength: 120, nullable: false),
                     Description = table.Column<string>(type: "TEXT", nullable: false),
@@ -135,7 +136,7 @@ namespace AI_Readiness_Hub.Migrations
                 columns: table => new
                 {
                     Id = table.Column<int>(type: "INTEGER", nullable: false)
-                        .Annotation("Sqlite:Autoincrement", true),
+                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
                     ClientCompanyId = table.Column<int>(type: "INTEGER", nullable: false),
                     FileName = table.Column<string>(type: "TEXT", maxLength: 240, nullable: false),
                     FilePath = table.Column<string>(type: "TEXT", maxLength: 500, nullable: true),
@@ -164,7 +165,7 @@ namespace AI_Readiness_Hub.Migrations
                 columns: table => new
                 {
                     Id = table.Column<int>(type: "INTEGER", nullable: false)
-                        .Annotation("Sqlite:Autoincrement", true),
+                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
                     ClientCompanyId = table.Column<int>(type: "INTEGER", nullable: false),
                     ReportTitle = table.Column<string>(type: "TEXT", maxLength: 220, nullable: false),
                     ReportStatus = table.Column<string>(type: "TEXT", maxLength: 80, nullable: false),
@@ -192,7 +193,7 @@ namespace AI_Readiness_Hub.Migrations
                 columns: table => new
                 {
                     Id = table.Column<int>(type: "INTEGER", nullable: false)
-                        .Annotation("Sqlite:Autoincrement", true),
+                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
                     ClientCompanyId = table.Column<int>(type: "INTEGER", nullable: false),
                     TaskTitle = table.Column<string>(type: "TEXT", maxLength: 180, nullable: false),
                     TaskDescription = table.Column<string>(type: "TEXT", nullable: true),
@@ -220,7 +221,7 @@ namespace AI_Readiness_Hub.Migrations
                 columns: table => new
                 {
                     Id = table.Column<int>(type: "INTEGER", nullable: false)
-                        .Annotation("Sqlite:Autoincrement", true),
+                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
                     ClientCompanyId = table.Column<int>(type: "INTEGER", nullable: false),
                     StageName = table.Column<string>(type: "TEXT", maxLength: 120, nullable: false),
                     DisplayOrder = table.Column<int>(type: "INTEGER", nullable: false),
@@ -243,7 +244,7 @@ namespace AI_Readiness_Hub.Migrations
                 columns: table => new
                 {
                     Id = table.Column<int>(type: "INTEGER", nullable: false)
-                        .Annotation("Sqlite:Autoincrement", true),
+                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
                     ClientCompanyId = table.Column<int>(type: "INTEGER", nullable: false),
                     CompetitorName = table.Column<string>(type: "TEXT", maxLength: 180, nullable: false),
                     WebsiteUrl = table.Column<string>(type: "TEXT", maxLength: 240, nullable: true),
@@ -271,7 +272,7 @@ namespace AI_Readiness_Hub.Migrations
                 columns: table => new
                 {
                     Id = table.Column<int>(type: "INTEGER", nullable: false)
-                        .Annotation("Sqlite:Autoincrement", true),
+                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
                     ClientCompanyId = table.Column<int>(type: "INTEGER", nullable: false),
                     NoteTitle = table.Column<string>(type: "TEXT", maxLength: 180, nullable: false),
                     NoteText = table.Column<string>(type: "TEXT", nullable: false),
@@ -296,7 +297,7 @@ namespace AI_Readiness_Hub.Migrations
                 columns: table => new
                 {
                     Id = table.Column<int>(type: "INTEGER", nullable: false)
-                        .Annotation("Sqlite:Autoincrement", true),
+                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
                     ClientCompanyId = table.Column<int>(type: "INTEGER", nullable: false),
                     GapArea = table.Column<string>(type: "TEXT", maxLength: 80, nullable: false),
                     IssueDescription = table.Column<string>(type: "TEXT", nullable: false),
@@ -324,7 +325,7 @@ namespace AI_Readiness_Hub.Migrations
                 columns: table => new
                 {
                     Id = table.Column<int>(type: "INTEGER", nullable: false)
-                        .Annotation("Sqlite:Autoincrement", true),
+                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
                     ClientCompanyId = table.Column<int>(type: "INTEGER", nullable: false),
                     Topic = table.Column<string>(type: "TEXT", maxLength: 180, nullable: false),
                     InsightText = table.Column<string>(type: "TEXT", nullable: false),
@@ -349,7 +350,7 @@ namespace AI_Readiness_Hub.Migrations
                 columns: table => new
                 {
                     Id = table.Column<int>(type: "INTEGER", nullable: false)
-                        .Annotation("Sqlite:Autoincrement", true),
+                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
                     ClientCompanyId = table.Column<int>(type: "INTEGER", nullable: false),
                     SessionTitle = table.Column<string>(type: "TEXT", maxLength: 180, nullable: false),
                     SessionDate = table.Column<DateTime>(type: "TEXT", nullable: false),
@@ -376,7 +377,7 @@ namespace AI_Readiness_Hub.Migrations
                 columns: table => new
                 {
                     Id = table.Column<int>(type: "INTEGER", nullable: false)
-                        .Annotation("Sqlite:Autoincrement", true),
+                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
                     ClientCompanyId = table.Column<int>(type: "INTEGER", nullable: false),
                     FormStatus = table.Column<string>(type: "TEXT", maxLength: 80, nullable: false),
                     FormUrl = table.Column<string>(type: "TEXT", maxLength: 500, nullable: true),
@@ -404,7 +405,7 @@ namespace AI_Readiness_Hub.Migrations
                 columns: table => new
                 {
                     Id = table.Column<int>(type: "INTEGER", nullable: false)
-                        .Annotation("Sqlite:Autoincrement", true),
+                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
                     ClientCompanyId = table.Column<int>(type: "INTEGER", nullable: false),
                     BusinessClarityScore = table.Column<int>(type: "INTEGER", nullable: false),
                     DataReadinessScore = table.Column<int>(type: "INTEGER", nullable: false),
@@ -433,7 +434,7 @@ namespace AI_Readiness_Hub.Migrations
                 columns: table => new
                 {
                     Id = table.Column<int>(type: "INTEGER", nullable: false)
-                        .Annotation("Sqlite:Autoincrement", true),
+                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
                     ClientCompanyId = table.Column<int>(type: "INTEGER", nullable: false),
                     Category = table.Column<string>(type: "TEXT", maxLength: 80, nullable: false),
                     Description = table.Column<string>(type: "TEXT", nullable: false),
@@ -459,7 +460,7 @@ namespace AI_Readiness_Hub.Migrations
                 columns: table => new
                 {
                     Id = table.Column<int>(type: "INTEGER", nullable: false)
-                        .Annotation("Sqlite:Autoincrement", true),
+                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
                     ClientCompanyId = table.Column<int>(type: "INTEGER", nullable: false),
                     Phase = table.Column<string>(type: "TEXT", maxLength: 80, nullable: false),
                     Title = table.Column<string>(type: "TEXT", maxLength: 180, nullable: false),
@@ -494,7 +495,7 @@ namespace AI_Readiness_Hub.Migrations
                 columns: table => new
                 {
                     Id = table.Column<int>(type: "INTEGER", nullable: false)
-                        .Annotation("Sqlite:Autoincrement", true),
+                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
                     AIUseCaseId = table.Column<int>(type: "INTEGER", nullable: false),
                     RoiScore = table.Column<int>(type: "INTEGER", nullable: false),
                     FeasibilityScore = table.Column<int>(type: "INTEGER", nullable: false),
@@ -522,7 +523,7 @@ namespace AI_Readiness_Hub.Migrations
                 columns: table => new
                 {
                     Id = table.Column<int>(type: "INTEGER", nullable: false)
-                        .Annotation("Sqlite:Autoincrement", true),
+                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
                     ClientReportId = table.Column<int>(type: "INTEGER", nullable: false),
                     SectionTitle = table.Column<string>(type: "TEXT", maxLength: 180, nullable: false),
                     SectionOrder = table.Column<int>(type: "INTEGER", nullable: false),
@@ -547,7 +548,7 @@ namespace AI_Readiness_Hub.Migrations
                 columns: table => new
                 {
                     Id = table.Column<int>(type: "INTEGER", nullable: false)
-                        .Annotation("Sqlite:Autoincrement", true),
+                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
                     ReadinessAssessmentId = table.Column<int>(type: "INTEGER", nullable: false),
                     SectionName = table.Column<string>(type: "TEXT", maxLength: 120, nullable: false),
                     QuestionText = table.Column<string>(type: "TEXT", nullable: false),

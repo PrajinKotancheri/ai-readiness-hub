@@ -1,11 +1,11 @@
 # Render Deployment
 
-This app is prepared for Render deployment with Docker and PostgreSQL.
+This app is prepared for Render deployment with Docker and PostgreSQL. SQLite is not supported at runtime.
 
 ## Deploy
 
 1. Commit and push the repository to GitHub.
-2. Create a Render PostgreSQL database.
+2. Use the Supabase PostgreSQL connection string for this app.
 3. Create a Render Web Service from the GitHub repository.
 4. Select Docker runtime.
 5. Add environment variables:
@@ -13,11 +13,13 @@ This app is prepared for Render deployment with Docker and PostgreSQL.
 ```text
 ASPNETCORE_ENVIRONMENT=Production
 ASPNETCORE_URLS=http://0.0.0.0:10000
-DatabaseProvider=Postgres
-ConnectionStrings__DefaultConnection=<Render internal PostgreSQL connection string>
+ConnectionStrings__DefaultConnection=Host=aws-0-eu-west-1.pooler.supabase.com;Port=6543;Database=postgres;Username=postgres.qjctwirulyswwhtthvht;Password=YOUR_PASSWORD;SSL Mode=Require;Trust Server Certificate=true;Pooling=false;Timeout=60;Command Timeout=60
+RunMigrationsOnStartup=true
 ```
 
-The app also accepts `ConnectionStrings__PostgresConnection`, but `ConnectionStrings__DefaultConnection` is recommended for Render.
+Do not commit the Supabase password. Set the same connection string in Render environment variables.
+
+If the Supabase password contains a semicolon `;` or other connection-string-breaking characters, reset it to a safer password or escape it correctly before adding it to Render.
 
 ## Email Settings
 
@@ -67,9 +69,9 @@ https://YOUR-APP.onrender.com/Dashboard
 
 - Wrong DLL name: the Dockerfile starts `AI Readiness Hub.dll`; keep the project file and published DLL name aligned.
 - App not binding: verify `ASPNETCORE_URLS=http://0.0.0.0:10000` and that Docker exposes port `10000`.
-- Missing PostgreSQL connection string: set `ConnectionStrings__DefaultConnection` to the Render internal database URL.
-- Migrations not applied: check startup logs for `Applying migrations and seed data...`.
-- Database provider still SQLite: set `DatabaseProvider=Postgres`.
+- Missing PostgreSQL connection string: set `ConnectionStrings__DefaultConnection` to the Supabase PostgreSQL connection string.
+- Migrations not applied: check startup logs for `Applying database migrations...` and `Database migrations completed.`
+- Database provider configured incorrectly: remove `DatabaseProvider` or set it to `Postgres`; the app supports PostgreSQL only.
 - Webhook URL still localhost: update Apps Script to `https://YOUR-RENDER-APP.onrender.com/api/google-forms/assessment-response`.
 - Missing email configuration: set `SMTP_PASSWORD`, `Smtp__FromEmail`, and optionally `Smtp__FromName`.
 - Google Form client token not submitted: confirm the form contains a `Client Reference ID` question and the generated link pre-fills it.

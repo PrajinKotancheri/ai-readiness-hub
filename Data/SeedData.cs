@@ -10,7 +10,6 @@ public static class SeedData
     public static async Task InitializeAsync(IServiceProvider services)
     {
         var context = services.GetRequiredService<ApplicationDbContext>();
-        await context.Database.MigrateAsync();
 
         if (await context.ClientCompanies.AnyAsync())
         {

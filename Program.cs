@@ -1,7 +1,6 @@
 using AI_Readiness_Hub.Data;
 using AI_Readiness_Hub.Services;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Diagnostics;
 
 var seedOnly = args.Any(arg => arg.Equals("--seed-only", StringComparison.OrdinalIgnoreCase));
 var filteredArgs = args
@@ -36,25 +35,11 @@ builder.Logging.AddConsole();
 builder.Services.AddRouting();
 builder.Services.AddControllersWithViews()
     .AddApplicationPart(typeof(AI_Readiness_Hub.Controllers.DashboardController).Assembly);
+ValidateDatabaseConfiguration(builder.Configuration, builder.Environment);
+var postgresConnectionString = builder.Configuration.GetConnectionString("DefaultConnection")!;
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
 {
-    var provider = builder.Configuration.GetValue<string>("DatabaseProvider") ?? "Sqlite";
-    if (provider.Equals("Postgres", StringComparison.OrdinalIgnoreCase) ||
-        provider.Equals("PostgreSQL", StringComparison.OrdinalIgnoreCase))
-    {
-        var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
-            ?? builder.Configuration.GetConnectionString("PostgresConnection");
-        if (string.IsNullOrWhiteSpace(connectionString))
-        {
-            throw new InvalidOperationException("ConnectionStrings:DefaultConnection or ConnectionStrings:PostgresConnection is required when DatabaseProvider=Postgres.");
-        }
-
-        options.UseNpgsql(connectionString);
-        return;
-    }
-
-    options.UseSqlite(builder.Configuration.GetConnectionString("SqliteConnection") ?? "Data Source=ai-readiness-hub.db");
-    options.ConfigureWarnings(warnings => warnings.Ignore(RelationalEventId.PendingModelChangesWarning));
+    options.UseNpgsql(postgresConnectionString);
 });
 builder.Services.AddScoped<IAIConsultingAnalysisService, MockAIConsultingAnalysisService>();
 builder.Services.AddScoped<IClientDocumentSummaryService, MockClientDocumentSummaryService>();
@@ -97,22 +82,89 @@ app.UseEndpoints(endpoints =>
 
 if (seedOnly)
 {
-    using var seedScope = app.Services.CreateScope();
-    Console.WriteLine("Applying migrations and seed data...");
-    await SeedData.InitializeAsync(seedScope.ServiceProvider);
-    Console.WriteLine("Seed data is ready.");
+    await InitializeDatabaseAsync(app);
     return;
 }
 
 if (filteredArgs.All(arg => !arg.Equals("--ef-design-time", StringComparison.OrdinalIgnoreCase)))
 {
-    using var scope = app.Services.CreateScope();
-    Console.WriteLine("Applying migrations and seed data...");
-    await SeedData.InitializeAsync(scope.ServiceProvider);
-    Console.WriteLine("Seed data is ready.");
+    await InitializeDatabaseAsync(app);
 }
 
 await app.RunAsync();
+
+static void ValidateDatabaseConfiguration(IConfiguration configuration, IWebHostEnvironment environment)
+{
+    var configuredProvider = configuration.GetValue<string>("DatabaseProvider");
+    if (!string.IsNullOrWhiteSpace(configuredProvider) &&
+        !configuredProvider.Equals("Postgres", StringComparison.OrdinalIgnoreCase) &&
+        !configuredProvider.Equals("PostgreSQL", StringComparison.OrdinalIgnoreCase))
+    {
+        throw new InvalidOperationException("AI Readiness Consultant Hub supports PostgreSQL only. Remove DatabaseProvider or set it to Postgres.");
+    }
+
+    var connectionString = configuration.GetConnectionString("DefaultConnection");
+    if (string.IsNullOrWhiteSpace(connectionString))
+    {
+        throw new InvalidOperationException("ConnectionStrings:DefaultConnection is required for PostgreSQL. Configure it with user secrets, an environment variable, or local-only appsettings.");
+    }
+
+    if (environment.IsProduction() && IsLocalPostgresConnection(connectionString))
+    {
+        throw new InvalidOperationException("Production PostgreSQL configuration points to localhost. Configure ConnectionStrings__DefaultConnection for the production database.");
+    }
+}
+
+static async Task InitializeDatabaseAsync(WebApplication app)
+{
+    var logger = app.Services
+        .GetRequiredService<ILoggerFactory>()
+        .CreateLogger("DatabaseStartup");
+    var connectionStringExists = !string.IsNullOrWhiteSpace(app.Configuration.GetConnectionString("DefaultConnection"));
+    var runMigrationsOnStartup = app.Configuration.GetValue("RunMigrationsOnStartup", true);
+
+    logger.LogInformation("Database provider: PostgreSQL.");
+    logger.LogInformation("ConnectionStrings:DefaultConnection configured: {ConnectionStringConfigured}.", connectionStringExists);
+    logger.LogInformation("RunMigrationsOnStartup: {RunMigrationsOnStartup}.", runMigrationsOnStartup);
+
+    if (!runMigrationsOnStartup)
+    {
+        logger.LogWarning("RunMigrationsOnStartup is false. Skipping database migrations and seed data.");
+        return;
+    }
+
+    try
+    {
+        using var scope = app.Services.CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+
+        logger.LogInformation("Applying database migrations...");
+        await dbContext.Database.MigrateAsync();
+        logger.LogInformation("Database migrations completed.");
+
+        logger.LogInformation("Applying seed data...");
+        await SeedData.InitializeAsync(scope.ServiceProvider);
+        logger.LogInformation("Seed data completed.");
+    }
+    catch (Exception ex)
+    {
+        logger.LogError(
+            ex,
+            "Database startup failed. Message: {Message}. Inner exception: {InnerException}",
+            ex.Message,
+            ex.InnerException?.ToString() ?? "(none)");
+        throw;
+    }
+}
+
+static bool IsLocalPostgresConnection(string connectionString)
+{
+    var normalized = connectionString.Replace(" ", string.Empty, StringComparison.OrdinalIgnoreCase);
+    return normalized.Contains("Host=localhost", StringComparison.OrdinalIgnoreCase) ||
+           normalized.Contains("Host=127.0.0.1", StringComparison.OrdinalIgnoreCase) ||
+           normalized.Contains("Server=localhost", StringComparison.OrdinalIgnoreCase) ||
+           normalized.Contains("Server=127.0.0.1", StringComparison.OrdinalIgnoreCase);
+}
 
 static void ValidateEmailConfiguration(WebApplication app)
 {
