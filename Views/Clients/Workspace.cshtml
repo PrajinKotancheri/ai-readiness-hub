@@ -163,10 +163,10 @@
                 </div>
             </form>
             <div class="metric-grid">
-                <div class="metric-card"><div class="metric-label">Assessment responses</div><div class="metric-value">@responses.Count</div></div>
-                <div class="metric-card"><div class="metric-label">Documents</div><div class="metric-value">@client.Documents.Count</div></div>
-                <div class="metric-card"><div class="metric-label">Open gaps</div><div class="metric-value">@client.GapAnalysisItems.Count(item => item.Status == GapStatus.Open)</div></div>
-                <div class="metric-card"><div class="metric-label">AI use cases</div><div class="metric-value">@client.UseCases.Count</div></div>
+                <div class="metric-card"><div class="metric-label">Assessment responses</div><div class="metric-value">@Model.AssessmentResponseCount</div></div>
+                <div class="metric-card"><div class="metric-label">Documents</div><div class="metric-value">@Model.DocumentCount</div></div>
+                <div class="metric-card"><div class="metric-label">Open gaps</div><div class="metric-value">@Model.OpenGapCount</div></div>
+                <div class="metric-card"><div class="metric-label">AI use cases</div><div class="metric-value">@Model.UseCaseCount</div></div>
             </div>
         </div>
 
@@ -266,7 +266,7 @@
                     <div class="metric-grid mb-3 response-summary-grid">
                         <div class="metric-card">
                             <div class="metric-label">Total responses</div>
-                            <div class="metric-value">@responses.Count</div>
+                            <div class="metric-value">@Model.AssessmentResponseCount</div>
                         </div>
                         <div class="metric-card">
                             <div class="metric-label">Latest received</div>
@@ -285,7 +285,7 @@
                     <section class="panel">
                         <div class="panel-header">
                             <h3 class="panel-title">Assessment responses</h3>
-                            <span class="status-badge status-info">@responses.Count total</span>
+                            <span class="status-badge status-info">@Model.AssessmentResponseCount total</span>
                         </div>
                         @if (responses.Any())
                         {

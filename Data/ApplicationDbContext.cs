@@ -74,8 +74,38 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
         modelBuilder.Entity<AssessmentResponse>()
             .HasIndex(response => new { response.ReadinessAssessmentId, response.ExternalResponseId });
 
+        modelBuilder.Entity<AssessmentResponse>()
+            .HasIndex(response => new { response.ReadinessAssessmentId, response.ReceivedAt });
+
         modelBuilder.Entity<AssessmentAnswer>()
             .HasIndex(answer => answer.AssessmentResponseId);
+
+        modelBuilder.Entity<ClientDocument>()
+            .HasIndex(document => new { document.ClientCompanyId, document.UploadedAt });
+
+        modelBuilder.Entity<ConsultantNote>()
+            .HasIndex(note => new { note.ClientCompanyId, note.CreatedAt });
+
+        modelBuilder.Entity<MeetingTranscript>()
+            .HasIndex(transcript => new { transcript.ClientCompanyId, transcript.SessionDate });
+
+        modelBuilder.Entity<AIAnalysisOutput>()
+            .HasIndex(output => new { output.ClientCompanyId, output.AnalysisType, output.VersionNumber });
+
+        modelBuilder.Entity<GapAnalysisItem>()
+            .HasIndex(gap => new { gap.ClientCompanyId, gap.Status });
+
+        modelBuilder.Entity<AIUseCase>()
+            .HasIndex(useCase => useCase.ClientCompanyId);
+
+        modelBuilder.Entity<ClientReport>()
+            .HasIndex(report => new { report.ClientCompanyId, report.VersionNumber });
+
+        modelBuilder.Entity<ClientTask>()
+            .HasIndex(task => new { task.ClientCompanyId, task.Status });
+
+        modelBuilder.Entity<ClientActivityLog>()
+            .HasIndex(activity => new { activity.ClientCompanyId, activity.CreatedAt });
 
         modelBuilder.Entity<ClientCompany>()
             .HasMany(client => client.ReadinessAssessments)
