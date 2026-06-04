@@ -198,14 +198,14 @@
             </div>
             @if (Model.RecentlyReceivedAssessmentResponses.Any())
             {
-                @foreach (var assessment in Model.RecentlyReceivedAssessmentResponses)
+                @foreach (var response in Model.RecentlyReceivedAssessmentResponses)
                 {
                     <div class="status-count-card mb-2">
                         <div>
-                            <a asp-controller="Clients" asp-action="Workspace" asp-route-id="@assessment.ClientCompanyId">@assessment.ClientCompany?.CompanyName</a>
-                            <div class="table-note">Received @((assessment.ResponseReceivedAt ?? assessment.CompletedAt ?? assessment.ImportedAt ?? assessment.CreatedAt).ToString("yyyy-MM-dd"))</div>
+                            <a asp-controller="Clients" asp-action="Workspace" asp-route-id="@response.ReadinessAssessment?.ClientCompanyId" asp-route-responseId="@response.Id">@response.ReadinessAssessment?.ClientCompany?.CompanyName</a>
+                            <div class="table-note">@response.ResponseLabel · @response.AnswerCount answers · received @response.ReceivedAt.ToString("yyyy-MM-dd")</div>
                         </div>
-                        <span class="status-badge @assessment.FormStatus.ToBadgeClass()">@assessment.FormStatus.ToDisplayName()</span>
+                        <span class="status-badge @response.Status.ToBadgeClass()">@response.Source.ToDisplayName()</span>
                     </div>
                 }
             }

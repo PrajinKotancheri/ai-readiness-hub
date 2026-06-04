@@ -15,7 +15,7 @@ public class DashboardViewModel
     public IReadOnlyDictionary<ReportStatus, int> ReportsByStatus { get; set; } = new Dictionary<ReportStatus, int>();
     public IReadOnlyList<ClientTask> PendingTasks { get; set; } = [];
     public IReadOnlyList<ReadinessAssessment> FormsSentNotCompleted { get; set; } = [];
-    public IReadOnlyList<ReadinessAssessment> RecentlyReceivedAssessmentResponses { get; set; } = [];
+    public IReadOnlyList<AssessmentResponse> RecentlyReceivedAssessmentResponses { get; set; } = [];
     public IReadOnlyList<ClientCompany> ClientsWithMissingDocuments { get; set; } = [];
     public IReadOnlyList<ClientReport> ReportsWaitingForReview { get; set; } = [];
     public IReadOnlyList<ClientCompany> RecentlyUpdatedClients { get; set; } = [];

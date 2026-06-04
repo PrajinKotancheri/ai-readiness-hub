@@ -44,6 +44,23 @@ public enum ReadinessFormStatus
     Imported
 }
 
+public enum AssessmentResponseSource
+{
+    GoogleForm,
+    ManualImport,
+    ClientPortal,
+    ExistingImport,
+    Other
+}
+
+public enum AssessmentResponseStatus
+{
+    Received,
+    Imported,
+    Reviewed,
+    Ignored
+}
+
 public enum CompletenessStatus
 {
     Complete,
@@ -415,6 +432,35 @@ public class ReadinessAssessment
     public string? Summary { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime? LastModifiedAt { get; set; }
+    public ICollection<AssessmentResponse> Responses { get; set; } = [];
+    public ICollection<AssessmentAnswer> Answers { get; set; } = [];
+}
+
+public class AssessmentResponse
+{
+    public int Id { get; set; }
+    public int ReadinessAssessmentId { get; set; }
+    public ReadinessAssessment? ReadinessAssessment { get; set; }
+    public int ResponseNumber { get; set; }
+
+    [Required, StringLength(80)]
+    public string ResponseLabel { get; set; } = string.Empty;
+
+    public AssessmentResponseSource Source { get; set; } = AssessmentResponseSource.GoogleForm;
+
+    [StringLength(180)]
+    public string? ExternalResponseId { get; set; }
+
+    [StringLength(80)]
+    public string? ClientToken { get; set; }
+
+    public DateTime? SubmittedAt { get; set; }
+    public DateTime ReceivedAt { get; set; } = DateTime.UtcNow;
+    public int AnswerCount { get; set; }
+    public string? RawResponseJson { get; set; }
+    public AssessmentResponseStatus Status { get; set; } = AssessmentResponseStatus.Received;
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime? LastModifiedAt { get; set; }
     public ICollection<AssessmentAnswer> Answers { get; set; } = [];
 }
 
@@ -423,6 +469,8 @@ public class AssessmentAnswer
     public int Id { get; set; }
     public int ReadinessAssessmentId { get; set; }
     public ReadinessAssessment? ReadinessAssessment { get; set; }
+    public int? AssessmentResponseId { get; set; }
+    public AssessmentResponse? AssessmentResponse { get; set; }
 
     [Required, StringLength(120)]
     public string SectionName { get; set; } = string.Empty;

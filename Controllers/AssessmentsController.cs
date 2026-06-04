@@ -121,6 +121,8 @@ public class AssessmentsController(ApplicationDbContext context, IReadinessFormS
         var client = await context.ClientCompanies
             .Include(item => item.ReadinessAssessments)
                 .ThenInclude(item => item.Answers)
+            .Include(item => item.ReadinessAssessments)
+                .ThenInclude(item => item.Responses)
             .FirstOrDefaultAsync(item => item.Id == clientId);
         if (client is null)
         {
@@ -137,24 +139,53 @@ public class AssessmentsController(ApplicationDbContext context, IReadinessFormS
             context.ReadinessAssessments.Add(assessment);
         }
 
-        assessment.FormStatus = ReadinessFormStatus.Imported;
-        assessment.ImportedAt = DateTime.UtcNow;
-        assessment.CompletedAt ??= DateTime.UtcNow;
-        assessment.RawResponseJson = rawResponseText;
-        assessment.Summary = $"Imported {ParseAnswers(rawResponseText).Count} answer rows. Consultant should review completeness.";
-        assessment.LastModifiedAt = DateTime.UtcNow;
+        var importedAt = DateTime.UtcNow;
+        var parsedAnswers = ParseAnswers(rawResponseText);
+        var response = CreateAssessmentResponse(
+            assessment,
+            AssessmentResponseSource.ManualImport,
+            AssessmentResponseStatus.Imported,
+            externalResponseId: null,
+            assessment.ClientToken,
+            submittedAt: null,
+            importedAt,
+            rawResponseText);
 
-        foreach (var answer in ParseAnswers(rawResponseText))
+        foreach (var answer in parsedAnswers)
         {
-            assessment.Answers.Add(answer);
+            answer.ReadinessAssessment = assessment;
+            if (assessment.Id > 0)
+            {
+                answer.ReadinessAssessmentId = assessment.Id;
+            }
+            response.Answers.Add(answer);
         }
 
-        client.CurrentStage = ClientStage.AssessmentCompleted;
-        client.NextAction = "Review imported answers and generate gap analysis";
-        client.LastModifiedAt = DateTime.UtcNow;
+        response.AnswerCount = response.Answers.Count;
+        assessment.FormStatus = response.AnswerCount > 0 ? ReadinessFormStatus.Imported : assessment.FormStatus;
+        assessment.ImportedAt = importedAt;
+        assessment.CompletedAt = response.AnswerCount > 0 ? importedAt : assessment.CompletedAt;
+        assessment.ResponseReceivedAt = importedAt;
+        assessment.RawResponseJson = rawResponseText;
+        assessment.Summary = $"{response.ResponseLabel}: manually imported {response.AnswerCount} answer rows. Consultant should review completeness.";
+        assessment.LastModifiedAt = importedAt;
 
-        await MarkWorkflowAsync(clientId, "Form Completed", WorkflowStepStatus.Completed);
-        await LogAsync(clientId, "Assessment imported", "Assessment answers imported from pasted text or JSON.");
+        if (response.AnswerCount > 0)
+        {
+            client.CurrentStage = ClientStage.AssessmentCompleted;
+            client.NextAction = "Review imported answers and generate gap analysis";
+        }
+        else
+        {
+            client.NextAction = "Review manual import response";
+        }
+        client.LastModifiedAt = importedAt;
+
+        if (response.AnswerCount > 0)
+        {
+            await MarkWorkflowAsync(clientId, "Form Completed", WorkflowStepStatus.Completed);
+        }
+        await LogAsync(clientId, "Assessment imported", $"Manual import created: {response.ResponseLabel} with {response.AnswerCount} answers.");
         await context.SaveChangesAsync();
         return RedirectToWorkspace(clientId);
     }
@@ -164,6 +195,7 @@ public class AssessmentsController(ApplicationDbContext context, IReadinessFormS
     public async Task<IActionResult> AddAnswer(int clientId, string sectionName, string questionText, string? answerText, string? answerType, bool isMandatory)
     {
         var assessment = await context.ReadinessAssessments
+            .Include(item => item.Responses)
             .Where(item => item.ClientCompanyId == clientId)
             .OrderByDescending(item => item.CreatedAt)
             .FirstOrDefaultAsync();
@@ -180,20 +212,38 @@ public class AssessmentsController(ApplicationDbContext context, IReadinessFormS
             context.ReadinessAssessments.Add(assessment);
         }
 
-        assessment.Answers.Add(new AssessmentAnswer
+        var receivedAt = DateTime.UtcNow;
+        var response = CreateAssessmentResponse(
+            assessment,
+            AssessmentResponseSource.ManualImport,
+            AssessmentResponseStatus.Imported,
+            externalResponseId: null,
+            assessment.ClientToken,
+            submittedAt: null,
+            receivedAt,
+            JsonSerializer.Serialize(new { sectionName, questionText, answerText, answerType, isMandatory }));
+
+        response.Answers.Add(new AssessmentAnswer
         {
+            ReadinessAssessment = assessment,
+            ReadinessAssessmentId = assessment.Id > 0 ? assessment.Id : 0,
             SectionName = sectionName,
             QuestionText = questionText,
             AnswerText = answerText,
             AnswerType = answerType,
             IsMandatory = isMandatory,
             CompletenessStatus = string.IsNullOrWhiteSpace(answerText) ? CompletenessStatus.Missing : CompletenessStatus.Complete,
-            CreatedAt = DateTime.UtcNow
+            CreatedAt = receivedAt
         });
+        response.AnswerCount = response.Answers.Count;
         assessment.FormStatus = ReadinessFormStatus.Imported;
-        assessment.LastModifiedAt = DateTime.UtcNow;
+        assessment.ImportedAt = receivedAt;
+        assessment.CompletedAt ??= receivedAt;
+        assessment.ResponseReceivedAt = receivedAt;
+        assessment.LastModifiedAt = receivedAt;
 
-        await LogAsync(clientId, "Assessment answer added", $"Answer added to {sectionName}.");
+        await MarkWorkflowAsync(clientId, "Form Completed", WorkflowStepStatus.Completed);
+        await LogAsync(clientId, "Assessment answer added", $"Manual import created: {response.ResponseLabel} with 1 answer.");
         await context.SaveChangesAsync();
         return RedirectToWorkspace(clientId);
     }
@@ -277,6 +327,51 @@ public class AssessmentsController(ApplicationDbContext context, IReadinessFormS
             IsMandatory = false,
             CompletenessStatus = string.IsNullOrWhiteSpace(answer) ? CompletenessStatus.Missing : CompletenessStatus.Complete,
             CreatedAt = DateTime.UtcNow
+        };
+    }
+
+    private static AssessmentResponse CreateAssessmentResponse(
+        ReadinessAssessment assessment,
+        AssessmentResponseSource source,
+        AssessmentResponseStatus status,
+        string? externalResponseId,
+        string? clientToken,
+        DateTime? submittedAt,
+        DateTime receivedAt,
+        string? rawResponseJson)
+    {
+        var responseNumber = assessment.Responses
+            .Select(response => response.ResponseNumber)
+            .DefaultIfEmpty()
+            .Max() + 1;
+        var response = new AssessmentResponse
+        {
+            ReadinessAssessment = assessment,
+            ReadinessAssessmentId = assessment.Id,
+            ResponseNumber = responseNumber,
+            ResponseLabel = GetResponseLabel(responseNumber),
+            Source = source,
+            Status = status,
+            ExternalResponseId = externalResponseId,
+            ClientToken = clientToken,
+            SubmittedAt = submittedAt,
+            ReceivedAt = receivedAt,
+            RawResponseJson = rawResponseJson,
+            CreatedAt = receivedAt
+        };
+
+        assessment.Responses.Add(response);
+        return response;
+    }
+
+    private static string GetResponseLabel(int responseNumber)
+    {
+        return responseNumber switch
+        {
+            1 => "First response",
+            2 => "Second response",
+            3 => "Third response",
+            _ => $"Response {responseNumber}"
         };
     }
 

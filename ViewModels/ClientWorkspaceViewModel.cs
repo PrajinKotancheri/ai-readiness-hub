@@ -9,7 +9,9 @@ public class ClientWorkspaceViewModel
     public ReadinessFormSettings? ReadinessFormSettings { get; set; }
     public ClientReport? LatestReport { get; set; }
     public ReadinessScore? LatestScore { get; set; }
-    public IReadOnlyList<IGrouping<string, AssessmentAnswer>> AnswersBySection { get; set; } = [];
+    public IReadOnlyList<AssessmentResponse> AssessmentResponses { get; set; } = [];
+    public AssessmentResponse? SelectedAssessmentResponse { get; set; }
+    public IReadOnlyList<IGrouping<string, AssessmentAnswer>> SelectedAnswersBySection { get; set; } = [];
     public IReadOnlyList<IGrouping<SwotCategory, SwotAnalysisItem>> SwotByCategory { get; set; } = [];
     public IReadOnlyList<IGrouping<RoadmapPhase, AIRoadmapItem>> RoadmapByPhase { get; set; } = [];
     public IReadOnlyList<AIUseCase> RankedUseCases { get; set; } = [];

@@ -609,6 +609,76 @@ a:hover {
   padding: 0.7rem;
 }
 
+.response-summary-grid .metric-card {
+  min-height: 88px;
+}
+
+.response-date-value {
+  font-size: 1.35rem;
+}
+
+.response-table th,
+.response-table td {
+  min-width: 100px;
+}
+
+.selected-response-row > td {
+  background: var(--app-primary-soft);
+}
+
+.response-detail-grid {
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+}
+
+.answer-section {
+  margin-bottom: 1rem;
+}
+
+.answer-section-title {
+  color: var(--app-muted);
+  font-size: 0.78rem;
+  font-weight: 850;
+  letter-spacing: 0.05em;
+  margin: 0 0 0.65rem;
+  text-transform: uppercase;
+}
+
+.answer-card-grid {
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+}
+
+.answer-card {
+  background: var(--app-panel-soft);
+  border: 1px solid var(--app-border);
+  border-radius: 8px;
+  min-width: 0;
+  padding: 0.85rem;
+}
+
+.answer-card-header {
+  align-items: flex-start;
+  display: flex;
+  gap: 0.65rem;
+  justify-content: space-between;
+  margin-bottom: 0.65rem;
+}
+
+.answer-question {
+  font-weight: 760;
+  line-height: 1.35;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.answer-text {
+  color: #344054;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+  white-space: pre-line;
+}
+
 .copy-field {
   display: grid;
   gap: 0.5rem;

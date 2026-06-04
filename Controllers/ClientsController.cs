@@ -188,7 +188,7 @@ public class ClientsController(ApplicationDbContext context) : Controller
     }
 
     [HttpGet("Workspace/{id:int}")]
-    public async Task<IActionResult> Workspace(int id)
+    public async Task<IActionResult> Workspace(int id, int? responseId)
     {
         var client = await LoadWorkspaceClientAsync(id);
         if (client is null)
@@ -199,6 +199,17 @@ public class ClientsController(ApplicationDbContext context) : Controller
         var latestAssessment = client.ReadinessAssessments
             .OrderByDescending(assessment => assessment.CreatedAt)
             .FirstOrDefault();
+        var assessmentResponses = latestAssessment?.Responses
+            .OrderBy(response => response.ResponseNumber)
+            .ToList() ?? [];
+        var selectedAssessmentResponse = responseId.HasValue
+            ? assessmentResponses.FirstOrDefault(response => response.Id == responseId.Value)
+            : assessmentResponses
+                .Where(response => response.Status != AssessmentResponseStatus.Ignored)
+                .OrderByDescending(response => response.ReceivedAt)
+                .ThenByDescending(response => response.ResponseNumber)
+                .FirstOrDefault();
+        ApplyResponseAwareWorkflow(client);
         var latestReport = client.Reports
             .OrderByDescending(report => report.VersionNumber)
             .ThenByDescending(report => report.CreatedAt)
@@ -218,8 +229,11 @@ public class ClientsController(ApplicationDbContext context) : Controller
             ReadinessFormSettings = readinessFormSettings,
             LatestReport = latestReport,
             LatestScore = latestScore,
-            AnswersBySection = latestAssessment?.Answers
+            AssessmentResponses = assessmentResponses,
+            SelectedAssessmentResponse = selectedAssessmentResponse,
+            SelectedAnswersBySection = selectedAssessmentResponse?.Answers
                 .OrderBy(answer => answer.SectionName)
+                .ThenBy(answer => answer.Id)
                 .GroupBy(answer => answer.SectionName)
                 .ToList() ?? [],
             SwotByCategory = client.SwotItems
@@ -250,6 +264,9 @@ public class ClientsController(ApplicationDbContext context) : Controller
             .Include(client => client.WorkflowSteps)
             .Include(client => client.ReadinessAssessments)
                 .ThenInclude(assessment => assessment.Answers)
+            .Include(client => client.ReadinessAssessments)
+                .ThenInclude(assessment => assessment.Responses)
+                    .ThenInclude(response => response.Answers)
             .Include(client => client.Documents)
             .Include(client => client.Notes)
             .Include(client => client.MeetingTranscripts)
@@ -274,6 +291,31 @@ public class ClientsController(ApplicationDbContext context) : Controller
         return client.Reports
             .OrderByDescending(report => report.VersionNumber)
             .FirstOrDefault()?.ReportStatus ?? ReportStatus.NotStarted;
+    }
+
+    private static void ApplyResponseAwareWorkflow(ClientCompany client)
+    {
+        var formCompletedStep = client.WorkflowSteps.FirstOrDefault(step => step.StageName == "Form Completed");
+        if (formCompletedStep is null)
+        {
+            return;
+        }
+
+        var latestAnsweredResponse = client.ReadinessAssessments
+            .SelectMany(assessment => assessment.Responses)
+            .Where(response => response.Status != AssessmentResponseStatus.Ignored && response.Answers.Any())
+            .OrderByDescending(response => response.ReceivedAt)
+            .FirstOrDefault();
+
+        if (latestAnsweredResponse is null)
+        {
+            formCompletedStep.Status = WorkflowStepStatus.NotStarted;
+            formCompletedStep.CompletedAt = null;
+            return;
+        }
+
+        formCompletedStep.Status = WorkflowStepStatus.Completed;
+        formCompletedStep.CompletedAt ??= latestAnsweredResponse.ReceivedAt;
     }
 
     private static void AddDefaultWorkflow(ClientCompany client)

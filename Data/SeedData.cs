@@ -104,7 +104,21 @@ public static class SeedData
             RawResponseJson = "{ \"business_goal\": \"Reduce reporting time and improve asset maintenance planning\" }",
             CreatedAt = SeedNow.AddDays(-18)
         };
-        greenAssessment.Answers.Add(new AssessmentAnswer
+        var greenResponse = new AssessmentResponse
+        {
+            ResponseNumber = 1,
+            ResponseLabel = "First response",
+            Source = AssessmentResponseSource.ExistingImport,
+            Status = AssessmentResponseStatus.Imported,
+            SubmittedAt = SeedNow.AddDays(-13),
+            ReceivedAt = SeedNow.AddDays(-12),
+            AnswerCount = 3,
+            RawResponseJson = greenAssessment.RawResponseJson,
+            CreatedAt = SeedNow.AddDays(-12)
+        };
+        greenAssessment.Responses.Add(greenResponse);
+
+        AddSeedAnswer(greenAssessment, greenResponse, new AssessmentAnswer
         {
             SectionName = "Business Goals",
             QuestionText = "What are the primary business goals for AI?",
@@ -114,7 +128,7 @@ public static class SeedData
             CompletenessStatus = CompletenessStatus.Complete,
             CreatedAt = SeedNow.AddDays(-12)
         });
-        greenAssessment.Answers.Add(new AssessmentAnswer
+        AddSeedAnswer(greenAssessment, greenResponse, new AssessmentAnswer
         {
             SectionName = "Data Readiness",
             QuestionText = "Which data sources are available?",
@@ -124,7 +138,7 @@ public static class SeedData
             CompletenessStatus = CompletenessStatus.Partial,
             CreatedAt = SeedNow.AddDays(-12)
         });
-        greenAssessment.Answers.Add(new AssessmentAnswer
+        AddSeedAnswer(greenAssessment, greenResponse, new AssessmentAnswer
         {
             SectionName = "Governance",
             QuestionText = "Is there an AI governance policy?",
@@ -382,6 +396,14 @@ public static class SeedData
             CreatedAt = SeedNow.AddDays(-5)
         };
         context.AIUseCases.Add(useCase);
+    }
+
+    private static void AddSeedAnswer(ReadinessAssessment assessment, AssessmentResponse response, AssessmentAnswer answer)
+    {
+        answer.ReadinessAssessment = assessment;
+        answer.AssessmentResponse = response;
+        assessment.Answers.Add(answer);
+        response.Answers.Add(answer);
     }
 
     private static void AddDefaultReportSections(ClientReport report, string content)

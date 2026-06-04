@@ -5,6 +5,14 @@
     var assessment = Model.LatestAssessment;
     var formSettings = Model.ReadinessFormSettings;
     var latestReportStatus = Model.LatestReport?.ReportStatus ?? ReportStatus.NotStarted;
+    var responses = Model.AssessmentResponses;
+    var selectedResponse = Model.SelectedAssessmentResponse;
+    var latestResponse = responses
+        .Where(response => response.Status != AssessmentResponseStatus.Ignored)
+        .OrderByDescending(response => response.ReceivedAt)
+        .ThenByDescending(response => response.ResponseNumber)
+        .FirstOrDefault();
+    var selectedMissingAnswers = selectedResponse?.Answers.Count(answer => string.IsNullOrWhiteSpace(answer.AnswerText) || answer.CompletenessStatus == CompletenessStatus.Missing) ?? 0;
 }
 
 <section class="workspace-summary-card">
@@ -155,7 +163,7 @@
                 </div>
             </form>
             <div class="metric-grid">
-                <div class="metric-card"><div class="metric-label">Assessment answers</div><div class="metric-value">@Model.AnswersBySection.Sum(group => group.Count())</div></div>
+                <div class="metric-card"><div class="metric-label">Assessment responses</div><div class="metric-value">@responses.Count</div></div>
                 <div class="metric-card"><div class="metric-label">Documents</div><div class="metric-value">@client.Documents.Count</div></div>
                 <div class="metric-card"><div class="metric-label">Open gaps</div><div class="metric-value">@client.GapAnalysisItems.Count(item => item.Status == GapStatus.Open)</div></div>
                 <div class="metric-card"><div class="metric-label">AI use cases</div><div class="metric-value">@client.UseCases.Count</div></div>
@@ -164,7 +172,7 @@
 
         <div class="tab-pane fade" id="assessment">
             <div class="row g-3">
-                <div class="col-lg-5">
+                <div class="col-lg-4">
                     <div class="panel">
                         <div class="panel-header">
                             <h3 class="panel-title">Google Form delivery</h3>
@@ -198,11 +206,11 @@
                             </div>
                             <div>
                                 <div class="field-label">Response received</div>
-                                <div>@(assessment?.ResponseReceivedAt?.ToString("yyyy-MM-dd HH:mm") ?? "Not received")</div>
+                                <div>@(latestResponse?.ReceivedAt.ToString("yyyy-MM-dd HH:mm") ?? "Not received")</div>
                             </div>
                             <div>
-                                <div class="field-label">External response ID</div>
-                                <div class="text-break">@(assessment?.ExternalResponseId ?? "Not available")</div>
+                                <div class="field-label">Latest answers</div>
+                                <div>@(latestResponse?.AnswerCount.ToString() ?? "0")</div>
                             </div>
                         </div>
 
@@ -254,38 +262,170 @@
                         <button class="btn btn-primary mt-2" type="submit">Import assessment answers</button>
                     </form>
                 </div>
-                <div class="col-lg-7">
-                    <h3 class="panel-title">Answers grouped by section</h3>
-                    @if (Model.AnswersBySection.Any())
-                    {
-                        @foreach (var answerGroup in Model.AnswersBySection)
+                <div class="col-lg-8">
+                    <div class="metric-grid mb-3 response-summary-grid">
+                        <div class="metric-card">
+                            <div class="metric-label">Total responses</div>
+                            <div class="metric-value">@responses.Count</div>
+                        </div>
+                        <div class="metric-card">
+                            <div class="metric-label">Latest received</div>
+                            <div class="metric-value response-date-value">@(latestResponse?.ReceivedAt.ToString("dd MMM") ?? "-")</div>
+                        </div>
+                        <div class="metric-card">
+                            <div class="metric-label">Latest answer count</div>
+                            <div class="metric-value">@(latestResponse?.AnswerCount.ToString() ?? "0")</div>
+                        </div>
+                        <div class="metric-card">
+                            <div class="metric-label">Missing in selected</div>
+                            <div class="metric-value">@selectedMissingAnswers</div>
+                        </div>
+                    </div>
+
+                    <section class="panel">
+                        <div class="panel-header">
+                            <h3 class="panel-title">Assessment responses</h3>
+                            <span class="status-badge status-info">@responses.Count total</span>
+                        </div>
+                        @if (responses.Any())
                         {
-                            <div class="mb-3">
-                                <div class="fw-semibold">@answerGroup.Key</div>
-                                <table class="table table-sm">
-                                    <thead><tr><th>Question</th><th>Answer</th><th>Status</th></tr></thead>
+                            <div class="table-responsive">
+                                <table class="table response-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Response</th>
+                                            <th>Source</th>
+                                            <th>Submitted</th>
+                                            <th>Received</th>
+                                            <th>Answers</th>
+                                            <th>Status</th>
+                                            <th>External ID</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
                                     <tbody>
-                                        @foreach (var answer in answerGroup)
+                                        @foreach (var response in responses.OrderByDescending(item => item.ResponseNumber))
                                         {
-                                            <tr>
-                                                <td>@answer.QuestionText</td>
-                                                <td>@answer.AnswerText</td>
-                                                <td><span class="status-badge @answer.CompletenessStatus.ToBadgeClass()">@answer.CompletenessStatus.ToDisplayName()</span></td>
+                                            var isLatest = latestResponse?.Id == response.Id;
+                                            var isSelected = selectedResponse?.Id == response.Id;
+                                            <tr class="@(isSelected ? "selected-response-row" : null)">
+                                                <td>
+                                                    <div class="fw-semibold">@response.ResponseLabel</div>
+                                                    @if (isLatest)
+                                                    {
+                                                        <span class="status-badge status-good">Latest</span>
+                                                    }
+                                                </td>
+                                                <td><span class="status-badge status-info">@response.Source.ToDisplayName()</span></td>
+                                                <td>@(response.SubmittedAt?.ToString("dd MMM yyyy HH:mm") ?? "-")</td>
+                                                <td>@response.ReceivedAt.ToString("dd MMM yyyy HH:mm")</td>
+                                                <td>@response.AnswerCount</td>
+                                                <td><span class="status-badge @response.Status.ToBadgeClass()">@response.Status.ToDisplayName()</span></td>
+                                                <td class="text-break">@(response.ExternalResponseId ?? "-")</td>
+                                                <td>
+                                                    <a class="btn @(isSelected ? "btn-primary" : "btn-outline-primary") btn-sm" asp-controller="Clients" asp-action="Workspace" asp-route-id="@client.Id" asp-route-responseId="@response.Id">View details</a>
+                                                </td>
                                             </tr>
                                         }
                                     </tbody>
                                 </table>
                             </div>
                         }
-                    }
-                    else
-                    {
-                        <div class="empty-state mb-3">
-                            <strong>No assessment answers imported yet.</strong>
-                            Import pasted JSON/text or add answers manually to start the readiness review.
-                        </div>
-                    }
-                    <form asp-controller="Assessments" asp-action="AddAnswer" method="post" class="form-grid">
+                        else
+                        {
+                            <div class="empty-state">
+                                <strong>No assessment responses yet.</strong>
+                                Responses will appear here after Google Form submission or manual import.
+                            </div>
+                        }
+                    </section>
+
+                    <section class="panel">
+                        @if (selectedResponse is not null)
+                        {
+                            <div class="panel-header">
+                                <div>
+                                    <h3 class="panel-title">@selectedResponse.ResponseLabel details</h3>
+                                    <div class="table-note">@selectedResponse.Source.ToDisplayName() · @selectedResponse.AnswerCount answers</div>
+                                </div>
+                                <div class="action-strip">
+                                    @if (latestResponse?.Id == selectedResponse.Id)
+                                    {
+                                        <span class="status-badge status-good">Latest</span>
+                                    }
+                                    <span class="status-badge @selectedResponse.Status.ToBadgeClass()">@selectedResponse.Status.ToDisplayName()</span>
+                                </div>
+                            </div>
+                            <div class="detail-grid response-detail-grid mb-3">
+                                <div>
+                                    <div class="field-label">Source</div>
+                                    <div>@selectedResponse.Source.ToDisplayName()</div>
+                                </div>
+                                <div>
+                                    <div class="field-label">Submitted at</div>
+                                    <div>@(selectedResponse.SubmittedAt?.ToString("dd MMM yyyy HH:mm") ?? "Not provided")</div>
+                                </div>
+                                <div>
+                                    <div class="field-label">Received at</div>
+                                    <div>@selectedResponse.ReceivedAt.ToString("dd MMM yyyy HH:mm")</div>
+                                </div>
+                                <div>
+                                    <div class="field-label">External response ID</div>
+                                    <div class="text-break">@(selectedResponse.ExternalResponseId ?? "Not available")</div>
+                                </div>
+                                <div>
+                                    <div class="field-label">Client token</div>
+                                    <code>@(selectedResponse.ClientToken ?? assessment?.ClientToken ?? "Not generated")</code>
+                                </div>
+                                <div>
+                                    <div class="field-label">Answer count</div>
+                                    <div>@selectedResponse.AnswerCount</div>
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                <input class="form-control" id="answerFilter" type="search" placeholder="Filter answers" />
+                            </div>
+
+                            @if (Model.SelectedAnswersBySection.Any())
+                            {
+                                @foreach (var answerGroup in Model.SelectedAnswersBySection)
+                                {
+                                    <div class="answer-section">
+                                        <h4 class="answer-section-title">@answerGroup.Key</h4>
+                                        <div class="answer-card-grid">
+                                            @foreach (var answer in answerGroup)
+                                            {
+                                                <article class="answer-card" data-answer-search="@($"{answerGroup.Key} {answer.QuestionText} {answer.AnswerText}")">
+                                                    <div class="answer-card-header">
+                                                        <div class="answer-question">@answer.QuestionText</div>
+                                                        <span class="status-badge @answer.CompletenessStatus.ToBadgeClass()">@answer.CompletenessStatus.ToDisplayName()</span>
+                                                    </div>
+                                                    <div class="answer-text">@(!string.IsNullOrWhiteSpace(answer.AnswerText) ? answer.AnswerText : "No answer provided")</div>
+                                                </article>
+                                            }
+                                        </div>
+                                    </div>
+                                }
+                            }
+                            else
+                            {
+                                <div class="empty-state">
+                                    <strong>No answers in this response.</strong>
+                                    The response was recorded, but no answer rows were included.
+                                </div>
+                            }
+                        }
+                        else
+                        {
+                            <div class="empty-state">
+                                <strong>Select a response to view answers.</strong>
+                                Response details will show only the answers from the selected submission.
+                            </div>
+                        }
+                    </section>
+
+                    <form asp-controller="Assessments" asp-action="AddAnswer" method="post" class="form-grid panel">
+                        <h3 class="panel-title form-grid-wide">Add one manual response</h3>
                         <input type="hidden" name="clientId" value="@client.Id" />
                         <input name="sectionName" class="form-control" placeholder="Section" />
                         <input name="questionText" class="form-control" placeholder="Question" />

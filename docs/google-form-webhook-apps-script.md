@@ -1,6 +1,6 @@
 # Google Form Webhook Apps Script
 
-The AI Readiness Consultant Hub can send a client-specific Google Form link and receive a submitted-response notification through a Google Apps Script webhook.
+The AI Readiness Consultant Hub can send a client-specific Google Form link and receive submitted answers through a Google Apps Script webhook.
 
 ## Flow
 
@@ -9,7 +9,7 @@ The AI Readiness Consultant Hub can send a client-specific Google Form link and 
 3. The generated link pre-fills the Google Form question that stores the client token.
 4. The client submits the Google Form.
 5. A Google Apps Script trigger posts the response to the app webhook.
-6. The app matches the response by `token`, stores the Google response id, marks the assessment completed, and logs activity.
+6. The app matches the response by `clientToken`, creates a separate assessment response, stores the Google response id, imports answers into that response, and logs activity.
 
 ## Requirements
 
@@ -20,14 +20,14 @@ The AI Readiness Consultant Hub can send a client-specific Google Form link and 
 - The Apps Script posts JSON to:
 
 ```text
-https://ai-readiness-hub.onrender.com/api/form-response
+https://ai-readiness-hub.onrender.com/api/google-forms/assessment-response
 ```
 
 ## Sample Apps Script
 
 ```javascript
 function onFormSubmit(e) {
-  const WEBHOOK_URL = "https://ai-readiness-hub.onrender.com/api/form-response";
+  const WEBHOOK_URL = "https://ai-readiness-hub.onrender.com/api/google-forms/assessment-response";
   const SECRET = "CHANGE_ME";
   const CLIENT_REFERENCE_QUESTION = "Client Reference ID";
 
@@ -35,10 +35,25 @@ function onFormSubmit(e) {
   const clientTokenValues = namedValues[CLIENT_REFERENCE_QUESTION] || [];
   const clientToken = clientTokenValues.length > 0 ? clientTokenValues[0] : "";
 
+  const answers = [];
+
+  Object.keys(namedValues).forEach(function(question) {
+    const values = namedValues[question] || [];
+    answers.push({
+      sectionName: "Imported from Google Form",
+      questionText: question,
+      answerText: values.join(", "),
+      answerType: "Text"
+    });
+  });
+
   const payload = {
-    token: clientToken,
-    responseId: Utilities.getUuid(),
     secret: SECRET,
+    clientToken: clientToken,
+    externalResponseId: Utilities.getUuid(),
+    submittedAt: new Date().toISOString(),
+    answers: answers,
+    rawResponse: namedValues
   };
 
   const options = {
@@ -65,4 +80,6 @@ function onFormSubmit(e) {
    - event source: `From spreadsheet`
    - event type: `On form submit`
 6. Submit a test form response.
-7. Confirm the app marks the readiness form response as received in the dashboard or client workspace.
+7. Confirm the app creates a new response row in the dashboard or client workspace.
+
+If the same `externalResponseId` is posted again for the same assessment, the app returns the existing response instead of creating a duplicate.

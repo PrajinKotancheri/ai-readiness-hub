@@ -9,6 +9,7 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
     public DbSet<ClientWorkflowStep> ClientWorkflowSteps => Set<ClientWorkflowStep>();
     public DbSet<ReadinessFormSettings> ReadinessFormSettings => Set<ReadinessFormSettings>();
     public DbSet<ReadinessAssessment> ReadinessAssessments => Set<ReadinessAssessment>();
+    public DbSet<AssessmentResponse> AssessmentResponses => Set<AssessmentResponse>();
     public DbSet<AssessmentAnswer> AssessmentAnswers => Set<AssessmentAnswer>();
     public DbSet<ClientDocument> ClientDocuments => Set<ClientDocument>();
     public DbSet<ConsultantNote> ConsultantNotes => Set<ConsultantNote>();
@@ -66,6 +67,16 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
         modelBuilder.Entity<ReadinessAssessment>()
             .HasIndex(assessment => assessment.ExternalResponseId);
 
+        modelBuilder.Entity<AssessmentResponse>()
+            .HasIndex(response => new { response.ReadinessAssessmentId, response.ResponseNumber })
+            .IsUnique();
+
+        modelBuilder.Entity<AssessmentResponse>()
+            .HasIndex(response => new { response.ReadinessAssessmentId, response.ExternalResponseId });
+
+        modelBuilder.Entity<AssessmentAnswer>()
+            .HasIndex(answer => answer.AssessmentResponseId);
+
         modelBuilder.Entity<ClientCompany>()
             .HasMany(client => client.ReadinessAssessments)
             .WithOne(assessment => assessment.ClientCompany)
@@ -73,9 +84,21 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
             .OnDelete(DeleteBehavior.Cascade);
 
         modelBuilder.Entity<ReadinessAssessment>()
+            .HasMany(assessment => assessment.Responses)
+            .WithOne(response => response.ReadinessAssessment)
+            .HasForeignKey(response => response.ReadinessAssessmentId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<ReadinessAssessment>()
             .HasMany(assessment => assessment.Answers)
             .WithOne(answer => answer.ReadinessAssessment)
             .HasForeignKey(answer => answer.ReadinessAssessmentId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<AssessmentResponse>()
+            .HasMany(response => response.Answers)
+            .WithOne(answer => answer.AssessmentResponse)
+            .HasForeignKey(answer => answer.AssessmentResponseId)
             .OnDelete(DeleteBehavior.Cascade);
 
         modelBuilder.Entity<AIUseCase>()

@@ -24,3 +24,16 @@ document.addEventListener("click", async (event) => {
     target.select();
   }
 });
+
+document.addEventListener("input", (event) => {
+  const input = event.target.closest("#answerFilter");
+  if (!input) {
+    return;
+  }
+
+  const query = input.value.trim().toLowerCase();
+  document.querySelectorAll("[data-answer-search]").forEach((item) => {
+    const haystack = item.getAttribute("data-answer-search")?.toLowerCase() ?? "";
+    item.hidden = query.length > 0 && !haystack.includes(query);
+  });
+});

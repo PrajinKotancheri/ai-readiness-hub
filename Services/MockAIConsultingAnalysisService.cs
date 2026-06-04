@@ -239,7 +239,7 @@ public class MockAIConsultingAnalysisService(ApplicationDbContext context) : IAI
     public async Task GenerateReadinessScoreAsync(int clientId)
     {
         var client = await LoadClientAsync(clientId);
-        var answerCount = client.ReadinessAssessments.SelectMany(assessment => assessment.Answers).Count(answer => !string.IsNullOrWhiteSpace(answer.AnswerText));
+        var answerCount = GetLatestEvidenceResponse(client)?.Answers.Count(answer => !string.IsNullOrWhiteSpace(answer.AnswerText)) ?? 0;
         var openCriticalOrHighGaps = client.GapAnalysisItems.Count(gap => gap.Status == GapStatus.Open && gap.Severity is Severity.High or Severity.Critical);
 
         var business = Clamp(45 + answerCount * 5);
@@ -364,6 +364,9 @@ public class MockAIConsultingAnalysisService(ApplicationDbContext context) : IAI
             .Include(client => client.WorkflowSteps)
             .Include(client => client.ReadinessAssessments)
                 .ThenInclude(assessment => assessment.Answers)
+            .Include(client => client.ReadinessAssessments)
+                .ThenInclude(assessment => assessment.Responses)
+                    .ThenInclude(response => response.Answers)
             .Include(client => client.Documents)
             .Include(client => client.Notes)
             .Include(client => client.MeetingTranscripts)
@@ -404,12 +407,17 @@ public class MockAIConsultingAnalysisService(ApplicationDbContext context) : IAI
 
     private static string BuildInputSummary(ClientCompany client)
     {
-        var assessmentCount = client.ReadinessAssessments.SelectMany(assessment => assessment.Answers).Count();
-        return $"{client.CompanyName}; {client.Industry ?? "industry not set"}; {assessmentCount} assessment answers; {client.Documents.Count} documents; {client.Notes.Count} notes; {client.GapAnalysisItems.Count} gaps.";
+        var latestResponse = GetLatestEvidenceResponse(client);
+        var assessmentCount = latestResponse?.Answers.Count ?? 0;
+        var responseLabel = latestResponse?.ResponseLabel ?? "no selected response";
+        return $"{client.CompanyName}; {client.Industry ?? "industry not set"}; {assessmentCount} assessment answers from {responseLabel}; {client.Documents.Count} documents; {client.Notes.Count} notes; {client.GapAnalysisItems.Count} gaps.";
     }
 
     private static string BuildEvidenceText(ClientCompany client)
     {
+        // MVP default: generated analyses use the latest non-ignored assessment response
+        // that has answers, so repeat submissions are not merged into one evidence set.
+        var latestResponse = GetLatestEvidenceResponse(client);
         var values = new List<string?>
         {
             client.CompanyName,
@@ -418,11 +426,21 @@ public class MockAIConsultingAnalysisService(ApplicationDbContext context) : IAI
             client.KeyRisksSummary,
             client.NextAction
         };
-        values.AddRange(client.ReadinessAssessments.SelectMany(assessment => assessment.Answers).Select(answer => $"{answer.QuestionText} {answer.AnswerText} {answer.SectionName}"));
+        values.AddRange(latestResponse?.Answers.Select(answer => $"{answer.QuestionText} {answer.AnswerText} {answer.SectionName}") ?? []);
         values.AddRange(client.Documents.Select(document => $"{document.Description} {document.AiSummary} {document.KeyInsights}"));
         values.AddRange(client.Notes.Select(note => $"{note.NoteTitle} {note.NoteText}"));
         values.AddRange(client.MeetingTranscripts.Select(transcript => $"{transcript.TranscriptText} {transcript.Summary} {transcript.KeyDecisions} {transcript.FollowUpQuestions}"));
         return string.Join(" ", values.Where(value => !string.IsNullOrWhiteSpace(value))).ToLowerInvariant();
+    }
+
+    private static AssessmentResponse? GetLatestEvidenceResponse(ClientCompany client)
+    {
+        return client.ReadinessAssessments
+            .SelectMany(assessment => assessment.Responses)
+            .Where(response => response.Status != AssessmentResponseStatus.Ignored && response.Answers.Any())
+            .OrderByDescending(response => response.ReceivedAt)
+            .ThenByDescending(response => response.ResponseNumber)
+            .FirstOrDefault();
     }
 
     private static int CountEvidence(ClientCompany client, string keyword)

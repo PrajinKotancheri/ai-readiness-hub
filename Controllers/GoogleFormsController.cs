@@ -62,6 +62,7 @@ public class GoogleFormsController(
             logger.LogInformation("Google Form response webhook secret validated for token {ClientToken}.", token);
 
             var assessment = await context.ReadinessAssessments
+                .Include(item => item.Responses)
                 .Include(item => item.ClientCompany)
                 .FirstOrDefaultAsync(item => item.ClientToken == token, cancellationToken);
 
@@ -77,39 +78,59 @@ public class GoogleFormsController(
                 token);
 
             var receivedAt = DateTime.UtcNow;
-            assessment.FormStatus = ReadinessFormStatus.Completed;
-            assessment.ResponseReceivedAt = receivedAt;
-            assessment.CompletedAt = receivedAt;
-            assessment.ExternalResponseId = responseId;
-            assessment.RawResponseJson = JsonSerializer.Serialize(new
+            var duplicateResponse = await FindDuplicateResponseAsync(assessment.Id, responseId, cancellationToken);
+            if (duplicateResponse is not null)
             {
-                token,
+                logger.LogInformation(
+                    "Duplicate Google Form notification ignored for assessment {AssessmentId}, external response id {ExternalResponseId}.",
+                    assessment.Id,
+                    responseId);
+
+                return Ok(new
+                {
+                    success = true,
+                    assessmentId = assessment.Id,
+                    responseId = duplicateResponse.Id,
+                    responseLabel = duplicateResponse.ResponseLabel,
+                    answers = duplicateResponse.AnswerCount
+                });
+            }
+
+            var response = CreateAssessmentResponse(
+                assessment,
+                AssessmentResponseSource.GoogleForm,
+                AssessmentResponseStatus.Received,
                 responseId,
-                receivedAt
-            });
-            assessment.Summary = "Google Form response received.";
+                token,
+                submittedAt: null,
+                receivedAt,
+                JsonSerializer.Serialize(new { token, responseId, receivedAt }));
+
+            assessment.ResponseReceivedAt = receivedAt;
+            assessment.ExternalResponseId = responseId;
+            assessment.RawResponseJson = response.RawResponseJson;
+            assessment.Summary = $"{response.ResponseLabel} received from Google Form notification.";
             assessment.LastModifiedAt = receivedAt;
 
             if (assessment.ClientCompany is not null)
             {
-                assessment.ClientCompany.CurrentStage = ClientStage.AssessmentCompleted;
-                assessment.ClientCompany.NextAction = "Review received assessment response and generate gap analysis";
+                assessment.ClientCompany.NextAction = "Review received assessment response";
                 assessment.ClientCompany.LastModifiedAt = receivedAt;
             }
 
-            await MarkWorkflowAsync(assessment.ClientCompanyId, "Form Completed", cancellationToken);
             context.ClientActivityLogs.Add(new ClientActivityLog
             {
                 ClientCompanyId = assessment.ClientCompanyId,
                 ActivityType = "Assessment response received",
-                Description = $"Google Form response received. Response ID: {responseId}.",
+                Description = $"Google Form response received: {response.ResponseLabel} with 0 answers.",
                 CreatedBy = "Google Forms webhook",
                 CreatedAt = receivedAt
             });
 
             await context.SaveChangesAsync(cancellationToken);
             logger.LogInformation(
-                "Google Form response webhook updated readiness assessment {AssessmentId} for token {ClientToken}.",
+                "Google Form response webhook created response {ResponseId} for readiness assessment {AssessmentId} and token {ClientToken}.",
+                response.Id,
                 assessment.Id,
                 token);
 
@@ -117,8 +138,9 @@ public class GoogleFormsController(
             {
                 success = true,
                 assessmentId = assessment.Id,
-                responseReceived = true,
-                externalResponseId = assessment.ExternalResponseId
+                responseId = response.Id,
+                responseLabel = response.ResponseLabel,
+                answers = response.AnswerCount
             });
         }
         catch (Exception ex)
@@ -148,7 +170,8 @@ public class GoogleFormsController(
         }
 
         var assessment = await context.ReadinessAssessments
-            .Include(item => item.Answers)
+            .Include(item => item.Responses)
+                .ThenInclude(response => response.Answers)
             .Include(item => item.ClientCompany)
             .FirstOrDefaultAsync(item => item.ClientToken == request.ClientToken);
 
@@ -157,76 +180,107 @@ public class GoogleFormsController(
             return NotFound(new { success = false, message = "No assessment was found for the supplied client token." });
         }
 
-        foreach (var incomingAnswer in request.Answers)
+        var submittedAt = request.SubmittedAt?.ToUniversalTime();
+        var receivedAt = DateTime.UtcNow;
+        var externalResponseId = request.ExternalResponseId?.Trim();
+        var duplicateResponse = await FindDuplicateResponseAsync(assessment.Id, externalResponseId, HttpContext.RequestAborted);
+        if (duplicateResponse is not null)
         {
-            if (string.IsNullOrWhiteSpace(incomingAnswer.QuestionText))
+            logger.LogInformation(
+                "Duplicate Google Form response ignored for assessment {AssessmentId}, external response id {ExternalResponseId}.",
+                assessment.Id,
+                externalResponseId);
+
+            return Ok(new
             {
-                continue;
-            }
-
-            var existingAnswer = assessment.Answers.FirstOrDefault(answer =>
-                string.Equals(answer.QuestionText, incomingAnswer.QuestionText, StringComparison.OrdinalIgnoreCase));
-
-            if (existingAnswer is null)
-            {
-                assessment.Answers.Add(new AssessmentAnswer
-                {
-                    SectionName = string.IsNullOrWhiteSpace(incomingAnswer.SectionName) ? "Imported from Google Form" : incomingAnswer.SectionName.Trim(),
-                    QuestionText = incomingAnswer.QuestionText.Trim(),
-                    AnswerText = incomingAnswer.AnswerText,
-                    AnswerType = string.IsNullOrWhiteSpace(incomingAnswer.AnswerType) ? "Text" : incomingAnswer.AnswerType.Trim(),
-                    CompletenessStatus = string.IsNullOrWhiteSpace(incomingAnswer.AnswerText) ? CompletenessStatus.Missing : CompletenessStatus.Complete,
-                    CreatedAt = DateTime.UtcNow
-                });
-                continue;
-            }
-
-            existingAnswer.SectionName = string.IsNullOrWhiteSpace(incomingAnswer.SectionName)
-                ? existingAnswer.SectionName
-                : incomingAnswer.SectionName.Trim();
-            existingAnswer.AnswerText = incomingAnswer.AnswerText;
-            existingAnswer.AnswerType = string.IsNullOrWhiteSpace(incomingAnswer.AnswerType) ? existingAnswer.AnswerType : incomingAnswer.AnswerType.Trim();
-            existingAnswer.CompletenessStatus = string.IsNullOrWhiteSpace(incomingAnswer.AnswerText)
-                ? CompletenessStatus.Missing
-                : CompletenessStatus.Complete;
+                success = true,
+                assessmentId = assessment.Id,
+                responseId = duplicateResponse.Id,
+                responseLabel = duplicateResponse.ResponseLabel,
+                answers = duplicateResponse.AnswerCount
+            });
         }
 
-        var receivedAt = request.SubmittedAt?.ToUniversalTime() ?? DateTime.UtcNow;
-        assessment.RawResponseJson = request.RawResponse.ValueKind is JsonValueKind.Undefined or JsonValueKind.Null
+        var rawResponseJson = request.RawResponse.ValueKind is JsonValueKind.Undefined or JsonValueKind.Null
             ? JsonSerializer.Serialize(new
             {
                 clientToken = request.ClientToken,
-                externalResponseId = request.ExternalResponseId,
+                externalResponseId,
                 submittedAt = request.SubmittedAt,
                 answers = request.Answers
             })
             : request.RawResponse.GetRawText();
-        assessment.FormStatus = ReadinessFormStatus.Completed;
-        assessment.CompletedAt = receivedAt;
+
+        var response = CreateAssessmentResponse(
+            assessment,
+            AssessmentResponseSource.GoogleForm,
+            AssessmentResponseStatus.Received,
+            externalResponseId,
+            request.ClientToken?.Trim(),
+            submittedAt,
+            receivedAt,
+            rawResponseJson);
+
+        foreach (var incomingAnswer in request.Answers.Where(answer => !string.IsNullOrWhiteSpace(answer.QuestionText)))
+        {
+            response.Answers.Add(new AssessmentAnswer
+            {
+                ReadinessAssessmentId = assessment.Id,
+                SectionName = string.IsNullOrWhiteSpace(incomingAnswer.SectionName) ? "Imported from Google Form" : incomingAnswer.SectionName.Trim(),
+                QuestionText = incomingAnswer.QuestionText.Trim(),
+                AnswerText = incomingAnswer.AnswerText,
+                AnswerType = string.IsNullOrWhiteSpace(incomingAnswer.AnswerType) ? "Text" : incomingAnswer.AnswerType.Trim(),
+                CompletenessStatus = string.IsNullOrWhiteSpace(incomingAnswer.AnswerText) ? CompletenessStatus.Missing : CompletenessStatus.Complete,
+                CreatedAt = DateTime.UtcNow
+            });
+        }
+
+        response.AnswerCount = response.Answers.Count;
+        assessment.FormStatus = response.AnswerCount > 0 ? ReadinessFormStatus.Completed : assessment.FormStatus;
+        assessment.CompletedAt = response.AnswerCount > 0 ? receivedAt : assessment.CompletedAt;
         assessment.ResponseReceivedAt = receivedAt;
-        assessment.ExternalResponseId = request.ExternalResponseId;
-        assessment.Summary = $"Received {request.Answers.Count} answers from Google Form.";
+        assessment.ExternalResponseId = externalResponseId;
+        assessment.RawResponseJson = rawResponseJson;
+        assessment.Summary = $"{response.ResponseLabel}: received {response.AnswerCount} answers from Google Form.";
         assessment.LastModifiedAt = DateTime.UtcNow;
 
         if (assessment.ClientCompany is not null)
         {
-            assessment.ClientCompany.CurrentStage = ClientStage.AssessmentCompleted;
-            assessment.ClientCompany.NextAction = "Review received assessment response and generate gap analysis";
+            if (response.AnswerCount > 0)
+            {
+                assessment.ClientCompany.CurrentStage = ClientStage.AssessmentCompleted;
+                assessment.ClientCompany.NextAction = "Review received assessment response and generate gap analysis";
+            }
+            else
+            {
+                assessment.ClientCompany.NextAction = "Review received assessment response";
+            }
             assessment.ClientCompany.LastModifiedAt = DateTime.UtcNow;
         }
 
-        await MarkWorkflowAsync(assessment.ClientCompanyId, "Form Completed");
+        if (response.AnswerCount > 0)
+        {
+            await MarkWorkflowAsync(assessment.ClientCompanyId, "Form Completed");
+        }
+
         context.ClientActivityLogs.Add(new ClientActivityLog
         {
             ClientCompanyId = assessment.ClientCompanyId,
             ActivityType = "Assessment response received",
-            Description = "Assessment response received from Google Form.",
+            Description = $"Google Form response received: {response.ResponseLabel} with {response.AnswerCount} answers.",
             CreatedBy = "Google Forms webhook",
             CreatedAt = DateTime.UtcNow
         });
 
         await context.SaveChangesAsync();
-        return Ok(new { success = true, assessmentId = assessment.Id, answers = request.Answers.Count });
+        return Ok(new
+        {
+            success = true,
+            assessmentId = assessment.Id,
+            responseId = response.Id,
+            responseLabel = response.ResponseLabel,
+            answers = response.AnswerCount
+        });
     }
 
     private async Task<ReadinessFormSettings?> GetActiveSettingsAsync(CancellationToken cancellationToken)
@@ -235,6 +289,64 @@ public class GoogleFormsController(
             .Where(item => item.IsActive)
             .OrderByDescending(item => item.LastModifiedAt ?? item.CreatedAt)
             .FirstOrDefaultAsync(cancellationToken);
+    }
+
+    private async Task<AssessmentResponse?> FindDuplicateResponseAsync(int assessmentId, string? externalResponseId, CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(externalResponseId))
+        {
+            return null;
+        }
+
+        return await context.AssessmentResponses
+            .FirstOrDefaultAsync(response =>
+                response.ReadinessAssessmentId == assessmentId &&
+                response.ExternalResponseId == externalResponseId,
+                cancellationToken);
+    }
+
+    private static AssessmentResponse CreateAssessmentResponse(
+        ReadinessAssessment assessment,
+        AssessmentResponseSource source,
+        AssessmentResponseStatus status,
+        string? externalResponseId,
+        string? clientToken,
+        DateTime? submittedAt,
+        DateTime receivedAt,
+        string? rawResponseJson)
+    {
+        var responseNumber = assessment.Responses
+            .Select(response => response.ResponseNumber)
+            .DefaultIfEmpty()
+            .Max() + 1;
+        var response = new AssessmentResponse
+        {
+            ReadinessAssessmentId = assessment.Id,
+            ResponseNumber = responseNumber,
+            ResponseLabel = GetResponseLabel(responseNumber),
+            Source = source,
+            Status = status,
+            ExternalResponseId = externalResponseId,
+            ClientToken = clientToken,
+            SubmittedAt = submittedAt,
+            ReceivedAt = receivedAt,
+            RawResponseJson = rawResponseJson,
+            CreatedAt = receivedAt
+        };
+
+        assessment.Responses.Add(response);
+        return response;
+    }
+
+    private static string GetResponseLabel(int responseNumber)
+    {
+        return responseNumber switch
+        {
+            1 => "First response",
+            2 => "Second response",
+            3 => "Third response",
+            _ => $"Response {responseNumber}"
+        };
     }
 
     private async Task MarkWorkflowAsync(int clientId, string stageName, CancellationToken cancellationToken = default)
