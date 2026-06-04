@@ -1,0 +1,12 @@
+@model WorkspaceTabErrorViewModel
+
+<div class="empty-state tab-error">
+    <strong>@Model.TabTitle could not be loaded.</strong>
+    <span>Refresh this panel and try again. Request ID: @(Model.RequestId ?? "not available")</span>
+    @if (!string.IsNullOrWhiteSpace(Model.RetryUrl))
+    {
+        <div class="mt-3">
+            <button class="btn btn-outline-primary btn-sm" type="button" data-workspace-retry-url="@Model.RetryUrl">Retry</button>
+        </div>
+    }
+</div>

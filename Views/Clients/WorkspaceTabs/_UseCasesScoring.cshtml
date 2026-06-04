@@ -1,0 +1,78 @@
+@model ClientWorkspaceViewModel
+@{
+    var client = Model.Client;
+}
+
+<form asp-controller="Analysis" asp-action="Generate" method="post" class="action-strip mb-3">
+    <input type="hidden" name="clientId" value="@client.Id" />
+    <button class="btn btn-primary btn-sm" name="operation" value="use-cases">Generate AI Use Cases</button>
+    <button class="btn btn-primary btn-sm" name="operation" value="score-use-cases">Score Use Cases</button>
+</form>
+<form asp-controller="UseCases" asp-action="ShortlistTop3" method="post" class="mb-3">
+    <input type="hidden" name="clientId" value="@client.Id" />
+    <button class="btn btn-outline-primary btn-sm" type="submit">Shortlist top 3</button>
+</form>
+@if (Model.RankedUseCases.Any())
+{
+    <div class="table-responsive">
+        <table class="table">
+            <thead><tr><th>Use case</th><th>Scores</th><th>Priority</th><th>Status</th><th>Update</th></tr></thead>
+            <tbody>
+                @foreach (var useCase in Model.RankedUseCases)
+                {
+                    <tr>
+                        <td>
+                            <div class="fw-semibold">@useCase.Title</div>
+                            <div>@useCase.Description</div>
+                            <div class="table-note">@useCase.Department · @useCase.TimeToValue.ToDisplayName()</div>
+                        </td>
+                        <td>
+                            @if (useCase.Score is not null)
+                            {
+                                <span>ROI @useCase.Score.RoiScore · Feas @useCase.Score.FeasibilityScore · Fit @useCase.Score.StrategicFitScore</span>
+                            }
+                            else
+                            {
+                                <span>Not scored</span>
+                            }
+                        </td>
+                        <td class="fw-semibold">@(useCase.Score?.PriorityScore.ToString("0.##") ?? "-")</td>
+                        <td><span class="status-badge @useCase.Status.ToBadgeClass()">@useCase.Status.ToDisplayName()</span></td>
+                        <td>
+                            <form asp-controller="UseCases" asp-action="Score" method="post" class="d-grid gap-1">
+                                <input type="hidden" name="useCaseId" value="@useCase.Id" />
+                                <input name="RoiScore" class="form-control form-control-sm" type="number" min="1" max="5" value="@(useCase.Score?.RoiScore ?? 3)" />
+                                <input name="FeasibilityScore" class="form-control form-control-sm" type="number" min="1" max="5" value="@(useCase.Score?.FeasibilityScore ?? 3)" />
+                                <input name="RiskSafetyScore" class="form-control form-control-sm" type="number" min="1" max="5" value="@(useCase.Score?.RiskSafetyScore ?? 3)" />
+                                <input name="StrategicFitScore" class="form-control form-control-sm" type="number" min="1" max="5" value="@(useCase.Score?.StrategicFitScore ?? 3)" />
+                                <input name="DataReadinessScore" class="form-control form-control-sm" type="number" min="1" max="5" value="@(useCase.Score?.DataReadinessScore ?? 3)" />
+                                <button class="btn btn-outline-primary btn-sm" type="submit">Save score</button>
+                            </form>
+                            <form asp-controller="UseCases" asp-action="UpdateStatus" method="post" class="mt-2">
+                                <input type="hidden" name="id" value="@useCase.Id" />
+                                <select name="status" asp-items="Html.GetEnumSelectList<UseCaseStatus>()" class="form-select form-select-sm"></select>
+                                <button class="btn btn-outline-secondary btn-sm mt-1" type="submit">Set status</button>
+                            </form>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}
+else
+{
+    <div class="empty-state">
+        <strong>No use cases ranked yet.</strong>
+        Generate AI use cases or add an opportunity manually before scoring.
+    </div>
+}
+<form asp-controller="UseCases" asp-action="Create" method="post" class="form-grid">
+    <input type="hidden" name="clientId" value="@client.Id" />
+    <input name="Title" class="form-control" placeholder="Title" />
+    <input name="Department" class="form-control" placeholder="Department" />
+    <select name="ImplementationComplexity" asp-items="Html.GetEnumSelectList<ComplexityLevel>()" class="form-select"></select>
+    <select name="RiskLevel" asp-items="Html.GetEnumSelectList<RiskLevel>()" class="form-select"></select>
+    <textarea name="Description" class="form-control compact-textarea form-grid-wide" placeholder="Description"></textarea>
+    <button class="btn btn-outline-primary" type="submit">Add use case</button>
+</form>

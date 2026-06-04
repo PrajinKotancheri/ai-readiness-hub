@@ -1,0 +1,56 @@
+@model ClientWorkspaceViewModel
+@{
+    var client = Model.Client;
+}
+
+<form asp-controller="Analysis" asp-action="Generate" method="post" class="mb-3">
+    <input type="hidden" name="clientId" value="@client.Id" />
+    <button class="btn btn-primary" name="operation" value="roadmap">Generate Roadmap</button>
+</form>
+@if (Model.RoadmapByPhase.Any())
+{
+    @foreach (var phase in Model.RoadmapByPhase)
+    {
+        <h3 class="panel-title">@phase.Key.ToDisplayName()</h3>
+        <div class="table-responsive">
+            <table class="table table-sm">
+                <thead><tr><th>Item</th><th>Owner</th><th>Outcome</th><th>Status</th><th></th></tr></thead>
+                <tbody>
+                    @foreach (var item in phase)
+                    {
+                        <tr>
+                            <td><div class="fw-semibold">@item.Title</div><div>@item.Description</div></td>
+                            <td>@item.Owner</td>
+                            <td>@item.ExpectedOutcome</td>
+                            <td><span class="status-badge @item.Status.ToBadgeClass()">@item.Status.ToDisplayName()</span></td>
+                            <td>
+                                <form asp-controller="Roadmap" asp-action="UpdateStatus" method="post">
+                                    <input type="hidden" name="id" value="@item.Id" />
+                                    <select name="status" asp-items="Html.GetEnumSelectList<ApprovalStatus>()" class="form-select form-select-sm"></select>
+                                    <button class="btn btn-outline-primary btn-sm mt-1" type="submit">Update</button>
+                                </form>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+}
+else
+{
+    <div class="empty-state">
+        <strong>No roadmap items yet.</strong>
+        Generate a roadmap after the use-case shortlist or add a phase manually.
+    </div>
+}
+<form asp-controller="Roadmap" asp-action="Create" method="post" class="form-grid">
+    <input type="hidden" name="clientId" value="@client.Id" />
+    <select name="Phase" asp-items="Html.GetEnumSelectList<RoadmapPhase>()" class="form-select"></select>
+    <input name="Title" class="form-control" placeholder="Title" />
+    <input name="Owner" class="form-control" placeholder="Owner" />
+    <textarea name="Description" class="form-control compact-textarea form-grid-wide" placeholder="Description"></textarea>
+    <textarea name="ExpectedOutcome" class="form-control compact-textarea" placeholder="Expected outcome"></textarea>
+    <textarea name="Dependencies" class="form-control compact-textarea" placeholder="Dependencies"></textarea>
+    <button class="btn btn-outline-primary" type="submit">Add roadmap item</button>
+</form>

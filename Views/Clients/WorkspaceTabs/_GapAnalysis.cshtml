@@ -1,0 +1,55 @@
+@model ClientWorkspaceViewModel
+@{
+    var client = Model.Client;
+}
+
+<form asp-controller="Analysis" asp-action="Generate" method="post" class="mb-3">
+    <input type="hidden" name="clientId" value="@client.Id" />
+    <button class="btn btn-primary" name="operation" value="gap-analysis">Generate Gap Analysis</button>
+</form>
+<form asp-controller="GapAnalysis" asp-action="Create" method="post" class="form-grid mb-3">
+    <input type="hidden" name="clientId" value="@client.Id" />
+    <select name="GapArea" asp-items="Html.GetEnumSelectList<GapArea>()" class="form-select"></select>
+    <select name="Severity" asp-items="Html.GetEnumSelectList<Severity>()" class="form-select"></select>
+    <textarea name="IssueDescription" class="form-control compact-textarea form-grid-wide" placeholder="Issue description"></textarea>
+    <textarea name="Impact" class="form-control compact-textarea" placeholder="Impact"></textarea>
+    <textarea name="SuggestedAction" class="form-control compact-textarea" placeholder="Suggested action"></textarea>
+    <button class="btn btn-outline-primary" type="submit">Add gap item</button>
+</form>
+@if (client.GapAnalysisItems.Any())
+{
+    <div class="table-responsive">
+        <table class="table">
+            <thead><tr><th>Area</th><th>Issue</th><th>Severity</th><th>Status</th><th>Action</th></tr></thead>
+            <tbody>
+                @foreach (var gap in client.GapAnalysisItems.OrderByDescending(item => item.Severity))
+                {
+                    <tr>
+                        <td>@gap.GapArea.ToDisplayName()</td>
+                        <td>
+                            <div>@gap.IssueDescription</div>
+                            <div class="table-note">@gap.SuggestedFollowUpQuestion</div>
+                        </td>
+                        <td><span class="status-badge @gap.Severity.ToBadgeClass()">@gap.Severity.ToDisplayName()</span></td>
+                        <td><span class="status-badge @gap.Status.ToBadgeClass()">@gap.Status.ToDisplayName()</span></td>
+                        <td>
+                            <form asp-controller="GapAnalysis" asp-action="Update" method="post" class="d-flex gap-2">
+                                <input type="hidden" name="id" value="@gap.Id" />
+                                <select name="status" asp-items="Html.GetEnumSelectList<GapStatus>()" class="form-select form-select-sm"></select>
+                                <select name="severity" asp-items="Html.GetEnumSelectList<Severity>()" class="form-select form-select-sm"></select>
+                                <button class="btn btn-outline-primary btn-sm" type="submit">Update</button>
+                            </form>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}
+else
+{
+    <div class="empty-state">
+        <strong>No open gaps found.</strong>
+        Generate gap analysis or add a gap item manually when assessment information is incomplete.
+    </div>
+}

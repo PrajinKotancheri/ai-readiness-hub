@@ -1,0 +1,44 @@
+@model ClientWorkspaceViewModel
+@{
+    var client = Model.Client;
+}
+
+<form asp-controller="Analysis" asp-action="Generate" method="post" class="action-strip mb-3">
+    <input type="hidden" name="clientId" value="@client.Id" />
+    <button class="btn btn-primary btn-sm" name="operation" value="company-summary">Generate Company Summary</button>
+    <button class="btn btn-primary btn-sm" name="operation" value="industry">Run Industry Analysis</button>
+    <button class="btn btn-primary btn-sm" name="operation" value="competitors">Run Competitor Insights</button>
+    <button class="btn btn-primary btn-sm" name="operation" value="score-use-cases">Score Use Cases</button>
+</form>
+@if (Model.LatestAnalysisOutputs.Any())
+{
+    @foreach (var output in Model.LatestAnalysisOutputs)
+    {
+        <div class="panel">
+            <div class="d-flex justify-content-between gap-2 mb-2">
+                <div>
+                    <div class="fw-semibold">@output.Title</div>
+                    <div class="table-note">@output.AnalysisType.ToDisplayName() · version @output.VersionNumber · @(output.GeneratedAt?.ToString("yyyy-MM-dd HH:mm") ?? "not generated")</div>
+                </div>
+                <span class="status-badge @output.Status.ToBadgeClass()">@output.Status.ToDisplayName()</span>
+            </div>
+            <form asp-controller="Analysis" asp-action="EditOutput" method="post">
+                <input type="hidden" name="id" value="@output.Id" />
+                <textarea name="outputContent" class="form-control" rows="7">@output.OutputContent</textarea>
+                <select name="status" asp-items="Html.GetEnumSelectList<DraftStatus>()" class="form-select mt-2"></select>
+                <button class="btn btn-outline-primary btn-sm mt-2" type="submit">Save draft</button>
+            </form>
+            <form asp-controller="Analysis" asp-action="ApproveOutput" method="post" class="mt-2">
+                <input type="hidden" name="id" value="@output.Id" />
+                <button class="btn btn-primary btn-sm" type="submit">Approve output</button>
+            </form>
+        </div>
+    }
+}
+else
+{
+    <div class="empty-state">
+        <strong>No AI drafts generated yet.</strong>
+        Generate a company summary, industry insight, or use-case score to create editable drafts.
+    </div>
+}

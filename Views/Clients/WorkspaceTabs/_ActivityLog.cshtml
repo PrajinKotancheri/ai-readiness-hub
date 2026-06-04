@@ -1,0 +1,35 @@
+@model ClientWorkspaceViewModel
+@{
+    var client = Model.Client;
+}
+
+<div class="panel-header">
+    <h3 class="panel-title">Recent activity</h3>
+    <span class="status-badge status-info">@client.ActivityLogs.Count shown / @Model.ActivityLogCount total</span>
+</div>
+@if (client.ActivityLogs.Any())
+{
+    <div class="table-responsive">
+        <table class="table table-sm">
+            <thead><tr><th>Time</th><th>Type</th><th>Description</th><th>By</th></tr></thead>
+            <tbody>
+                @foreach (var activity in client.ActivityLogs.OrderByDescending(item => item.CreatedAt))
+                {
+                    <tr>
+                        <td>@activity.CreatedAt.ToString("yyyy-MM-dd HH:mm")</td>
+                        <td>@activity.ActivityType</td>
+                        <td>@activity.Description</td>
+                        <td>@activity.CreatedBy</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}
+else
+{
+    <div class="empty-state">
+        <strong>No activity logged yet.</strong>
+        Client updates, generated drafts, and consultant actions will appear here.
+    </div>
+}

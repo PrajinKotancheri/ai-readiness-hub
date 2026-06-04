@@ -1,0 +1,70 @@
+@model ClientWorkspaceViewModel
+@{
+    var client = Model.Client;
+}
+
+<form asp-controller="Analysis" asp-action="Generate" method="post" class="action-strip mb-3">
+    <input type="hidden" name="clientId" value="@client.Id" />
+    <button class="btn btn-primary btn-sm" name="operation" value="industry">Run Industry Analysis</button>
+    <button class="btn btn-primary btn-sm" name="operation" value="competitors">Run Competitor Insights</button>
+</form>
+<div class="row g-3">
+    <div class="col-lg-6">
+        <h3 class="panel-title">Industry insights</h3>
+        @if (client.IndustryInsights.Any())
+        {
+            @foreach (var insight in client.IndustryInsights.OrderByDescending(item => item.CreatedAt))
+            {
+                <div class="mb-3">
+                    <div class="fw-semibold">@insight.Topic <span class="status-badge @insight.Status.ToBadgeClass()">@insight.Status.ToDisplayName()</span></div>
+                    <div class="preline">@insight.InsightText</div>
+                    <div class="table-note">@insight.SourceType.ToDisplayName()</div>
+                </div>
+            }
+        }
+        else
+        {
+            <div class="empty-state">
+                <strong>No industry insights yet.</strong>
+                Run industry analysis or add a sourced insight manually.
+            </div>
+        }
+        <form asp-controller="Insights" asp-action="Industry" method="post" class="form-grid">
+            <input type="hidden" name="clientId" value="@client.Id" />
+            <input name="Topic" class="form-control" placeholder="Topic" />
+            <select name="SourceType" asp-items="Html.GetEnumSelectList<InsightSourceType>()" class="form-select"></select>
+            <textarea name="InsightText" class="form-control compact-textarea form-grid-wide" placeholder="Insight"></textarea>
+            <button class="btn btn-outline-primary" type="submit">Add industry insight</button>
+        </form>
+    </div>
+    <div class="col-lg-6">
+        <h3 class="panel-title">Competitor insights</h3>
+        @if (client.CompetitorInsights.Any())
+        {
+            @foreach (var insight in client.CompetitorInsights.OrderByDescending(item => item.CreatedAt))
+            {
+                <div class="mb-3">
+                    <div class="fw-semibold">@insight.CompetitorName <span class="status-badge @insight.Status.ToBadgeClass()">@insight.Status.ToDisplayName()</span></div>
+                    <div class="preline">@insight.InsightText</div>
+                    <div class="table-note">@insight.AiUseCasesObserved</div>
+                </div>
+            }
+        }
+        else
+        {
+            <div class="empty-state">
+                <strong>No competitor insights yet.</strong>
+                Run competitor insights or capture market notes from discovery.
+            </div>
+        }
+        <form asp-controller="Insights" asp-action="Competitor" method="post" class="form-grid">
+            <input type="hidden" name="clientId" value="@client.Id" />
+            <input name="CompetitorName" class="form-control" placeholder="Competitor" />
+            <input name="WebsiteUrl" class="form-control" placeholder="Website" />
+            <textarea name="InsightText" class="form-control compact-textarea form-grid-wide" placeholder="Insight"></textarea>
+            <textarea name="AiUseCasesObserved" class="form-control compact-textarea" placeholder="AI use cases observed"></textarea>
+            <textarea name="SourceNotes" class="form-control compact-textarea" placeholder="Source notes"></textarea>
+            <button class="btn btn-outline-primary" type="submit">Add competitor insight</button>
+        </form>
+    </div>
+</div>

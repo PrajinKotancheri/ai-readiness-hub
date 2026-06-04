@@ -1,0 +1,46 @@
+@model ClientWorkspaceViewModel
+@{
+    var client = Model.Client;
+}
+
+<form asp-controller="Analysis" asp-action="Generate" method="post" class="mb-3">
+    <input type="hidden" name="clientId" value="@client.Id" />
+    <button class="btn btn-primary" name="operation" value="report">Generate Report Draft</button>
+</form>
+@if (Model.LatestReport is not null)
+{
+    <div class="d-flex justify-content-between flex-wrap gap-2 mb-3">
+        <div>
+            <h3 class="panel-title mb-1">@Model.LatestReport.ReportTitle</h3>
+            <span class="status-badge @Model.LatestReport.ReportStatus.ToBadgeClass()">@Model.LatestReport.ReportStatus.ToDisplayName()</span>
+        </div>
+        <a class="btn btn-outline-secondary" asp-controller="Reports" asp-action="Export" asp-route-reportId="@Model.LatestReport.Id">Export markdown</a>
+    </div>
+    <form asp-controller="Reports" asp-action="UpdateStatus" method="post" class="d-flex flex-wrap gap-2 mb-3">
+        <input type="hidden" name="reportId" value="@Model.LatestReport.Id" />
+        <select name="reportStatus" asp-items="Html.GetEnumSelectList<ReportStatus>()" class="form-select w-auto"></select>
+        <button class="btn btn-primary" type="submit">Change Report Status</button>
+    </form>
+    @foreach (var reportSection in Model.LatestReport.Sections.OrderBy(item => item.SectionOrder))
+    {
+        <div class="panel">
+            <div class="d-flex justify-content-between gap-2">
+                <div class="fw-semibold">@reportSection.SectionOrder. @reportSection.SectionTitle</div>
+                <span class="status-badge @reportSection.SectionStatus.ToBadgeClass()">@reportSection.SectionStatus.ToDisplayName()</span>
+            </div>
+            <form asp-controller="Reports" asp-action="Section" method="post" class="mt-2">
+                <input type="hidden" name="sectionId" value="@reportSection.Id" />
+                <textarea name="sectionContent" class="form-control" rows="5">@reportSection.SectionContent</textarea>
+                <select name="sectionStatus" asp-items="Html.GetEnumSelectList<SectionStatus>()" class="form-select mt-2"></select>
+                <button class="btn btn-outline-primary btn-sm mt-2" type="submit">Save section</button>
+            </form>
+        </div>
+    }
+}
+else
+{
+    <div class="empty-state">
+        <strong>No report draft yet.</strong>
+        Generate a report draft once the assessment, analysis, and roadmap are ready.
+    </div>
+}

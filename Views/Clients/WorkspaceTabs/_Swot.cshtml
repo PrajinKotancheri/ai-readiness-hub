@@ -1,0 +1,49 @@
+@model ClientWorkspaceViewModel
+@{
+    var client = Model.Client;
+}
+
+<form asp-controller="Analysis" asp-action="Generate" method="post" class="mb-3">
+    <input type="hidden" name="clientId" value="@client.Id" />
+    <button class="btn btn-primary" name="operation" value="swot">Generate SWOT</button>
+</form>
+<div class="swot-grid">
+    @foreach (var category in Enum.GetValues<SwotCategory>())
+    {
+        var categoryItems = client.SwotItems.Where(item => item.Category == category).ToList();
+        <div class="swot-quadrant">
+            <h3 class="panel-title">@category.ToDisplayName()</h3>
+            @if (categoryItems.Any())
+            {
+                @foreach (var item in categoryItems)
+                {
+                    <div class="mb-3">
+                        <div>@item.Description</div>
+                        <div class="table-note">@item.EvidenceSource</div>
+                        <span class="status-badge @item.Status.ToBadgeClass()">@item.Status.ToDisplayName()</span>
+                        <form asp-controller="Swot" asp-action="UpdateStatus" method="post" class="mt-2">
+                            <input type="hidden" name="id" value="@item.Id" />
+                            <select name="status" asp-items="Html.GetEnumSelectList<ItemReviewStatus>()" class="form-select form-select-sm"></select>
+                            <input name="consultantComment" class="form-control form-control-sm mt-1" placeholder="Consultant comment" />
+                            <button class="btn btn-outline-primary btn-sm mt-1" type="submit">Save</button>
+                        </form>
+                    </div>
+                }
+            }
+            else
+            {
+                <div class="empty-state">
+                    <strong>No items yet.</strong>
+                    Add evidence or generate SWOT to populate this quadrant.
+                </div>
+            }
+        </div>
+    }
+</div>
+<form asp-controller="Swot" asp-action="Create" method="post" class="form-grid mt-3">
+    <input type="hidden" name="clientId" value="@client.Id" />
+    <select name="Category" asp-items="Html.GetEnumSelectList<SwotCategory>()" class="form-select"></select>
+    <input name="EvidenceSource" class="form-control" placeholder="Evidence source" />
+    <textarea name="Description" class="form-control compact-textarea form-grid-wide" placeholder="Description"></textarea>
+    <button class="btn btn-outline-primary" type="submit">Add SWOT item</button>
+</form>

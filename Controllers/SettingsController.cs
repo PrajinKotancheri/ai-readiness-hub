@@ -2,16 +2,25 @@ using AI_Readiness_Hub.Data;
 using AI_Readiness_Hub.Models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using System.Diagnostics;
 
 namespace AI_Readiness_Hub.Controllers;
 
 [Route("Settings")]
-public class SettingsController(ApplicationDbContext context) : Controller
+public class SettingsController(
+    ApplicationDbContext context,
+    ILogger<SettingsController> logger) : Controller
 {
     [HttpGet("ReadinessForm")]
     public async Task<IActionResult> ReadinessForm()
     {
-        var settings = await GetActiveSettingsAsync() ?? new ReadinessFormSettings();
+        var stopwatch = Stopwatch.StartNew();
+        var settings = await GetActiveSettingsAsync(asNoTracking: true) ?? new ReadinessFormSettings();
+        logger.LogInformation(
+            "Readiness form settings loaded. SettingsConfigured: {SettingsConfigured}; ElapsedMs: {ElapsedMs}; RequestId: {RequestId}",
+            settings.Id > 0,
+            stopwatch.ElapsedMilliseconds,
+            HttpContext.TraceIdentifier);
         return View(settings);
     }
 
@@ -26,7 +35,7 @@ public class SettingsController(ApplicationDbContext context) : Controller
 
         var settings = posted.Id > 0
             ? await context.ReadinessFormSettings.FindAsync(posted.Id)
-            : await GetActiveSettingsAsync();
+            : await GetActiveSettingsAsync(asNoTracking: false);
 
         if (settings is null)
         {
@@ -59,9 +68,15 @@ public class SettingsController(ApplicationDbContext context) : Controller
         return RedirectToAction(nameof(ReadinessForm));
     }
 
-    private async Task<ReadinessFormSettings?> GetActiveSettingsAsync()
+    private async Task<ReadinessFormSettings?> GetActiveSettingsAsync(bool asNoTracking)
     {
-        return await context.ReadinessFormSettings
+        var query = context.ReadinessFormSettings.AsQueryable();
+        if (asNoTracking)
+        {
+            query = query.AsNoTracking();
+        }
+
+        return await query
             .Where(settings => settings.IsActive)
             .OrderByDescending(settings => settings.LastModifiedAt ?? settings.CreatedAt)
             .FirstOrDefaultAsync();

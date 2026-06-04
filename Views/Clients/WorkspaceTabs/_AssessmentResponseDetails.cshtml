@@ -1,0 +1,83 @@
+@model ClientWorkspaceViewModel
+@{
+    var selectedResponse = Model.SelectedAssessmentResponse;
+    var selectedMissingAnswers = selectedResponse?.Answers.Count(answer => string.IsNullOrWhiteSpace(answer.AnswerText) || answer.CompletenessStatus == CompletenessStatus.Missing) ?? 0;
+}
+
+@if (selectedResponse is not null)
+{
+    <div class="panel-header">
+        <div>
+            <h3 class="panel-title">@selectedResponse.ResponseLabel details</h3>
+            <div class="table-note">@selectedResponse.Source.ToDisplayName() · @selectedResponse.AnswerCount answers · @selectedMissingAnswers missing</div>
+        </div>
+        <div class="action-strip">
+            <span class="status-badge @selectedResponse.Status.ToBadgeClass()">@selectedResponse.Status.ToDisplayName()</span>
+        </div>
+    </div>
+    <div class="detail-grid response-detail-grid mb-3">
+        <div>
+            <div class="field-label">Source</div>
+            <div>@selectedResponse.Source.ToDisplayName()</div>
+        </div>
+        <div>
+            <div class="field-label">Submitted at</div>
+            <div>@(selectedResponse.SubmittedAt?.ToString("dd MMM yyyy HH:mm") ?? "Not provided")</div>
+        </div>
+        <div>
+            <div class="field-label">Received at</div>
+            <div>@selectedResponse.ReceivedAt.ToString("dd MMM yyyy HH:mm")</div>
+        </div>
+        <div>
+            <div class="field-label">External response ID</div>
+            <div class="text-break">@(selectedResponse.ExternalResponseId ?? "Not available")</div>
+        </div>
+        <div>
+            <div class="field-label">Client token</div>
+            <code>@(selectedResponse.ClientToken ?? Model.LatestAssessment?.ClientToken ?? "Not generated")</code>
+        </div>
+        <div>
+            <div class="field-label">Answer count</div>
+            <div>@selectedResponse.AnswerCount</div>
+        </div>
+    </div>
+    <div class="mb-3">
+        <input class="form-control" id="answerFilter" type="search" placeholder="Filter answers" />
+    </div>
+
+    @if (Model.SelectedAnswersBySection.Any())
+    {
+        @foreach (var answerGroup in Model.SelectedAnswersBySection)
+        {
+            <div class="answer-section">
+                <h4 class="answer-section-title">@answerGroup.Key</h4>
+                <div class="answer-card-grid">
+                    @foreach (var answer in answerGroup)
+                    {
+                        <article class="answer-card" data-answer-search="@($"{answerGroup.Key} {answer.QuestionText} {answer.AnswerText}")">
+                            <div class="answer-card-header">
+                                <div class="answer-question">@answer.QuestionText</div>
+                                <span class="status-badge @answer.CompletenessStatus.ToBadgeClass()">@answer.CompletenessStatus.ToDisplayName()</span>
+                            </div>
+                            <div class="answer-text">@(!string.IsNullOrWhiteSpace(answer.AnswerText) ? answer.AnswerText : "No answer provided")</div>
+                        </article>
+                    }
+                </div>
+            </div>
+        }
+    }
+    else
+    {
+        <div class="empty-state">
+            <strong>No answers in this response.</strong>
+            The response was recorded, but no answer rows were included.
+        </div>
+    }
+}
+else
+{
+    <div class="empty-state">
+        <strong>Select a response to view answers.</strong>
+        Response details will show only the answers from the selected submission.
+    </div>
+}

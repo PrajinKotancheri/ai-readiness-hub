@@ -1,0 +1,86 @@
+@model ClientWorkspaceViewModel
+@{
+    var client = Model.Client;
+    var assessment = Model.LatestAssessment;
+    var latestResponse = Model.LatestAssessmentResponse;
+    var latestReportStatus = Model.LatestReport?.ReportStatus ?? ReportStatus.NotStarted;
+}
+
+<div class="row g-3 mb-3">
+    <div class="col-xl-7">
+        <form asp-controller="Analysis" asp-action="Generate" method="post" class="action-groups">
+            <input type="hidden" name="clientId" value="@client.Id" />
+            <div class="action-group">
+                <div class="action-group-title">Intake</div>
+                <div class="action-strip">
+                    <button class="btn btn-outline-primary btn-sm" type="button" data-bs-toggle="tab" data-bs-target="#assessment">Manual Import / Fallback</button>
+                    <button class="btn btn-outline-primary btn-sm" type="button" data-bs-toggle="tab" data-bs-target="#documents">Upload Document</button>
+                    <button class="btn btn-outline-primary btn-sm" type="button" data-bs-toggle="tab" data-bs-target="#notes">Add Note</button>
+                </div>
+            </div>
+            <div class="action-group">
+                <div class="action-group-title">Analysis</div>
+                <div class="action-strip">
+                    <button class="btn btn-primary btn-sm" name="operation" value="company-summary">Company Summary</button>
+                    <button class="btn btn-primary btn-sm" name="operation" value="gap-analysis">Gap Analysis</button>
+                    <button class="btn btn-primary btn-sm" name="operation" value="swot">SWOT</button>
+                    <button class="btn btn-primary btn-sm" name="operation" value="use-cases">Use Cases</button>
+                    <button class="btn btn-primary btn-sm" name="operation" value="readiness-score">Score</button>
+                    <button class="btn btn-primary btn-sm" name="operation" value="roadmap">Roadmap</button>
+                </div>
+            </div>
+            <div class="action-group">
+                <div class="action-group-title">Report</div>
+                <button class="btn btn-primary btn-sm" name="operation" value="report">Generate Report Draft</button>
+            </div>
+        </form>
+    </div>
+    <div class="col-xl-5">
+        <section class="panel h-100 mb-0">
+            <div class="panel-header">
+                <h3 class="panel-title">Readiness form delivery</h3>
+                <span class="status-badge @((assessment?.FormStatus ?? ReadinessFormStatus.NotSent).ToBadgeClass())">@((assessment?.FormStatus ?? ReadinessFormStatus.NotSent).ToDisplayName())</span>
+            </div>
+            <div class="detail-grid">
+                <div>
+                    <div class="field-label">Sent to</div>
+                    <div>@(assessment?.SentToEmail ?? client.ContactPersonEmail ?? "No client email")</div>
+                </div>
+                <div>
+                    <div class="field-label">Sent date</div>
+                    <div>@(assessment?.SentAt?.ToString("yyyy-MM-dd HH:mm") ?? "Not sent")</div>
+                </div>
+                <div>
+                    <div class="field-label">Latest response</div>
+                    <div>@(latestResponse?.ReceivedAt.ToString("yyyy-MM-dd HH:mm") ?? "Not received")</div>
+                </div>
+                <div>
+                    <div class="field-label">Latest answers</div>
+                    <div>@(latestResponse?.AnswerCount.ToString() ?? "0")</div>
+                </div>
+                <div>
+                    <div class="field-label">Report status</div>
+                    <span class="status-badge @latestReportStatus.ToBadgeClass()">@latestReportStatus.ToDisplayName()</span>
+                </div>
+                <div>
+                    <div class="field-label">Open tasks</div>
+                    <div>@Model.OpenTaskCount</div>
+                </div>
+            </div>
+        </section>
+    </div>
+</div>
+
+<div class="metric-grid">
+    <div class="metric-card"><div class="metric-value">@Model.AssessmentResponseCount</div><div class="metric-label">Assessment responses</div></div>
+    <div class="metric-card"><div class="metric-value">@Model.DocumentCount</div><div class="metric-label">Documents</div></div>
+    <div class="metric-card"><div class="metric-value">@(Model.NoteCount + Model.TranscriptCount)</div><div class="metric-label">Notes & transcripts</div></div>
+    <div class="metric-card"><div class="metric-value">@Model.AiDraftCount</div><div class="metric-label">AI drafts</div></div>
+    <div class="metric-card"><div class="metric-value">@Model.OpenGapCount</div><div class="metric-label">Open gaps</div></div>
+    <div class="metric-card"><div class="metric-value">@Model.SwotCount</div><div class="metric-label">SWOT items</div></div>
+    <div class="metric-card"><div class="metric-value">@Model.UseCaseCount</div><div class="metric-label">AI use cases</div></div>
+    <div class="metric-card"><div class="metric-value">@Model.RoadmapCount</div><div class="metric-label">Roadmap items</div></div>
+    <div class="metric-card"><div class="metric-value">@Model.ReportCount</div><div class="metric-label">Reports</div></div>
+    <div class="metric-card"><div class="metric-value">@Model.OpenTaskCount</div><div class="metric-label">Open tasks</div></div>
+    <div class="metric-card"><div class="metric-value">@Model.ActivityLogCount</div><div class="metric-label">Activity log entries</div></div>
+</div>

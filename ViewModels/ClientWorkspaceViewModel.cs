@@ -9,6 +9,9 @@ public class ClientWorkspaceViewModel
     public ReadinessFormSettings? ReadinessFormSettings { get; set; }
     public ClientReport? LatestReport { get; set; }
     public ReadinessScore? LatestScore { get; set; }
+    public AssessmentResponse? LatestAssessmentResponse { get; set; }
+    public string ActiveWorkspaceTab { get; set; } = "overview";
+    public int? RequestedResponseId { get; set; }
     public int AssessmentResponseCount { get; set; }
     public int SelectedAnswerCount { get; set; }
     public int DocumentCount { get; set; }
@@ -30,4 +33,11 @@ public class ClientWorkspaceViewModel
     public IReadOnlyList<IGrouping<RoadmapPhase, AIRoadmapItem>> RoadmapByPhase { get; set; } = [];
     public IReadOnlyList<AIUseCase> RankedUseCases { get; set; } = [];
     public IReadOnlyList<AIAnalysisOutput> LatestAnalysisOutputs { get; set; } = [];
+}
+
+public class WorkspaceTabErrorViewModel
+{
+    public string TabTitle { get; set; } = "Workspace tab";
+    public string RetryUrl { get; set; } = string.Empty;
+    public string? RequestId { get; set; }
 }

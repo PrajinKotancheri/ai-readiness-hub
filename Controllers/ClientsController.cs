@@ -15,9 +15,9 @@ public class ClientsController(
     [HttpGet("")]
     public async Task<IActionResult> Index([FromQuery] ClientIndexViewModel filters)
     {
+        var stopwatch = Stopwatch.StartNew();
         var query = context.ClientCompanies
-            .Include(client => client.ReadinessAssessments)
-            .Include(client => client.Reports)
+            .AsNoTracking()
             .AsQueryable();
 
         if (filters.Stage.HasValue)
@@ -45,33 +45,45 @@ public class ClientsController(
             query = query.Where(client => (client.LastModifiedAt ?? client.CreatedAt) >= filters.LastModifiedFrom.Value);
         }
 
-        var clients = await query
-            .OrderBy(client => client.CompanyName)
-            .ToListAsync();
-
         if (filters.ReportStatus.HasValue)
         {
-            clients = clients
-                .Where(client => GetLatestReportStatus(client) == filters.ReportStatus.Value)
-                .ToList();
+            query = query.Where(client =>
+                (context.ClientReports
+                    .Where(report => report.ClientCompanyId == client.Id)
+                    .OrderByDescending(report => report.VersionNumber)
+                    .ThenByDescending(report => report.CreatedAt)
+                    .Select(report => (ReportStatus?)report.ReportStatus)
+                    .FirstOrDefault() ?? ReportStatus.NotStarted) == filters.ReportStatus.Value);
         }
 
-        filters.Clients = clients.Select(client => new ClientListItemViewModel
-        {
-            Id = client.Id,
-            CompanyName = client.CompanyName,
-            Industry = client.Industry,
-            Stage = client.CurrentStage,
-            Priority = client.Priority,
-            ReadinessFormStatus = client.ReadinessAssessments
-                .OrderByDescending(assessment => assessment.CreatedAt)
-                .FirstOrDefault()?.FormStatus ?? ReadinessFormStatus.NotSent,
-            ReportStatus = GetLatestReportStatus(client),
-            NextAction = client.NextAction,
-            LastUpdated = client.LastModifiedAt ?? client.CreatedAt
-        }).ToList();
+        filters.Clients = await query
+            .OrderBy(client => client.CompanyName)
+            .Take(250)
+            .Select(client => new ClientListItemViewModel
+            {
+                Id = client.Id,
+                CompanyName = client.CompanyName,
+                Industry = client.Industry,
+                Stage = client.CurrentStage,
+                Priority = client.Priority,
+                ReadinessFormStatus = context.ReadinessAssessments
+                    .Where(assessment => assessment.ClientCompanyId == client.Id)
+                    .OrderByDescending(assessment => assessment.CreatedAt)
+                    .Select(assessment => (ReadinessFormStatus?)assessment.FormStatus)
+                    .FirstOrDefault() ?? ReadinessFormStatus.NotSent,
+                ReportStatus = context.ClientReports
+                    .Where(report => report.ClientCompanyId == client.Id)
+                    .OrderByDescending(report => report.VersionNumber)
+                    .ThenByDescending(report => report.CreatedAt)
+                    .Select(report => (ReportStatus?)report.ReportStatus)
+                    .FirstOrDefault() ?? ReportStatus.NotStarted,
+                NextAction = client.NextAction,
+                LastUpdated = client.LastModifiedAt ?? client.CreatedAt
+            })
+            .ToListAsync();
 
         filters.Industries = await context.ClientCompanies
+            .AsNoTracking()
             .Where(client => client.Industry != null)
             .Select(client => client.Industry!)
             .Distinct()
@@ -79,11 +91,22 @@ public class ClientsController(
             .ToListAsync();
 
         filters.Consultants = await context.ClientCompanies
+            .AsNoTracking()
             .Where(client => client.AssignedConsultant != null)
             .Select(client => client.AssignedConsultant!)
             .Distinct()
             .OrderBy(consultant => consultant)
             .ToListAsync();
+
+        logger.LogInformation(
+            "Clients list loaded. ClientsShown: {ClientCount}; Stage: {Stage}; ReportStatus: {ReportStatus}; IndustryFiltered: {IndustryFiltered}; ConsultantFiltered: {ConsultantFiltered}; ElapsedMs: {ElapsedMs}; RequestId: {RequestId}",
+            filters.Clients.Count,
+            filters.Stage,
+            filters.ReportStatus,
+            !string.IsNullOrWhiteSpace(filters.Industry),
+            !string.IsNullOrWhiteSpace(filters.AssignedConsultant),
+            stopwatch.ElapsedMilliseconds,
+            HttpContext.TraceIdentifier);
 
         return View(filters);
     }
@@ -198,22 +221,22 @@ public class ClientsController(
         var totalStopwatch = Stopwatch.StartNew();
         try
         {
-            var viewModel = await LoadWorkspaceViewModelAsync(id, responseId);
+            var viewModel = await LoadWorkspaceShellViewModelAsync(id, responseId);
             if (viewModel is null)
             {
                 return NotFound();
             }
 
             logger.LogInformation(
-                "Client workspace loaded. ClientCompanyId: {ClientCompanyId}; Responses: {ResponseCount}; SelectedAnswers: {SelectedAnswerCount}; Documents: {DocumentCount}; Notes: {NoteCount}; Transcripts: {TranscriptCount}; AI drafts: {AiDraftCount}; Activity logs shown: {ActivityLogShownCount}/{ActivityLogCount}; ElapsedMs: {ElapsedMs}; RequestId: {RequestId}",
+                "Client workspace shell loaded. ClientCompanyId: {ClientCompanyId}; ActiveTab: {ActiveTab}; Responses: {ResponseCount}; Documents: {DocumentCount}; Notes: {NoteCount}; Transcripts: {TranscriptCount}; AI drafts: {AiDraftCount}; OpenTasks: {OpenTaskCount}; ActivityLogs: {ActivityLogCount}; ElapsedMs: {ElapsedMs}; RequestId: {RequestId}",
                 id,
+                viewModel.ActiveWorkspaceTab,
                 viewModel.AssessmentResponseCount,
-                viewModel.SelectedAnswerCount,
                 viewModel.DocumentCount,
                 viewModel.NoteCount,
                 viewModel.TranscriptCount,
                 viewModel.AiDraftCount,
-                viewModel.Client.ActivityLogs.Count,
+                viewModel.OpenTaskCount,
                 viewModel.ActivityLogCount,
                 totalStopwatch.ElapsedMilliseconds,
                 HttpContext.TraceIdentifier);
@@ -233,10 +256,645 @@ public class ClientsController(
         }
     }
 
-    private async Task<ClientWorkspaceViewModel?> LoadWorkspaceViewModelAsync(int id, int? responseId)
+    [HttpGet("Workspace/{id:int}/Tab/{tabKey}")]
+    public async Task<IActionResult> WorkspaceTab(int id, string tabKey, int? responseId)
+    {
+        var normalizedTab = NormalizeWorkspaceTabKey(tabKey);
+        var stopwatch = Stopwatch.StartNew();
+        try
+        {
+            var result = normalizedTab switch
+            {
+                "overview" => ("WorkspaceTabs/_Overview", "Overview", await LoadWorkspaceShellViewModelAsync(id, responseId)),
+                "assessmentanswers" => ("WorkspaceTabs/_AssessmentAnswers", "Assessment answers", await LoadAssessmentTabViewModelAsync(id, responseId)),
+                "documents" => ("WorkspaceTabs/_Documents", "Documents", await LoadDocumentsTabViewModelAsync(id)),
+                "notestranscripts" => ("WorkspaceTabs/_NotesTranscripts", "Notes and transcripts", await LoadNotesTranscriptsTabViewModelAsync(id)),
+                "aidrafts" => ("WorkspaceTabs/_AIDrafts", "AI drafts", await LoadAIDraftsTabViewModelAsync(id)),
+                "gapanalysis" => ("WorkspaceTabs/_GapAnalysis", "Gap analysis", await LoadGapAnalysisTabViewModelAsync(id)),
+                "swot" => ("WorkspaceTabs/_Swot", "SWOT", await LoadSwotTabViewModelAsync(id)),
+                "industrycompetitors" => ("WorkspaceTabs/_IndustryCompetitors", "Industry and competitors", await LoadIndustryCompetitorsTabViewModelAsync(id)),
+                "usecasesscoring" => ("WorkspaceTabs/_UseCasesScoring", "Use cases and scoring", await LoadUseCasesScoringTabViewModelAsync(id)),
+                "roadmap" => ("WorkspaceTabs/_Roadmap", "Roadmap", await LoadRoadmapTabViewModelAsync(id)),
+                "reports" => ("WorkspaceTabs/_Reports", "Reports", await LoadReportsTabViewModelAsync(id)),
+                "tasks" => ("WorkspaceTabs/_Tasks", "Tasks and follow-ups", await LoadTasksTabViewModelAsync(id)),
+                "activitylog" => ("WorkspaceTabs/_ActivityLog", "Activity log", await LoadActivityLogTabViewModelAsync(id)),
+                _ => (string.Empty, string.Empty, null)
+            };
+
+            if (string.IsNullOrWhiteSpace(result.Item1))
+            {
+                return NotFound();
+            }
+
+            if (result.Item3 is null)
+            {
+                return NotFound();
+            }
+
+            logger.LogInformation(
+                "Client workspace tab loaded. Tab: {WorkspaceTab}; ClientCompanyId: {ClientCompanyId}; LoadedItems: {LoadedItems}; ElapsedMs: {ElapsedMs}; RequestId: {RequestId}",
+                result.Item2,
+                id,
+                CountLoadedTabItems(normalizedTab, result.Item3),
+                stopwatch.ElapsedMilliseconds,
+                HttpContext.TraceIdentifier);
+
+            return PartialView(result.Item1, result.Item3);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(
+                ex,
+                "Client workspace tab failed. TabKey: {WorkspaceTabKey}; ClientCompanyId: {ClientCompanyId}; ResponseId: {ResponseId}; ElapsedMs: {ElapsedMs}; RequestId: {RequestId}",
+                tabKey,
+                id,
+                responseId,
+                stopwatch.ElapsedMilliseconds,
+                HttpContext.TraceIdentifier);
+
+            Response.StatusCode = StatusCodes.Status500InternalServerError;
+            return PartialView("WorkspaceTabs/_TabError", new WorkspaceTabErrorViewModel
+            {
+                TabTitle = GetWorkspaceTabTitle(normalizedTab),
+                RetryUrl = Url.Action(nameof(WorkspaceTab), new { id, tabKey, responseId }) ?? string.Empty,
+                RequestId = HttpContext.TraceIdentifier
+            });
+        }
+    }
+
+    [HttpGet("Workspace/{clientId:int}/AssessmentResponses/{responseId:int}")]
+    public async Task<IActionResult> AssessmentResponseDetails(int clientId, int responseId)
     {
         var stopwatch = Stopwatch.StartNew();
-        var client = await context.ClientCompanies
+        try
+        {
+            var viewModel = await LoadAssessmentResponseDetailsViewModelAsync(clientId, responseId);
+            if (viewModel is null)
+            {
+                return NotFound();
+            }
+
+            logger.LogInformation(
+                "Assessment response details loaded. ClientCompanyId: {ClientCompanyId}; ResponseId: {ResponseId}; Answers: {AnswerCount}; ElapsedMs: {ElapsedMs}; RequestId: {RequestId}",
+                clientId,
+                responseId,
+                viewModel.SelectedAnswerCount,
+                stopwatch.ElapsedMilliseconds,
+                HttpContext.TraceIdentifier);
+
+            return PartialView("WorkspaceTabs/_AssessmentResponseDetails", viewModel);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(
+                ex,
+                "Assessment response details failed. ClientCompanyId: {ClientCompanyId}; ResponseId: {ResponseId}; ElapsedMs: {ElapsedMs}; RequestId: {RequestId}",
+                clientId,
+                responseId,
+                stopwatch.ElapsedMilliseconds,
+                HttpContext.TraceIdentifier);
+
+            Response.StatusCode = StatusCodes.Status500InternalServerError;
+            return PartialView("WorkspaceTabs/_TabError", new WorkspaceTabErrorViewModel
+            {
+                TabTitle = "Assessment response details",
+                RetryUrl = Url.Action(nameof(AssessmentResponseDetails), new { clientId, responseId }) ?? string.Empty,
+                RequestId = HttpContext.TraceIdentifier
+            });
+        }
+    }
+
+    private async Task<ClientWorkspaceViewModel?> LoadWorkspaceShellViewModelAsync(int id, int? responseId)
+    {
+        var stopwatch = Stopwatch.StartNew();
+        var client = await LoadClientSummaryAsync(id);
+        if (client is null)
+        {
+            return null;
+        }
+
+        logger.LogInformation(
+            "Client workspace base client loaded. ClientCompanyId: {ClientCompanyId}; ElapsedMs: {ElapsedMs}; RequestId: {RequestId}",
+            id,
+            stopwatch.ElapsedMilliseconds,
+            HttpContext.TraceIdentifier);
+
+        client.WorkflowSteps = await LoadWorkflowStepsAsync(id);
+        var latestAssessment = await LoadLatestAssessmentAsync(id);
+
+        if (latestAssessment is not null)
+        {
+            client.ReadinessAssessments.Add(latestAssessment);
+        }
+
+        var assessmentResponseCount = latestAssessment is null
+            ? 0
+            : await context.AssessmentResponses
+                .AsNoTracking()
+                .Where(response => response.ReadinessAssessmentId == latestAssessment.Id)
+                .CountAsync();
+
+        var latestResponse = latestAssessment is null
+            ? null
+            : await LoadLatestAssessmentResponseAsync(latestAssessment.Id);
+        var latestAnsweredResponse = latestAssessment is null
+            ? null
+            : await LoadLatestAnsweredAssessmentResponseAsync(latestAssessment.Id);
+
+        ApplyResponseAwareWorkflow(client, latestAnsweredResponse);
+
+        var latestReport = await LoadLatestReportSummaryAsync(id, includeSections: false);
+        var latestScore = await LoadLatestReadinessScoreAsync(id);
+        var counts = await LoadWorkspaceCollectionCountsAsync(id);
+
+        logger.LogInformation(
+            "Client workspace shell summaries loaded. ClientCompanyId: {ClientCompanyId}; Responses: {ResponseCount}; ElapsedMs: {ElapsedMs}; RequestId: {RequestId}",
+            id,
+            assessmentResponseCount,
+            stopwatch.ElapsedMilliseconds,
+            HttpContext.TraceIdentifier);
+
+        return new ClientWorkspaceViewModel
+        {
+            Client = client,
+            LatestAssessment = latestAssessment,
+            LatestAssessmentResponse = latestResponse,
+            LatestReport = latestReport,
+            LatestScore = latestScore,
+            ActiveWorkspaceTab = responseId.HasValue ? "assessment" : "overview",
+            RequestedResponseId = responseId,
+            AssessmentResponseCount = assessmentResponseCount,
+            DocumentCount = counts.DocumentCount,
+            NoteCount = counts.NoteCount,
+            TranscriptCount = counts.TranscriptCount,
+            AiDraftCount = counts.AiDraftCount,
+            GapCount = counts.GapCount,
+            OpenGapCount = counts.OpenGapCount,
+            SwotCount = counts.SwotCount,
+            UseCaseCount = counts.UseCaseCount,
+            RoadmapCount = counts.RoadmapCount,
+            ReportCount = counts.ReportCount,
+            OpenTaskCount = counts.OpenTaskCount,
+            ActivityLogCount = counts.ActivityLogCount
+        };
+    }
+
+    private async Task<ClientWorkspaceViewModel?> LoadAssessmentTabViewModelAsync(int id, int? responseId)
+    {
+        var client = await LoadClientSummaryAsync(id);
+        if (client is null)
+        {
+            return null;
+        }
+
+        var latestAssessment = await LoadLatestAssessmentAsync(id);
+        var readinessFormSettings = await context.ReadinessFormSettings
+            .AsNoTracking()
+            .Where(settings => settings.IsActive)
+            .OrderByDescending(settings => settings.LastModifiedAt ?? settings.CreatedAt)
+            .FirstOrDefaultAsync();
+
+        var assessmentResponses = latestAssessment is null
+            ? []
+            : await LoadAssessmentResponseSummariesAsync(latestAssessment.Id);
+
+        var selectedAssessmentResponse = responseId.HasValue
+            ? assessmentResponses.FirstOrDefault(response => response.Id == responseId.Value)
+            : assessmentResponses
+                .Where(response => response.Status != AssessmentResponseStatus.Ignored)
+                .OrderByDescending(response => response.ReceivedAt)
+                .ThenByDescending(response => response.ResponseNumber)
+                .FirstOrDefault();
+
+        var selectedAnswers = selectedAssessmentResponse is null
+            ? []
+            : await LoadAssessmentAnswersAsync(selectedAssessmentResponse.Id);
+
+        if (selectedAssessmentResponse is not null)
+        {
+            selectedAssessmentResponse.Answers = selectedAnswers;
+        }
+
+        return new ClientWorkspaceViewModel
+        {
+            Client = client,
+            LatestAssessment = latestAssessment,
+            ReadinessFormSettings = readinessFormSettings,
+            LatestAssessmentResponse = assessmentResponses
+                .Where(response => response.Status != AssessmentResponseStatus.Ignored)
+                .OrderByDescending(response => response.ReceivedAt)
+                .ThenByDescending(response => response.ResponseNumber)
+                .FirstOrDefault(),
+            AssessmentResponseCount = assessmentResponses.Count,
+            SelectedAnswerCount = selectedAnswers.Count,
+            AssessmentResponses = assessmentResponses,
+            SelectedAssessmentResponse = selectedAssessmentResponse,
+            SelectedAnswersBySection = selectedAnswers
+                .OrderBy(answer => answer.SectionName)
+                .ThenBy(answer => answer.Id)
+                .GroupBy(answer => answer.SectionName)
+                .ToList()
+        };
+    }
+
+    private async Task<ClientWorkspaceViewModel?> LoadAssessmentResponseDetailsViewModelAsync(int clientId, int responseId)
+    {
+        var response = await context.AssessmentResponses
+            .AsNoTracking()
+            .Where(item => item.Id == responseId && item.ReadinessAssessment!.ClientCompanyId == clientId)
+            .Select(item => new AssessmentResponse
+            {
+                Id = item.Id,
+                ReadinessAssessmentId = item.ReadinessAssessmentId,
+                ResponseNumber = item.ResponseNumber,
+                ResponseLabel = item.ResponseLabel,
+                Source = item.Source,
+                ExternalResponseId = item.ExternalResponseId,
+                ClientToken = item.ClientToken,
+                SubmittedAt = item.SubmittedAt,
+                ReceivedAt = item.ReceivedAt,
+                AnswerCount = item.AnswerCount,
+                Status = item.Status,
+                CreatedAt = item.CreatedAt,
+                LastModifiedAt = item.LastModifiedAt
+            })
+            .FirstOrDefaultAsync();
+
+        if (response is null)
+        {
+            return null;
+        }
+
+        var assessment = await context.ReadinessAssessments
+            .AsNoTracking()
+            .Where(item => item.Id == response.ReadinessAssessmentId)
+            .Select(item => new ReadinessAssessment
+            {
+                Id = item.Id,
+                ClientCompanyId = item.ClientCompanyId,
+                ClientToken = item.ClientToken
+            })
+            .FirstOrDefaultAsync();
+
+        var selectedAnswers = await LoadAssessmentAnswersAsync(response.Id);
+        response.Answers = selectedAnswers;
+
+        return new ClientWorkspaceViewModel
+        {
+            LatestAssessment = assessment,
+            SelectedAssessmentResponse = response,
+            SelectedAnswerCount = selectedAnswers.Count,
+            SelectedAnswersBySection = selectedAnswers
+                .OrderBy(answer => answer.SectionName)
+                .ThenBy(answer => answer.Id)
+                .GroupBy(answer => answer.SectionName)
+                .ToList()
+        };
+    }
+
+    private async Task<ClientWorkspaceViewModel?> LoadDocumentsTabViewModelAsync(int id)
+    {
+        var client = await LoadClientSummaryAsync(id);
+        if (client is null)
+        {
+            return null;
+        }
+
+        client.Documents = await context.ClientDocuments
+            .AsNoTracking()
+            .Where(document => document.ClientCompanyId == id)
+            .OrderByDescending(document => document.UploadedAt)
+            .Take(20)
+            .Select(document => new ClientDocument
+            {
+                Id = document.Id,
+                ClientCompanyId = document.ClientCompanyId,
+                FileName = document.FileName,
+                FilePath = document.FilePath,
+                DocumentType = document.DocumentType,
+                Description = document.Description,
+                UploadedAt = document.UploadedAt,
+                UploadedBy = document.UploadedBy,
+                AiSummary = Truncate(document.AiSummary, 700),
+                KeyInsights = Truncate(document.KeyInsights, 700),
+                UsedInReport = document.UsedInReport,
+                CreatedAt = document.CreatedAt
+            })
+            .ToListAsync();
+
+        return new ClientWorkspaceViewModel
+        {
+            Client = client,
+            DocumentCount = await context.ClientDocuments.AsNoTracking().CountAsync(item => item.ClientCompanyId == id)
+        };
+    }
+
+    private async Task<ClientWorkspaceViewModel?> LoadNotesTranscriptsTabViewModelAsync(int id)
+    {
+        var client = await LoadClientSummaryAsync(id);
+        if (client is null)
+        {
+            return null;
+        }
+
+        client.Notes = await context.ConsultantNotes
+            .AsNoTracking()
+            .Where(note => note.ClientCompanyId == id)
+            .OrderByDescending(note => note.CreatedAt)
+            .Take(20)
+            .Select(note => new ConsultantNote
+            {
+                Id = note.Id,
+                ClientCompanyId = note.ClientCompanyId,
+                NoteTitle = note.NoteTitle,
+                NoteText = Truncate(note.NoteText, 700) ?? string.Empty,
+                NoteType = note.NoteType,
+                CreatedAt = note.CreatedAt,
+                CreatedBy = note.CreatedBy,
+                LastModifiedAt = note.LastModifiedAt
+            })
+            .ToListAsync();
+        client.MeetingTranscripts = await context.MeetingTranscripts
+            .AsNoTracking()
+            .Where(transcript => transcript.ClientCompanyId == id)
+            .OrderByDescending(transcript => transcript.SessionDate)
+            .Take(20)
+            .Select(transcript => new MeetingTranscript
+            {
+                Id = transcript.Id,
+                ClientCompanyId = transcript.ClientCompanyId,
+                SessionTitle = transcript.SessionTitle,
+                SessionDate = transcript.SessionDate,
+                TranscriptText = string.Empty,
+                Summary = Truncate(transcript.Summary, 700),
+                KeyDecisions = Truncate(transcript.KeyDecisions, 500),
+                FollowUpQuestions = Truncate(transcript.FollowUpQuestions, 500),
+                CreatedAt = transcript.CreatedAt,
+                CreatedBy = transcript.CreatedBy
+            })
+            .ToListAsync();
+
+        return new ClientWorkspaceViewModel
+        {
+            Client = client,
+            NoteCount = await context.ConsultantNotes.AsNoTracking().CountAsync(item => item.ClientCompanyId == id),
+            TranscriptCount = await context.MeetingTranscripts.AsNoTracking().CountAsync(item => item.ClientCompanyId == id)
+        };
+    }
+
+    private async Task<ClientWorkspaceViewModel?> LoadAIDraftsTabViewModelAsync(int id)
+    {
+        var client = await LoadClientSummaryAsync(id);
+        if (client is null)
+        {
+            return null;
+        }
+
+        client.AnalysisOutputs = [];
+        foreach (var analysisType in Enum.GetValues<AnalysisType>())
+        {
+            var latestOutput = await context.AIAnalysisOutputs
+                .AsNoTracking()
+                .Where(output => output.ClientCompanyId == id && output.AnalysisType == analysisType)
+                .OrderByDescending(output => output.VersionNumber)
+                .ThenByDescending(output => output.CreatedAt)
+                .Select(output => new AIAnalysisOutput
+                {
+                    Id = output.Id,
+                    ClientCompanyId = output.ClientCompanyId,
+                    AnalysisType = output.AnalysisType,
+                    Title = output.Title,
+                    InputSummary = output.InputSummary,
+                    OutputContent = output.OutputContent,
+                    Status = output.Status,
+                    VersionNumber = output.VersionNumber,
+                    GeneratedAt = output.GeneratedAt,
+                    GeneratedBy = output.GeneratedBy,
+                    CreatedAt = output.CreatedAt,
+                    LastModifiedAt = output.LastModifiedAt
+                })
+                .FirstOrDefaultAsync()
+                .ConfigureAwait(false);
+
+            if (latestOutput is not null)
+            {
+                client.AnalysisOutputs.Add(latestOutput);
+            }
+        }
+
+        return new ClientWorkspaceViewModel
+        {
+            Client = client,
+            AiDraftCount = await context.AIAnalysisOutputs.AsNoTracking().CountAsync(item => item.ClientCompanyId == id),
+            LatestAnalysisOutputs = client.AnalysisOutputs
+                .OrderByDescending(output => output.CreatedAt)
+                .ToList()
+        };
+    }
+
+    private async Task<ClientWorkspaceViewModel?> LoadGapAnalysisTabViewModelAsync(int id)
+    {
+        var client = await LoadClientSummaryAsync(id);
+        if (client is null)
+        {
+            return null;
+        }
+
+        client.GapAnalysisItems = await context.GapAnalysisItems
+            .AsNoTracking()
+            .Where(gap => gap.ClientCompanyId == id)
+            .OrderByDescending(gap => gap.Severity)
+            .ThenByDescending(gap => gap.CreatedAt)
+            .Take(50)
+            .ToListAsync();
+
+        return new ClientWorkspaceViewModel
+        {
+            Client = client,
+            GapCount = await context.GapAnalysisItems.AsNoTracking().CountAsync(item => item.ClientCompanyId == id),
+            OpenGapCount = await context.GapAnalysisItems.AsNoTracking().CountAsync(item => item.ClientCompanyId == id && item.Status == GapStatus.Open)
+        };
+    }
+
+    private async Task<ClientWorkspaceViewModel?> LoadSwotTabViewModelAsync(int id)
+    {
+        var client = await LoadClientSummaryAsync(id);
+        if (client is null)
+        {
+            return null;
+        }
+
+        client.SwotItems = await context.SwotAnalysisItems
+            .AsNoTracking()
+            .Where(item => item.ClientCompanyId == id)
+            .OrderBy(item => item.Category)
+            .ThenByDescending(item => item.CreatedAt)
+            .Take(60)
+            .ToListAsync();
+
+        return new ClientWorkspaceViewModel
+        {
+            Client = client,
+            SwotCount = await context.SwotAnalysisItems.AsNoTracking().CountAsync(item => item.ClientCompanyId == id),
+            SwotByCategory = client.SwotItems
+                .OrderBy(item => item.Category)
+                .GroupBy(item => item.Category)
+                .ToList()
+        };
+    }
+
+    private async Task<ClientWorkspaceViewModel?> LoadIndustryCompetitorsTabViewModelAsync(int id)
+    {
+        var client = await LoadClientSummaryAsync(id);
+        if (client is null)
+        {
+            return null;
+        }
+
+        client.IndustryInsights = await context.IndustryInsights
+            .AsNoTracking()
+            .Where(item => item.ClientCompanyId == id)
+            .OrderByDescending(item => item.CreatedAt)
+            .Take(20)
+            .ToListAsync();
+        client.CompetitorInsights = await context.CompetitorInsights
+            .AsNoTracking()
+            .Where(item => item.ClientCompanyId == id)
+            .OrderByDescending(item => item.CreatedAt)
+            .Take(20)
+            .ToListAsync();
+
+        return new ClientWorkspaceViewModel
+        {
+            Client = client
+        };
+    }
+
+    private async Task<ClientWorkspaceViewModel?> LoadUseCasesScoringTabViewModelAsync(int id)
+    {
+        var client = await LoadClientSummaryAsync(id);
+        if (client is null)
+        {
+            return null;
+        }
+
+        client.UseCases = await context.AIUseCases
+            .AsNoTracking()
+            .Include(useCase => useCase.Score)
+            .Where(useCase => useCase.ClientCompanyId == id)
+            .OrderByDescending(useCase => useCase.Score == null ? 0 : useCase.Score.PriorityScore)
+            .ThenBy(useCase => useCase.Title)
+            .Take(50)
+            .ToListAsync();
+
+        return new ClientWorkspaceViewModel
+        {
+            Client = client,
+            UseCaseCount = await context.AIUseCases.AsNoTracking().CountAsync(item => item.ClientCompanyId == id),
+            RankedUseCases = client.UseCases
+                .OrderByDescending(useCase => useCase.Score?.PriorityScore ?? 0)
+                .ThenBy(useCase => useCase.Title)
+                .ToList()
+        };
+    }
+
+    private async Task<ClientWorkspaceViewModel?> LoadRoadmapTabViewModelAsync(int id)
+    {
+        var client = await LoadClientSummaryAsync(id);
+        if (client is null)
+        {
+            return null;
+        }
+
+        client.RoadmapItems = await context.AIRoadmapItems
+            .AsNoTracking()
+            .Where(item => item.ClientCompanyId == id)
+            .OrderBy(item => item.Phase)
+            .ThenBy(item => item.CreatedAt)
+            .Take(50)
+            .ToListAsync();
+
+        return new ClientWorkspaceViewModel
+        {
+            Client = client,
+            RoadmapCount = await context.AIRoadmapItems.AsNoTracking().CountAsync(item => item.ClientCompanyId == id),
+            RoadmapByPhase = client.RoadmapItems
+                .OrderBy(item => item.Phase)
+                .GroupBy(item => item.Phase)
+                .ToList()
+        };
+    }
+
+    private async Task<ClientWorkspaceViewModel?> LoadReportsTabViewModelAsync(int id)
+    {
+        var client = await LoadClientSummaryAsync(id);
+        if (client is null)
+        {
+            return null;
+        }
+
+        var latestReport = await LoadLatestReportSummaryAsync(id, includeSections: true);
+        if (latestReport is not null)
+        {
+            client.Reports.Add(latestReport);
+        }
+
+        return new ClientWorkspaceViewModel
+        {
+            Client = client,
+            LatestReport = latestReport,
+            ReportCount = await context.ClientReports.AsNoTracking().CountAsync(item => item.ClientCompanyId == id)
+        };
+    }
+
+    private async Task<ClientWorkspaceViewModel?> LoadTasksTabViewModelAsync(int id)
+    {
+        var client = await LoadClientSummaryAsync(id);
+        if (client is null)
+        {
+            return null;
+        }
+
+        client.Tasks = await context.ClientTasks
+            .AsNoTracking()
+            .Where(task => task.ClientCompanyId == id && task.Status != ClientTaskStatus.Done)
+            .OrderBy(task => task.DueDate ?? DateTime.MaxValue)
+            .ThenByDescending(task => task.Priority)
+            .Take(25)
+            .ToListAsync();
+
+        return new ClientWorkspaceViewModel
+        {
+            Client = client,
+            OpenTaskCount = await context.ClientTasks.AsNoTracking().CountAsync(item => item.ClientCompanyId == id && item.Status != ClientTaskStatus.Done)
+        };
+    }
+
+    private async Task<ClientWorkspaceViewModel?> LoadActivityLogTabViewModelAsync(int id)
+    {
+        var client = await LoadClientSummaryAsync(id);
+        if (client is null)
+        {
+            return null;
+        }
+
+        client.ActivityLogs = await context.ClientActivityLogs
+            .AsNoTracking()
+            .Where(activity => activity.ClientCompanyId == id)
+            .OrderByDescending(activity => activity.CreatedAt)
+            .Take(20)
+            .ToListAsync();
+
+        return new ClientWorkspaceViewModel
+        {
+            Client = client,
+            ActivityLogCount = await context.ClientActivityLogs.AsNoTracking().CountAsync(item => item.ClientCompanyId == id)
+        };
+    }
+
+    private async Task<ClientCompany?> LoadClientSummaryAsync(int id)
+    {
+        return await context.ClientCompanies
             .AsNoTracking()
             .Where(item => item.Id == id)
             .Select(item => new ClientCompany
@@ -266,20 +924,11 @@ public class ClientsController(
                 LastModifiedBy = item.LastModifiedBy
             })
             .FirstOrDefaultAsync();
+    }
 
-        if (client is null)
-        {
-            return null;
-        }
-
-        logger.LogInformation(
-            "Client workspace base client loaded. ClientCompanyId: {ClientCompanyId}; ElapsedMs: {ElapsedMs}; RequestId: {RequestId}",
-            id,
-            stopwatch.ElapsedMilliseconds,
-            HttpContext.TraceIdentifier);
-
-        stopwatch.Restart();
-        client.WorkflowSteps = await context.ClientWorkflowSteps
+    private async Task<List<ClientWorkflowStep>> LoadWorkflowStepsAsync(int id)
+    {
+        return await context.ClientWorkflowSteps
             .AsNoTracking()
             .Where(step => step.ClientCompanyId == id)
             .OrderBy(step => step.DisplayOrder)
@@ -293,8 +942,11 @@ public class ClientsController(
                 CompletedAt = step.CompletedAt
             })
             .ToListAsync();
+    }
 
-        var latestAssessment = await context.ReadinessAssessments
+    private async Task<ReadinessAssessment?> LoadLatestAssessmentAsync(int id)
+    {
+        return await context.ReadinessAssessments
             .AsNoTracking()
             .Where(assessment => assessment.ClientCompanyId == id)
             .OrderByDescending(assessment => assessment.CreatedAt)
@@ -319,82 +971,101 @@ public class ClientsController(
                 LastModifiedAt = assessment.LastModifiedAt
             })
             .FirstOrDefaultAsync();
+    }
 
-        if (latestAssessment is not null)
-        {
-            client.ReadinessAssessments.Add(latestAssessment);
-        }
+    private async Task<List<AssessmentResponse>> LoadAssessmentResponseSummariesAsync(int assessmentId)
+    {
+        return await context.AssessmentResponses
+            .AsNoTracking()
+            .Where(response => response.ReadinessAssessmentId == assessmentId)
+            .OrderBy(response => response.ResponseNumber)
+            .Select(response => new AssessmentResponse
+            {
+                Id = response.Id,
+                ReadinessAssessmentId = response.ReadinessAssessmentId,
+                ResponseNumber = response.ResponseNumber,
+                ResponseLabel = response.ResponseLabel,
+                Source = response.Source,
+                ExternalResponseId = response.ExternalResponseId,
+                ClientToken = response.ClientToken,
+                SubmittedAt = response.SubmittedAt,
+                ReceivedAt = response.ReceivedAt,
+                AnswerCount = response.AnswerCount,
+                Status = response.Status,
+                CreatedAt = response.CreatedAt,
+                LastModifiedAt = response.LastModifiedAt
+            })
+            .ToListAsync();
+    }
 
-        var assessmentResponses = latestAssessment is null
-            ? []
-            : await context.AssessmentResponses
-                .AsNoTracking()
-                .Where(response => response.ReadinessAssessmentId == latestAssessment.Id)
-                .OrderBy(response => response.ResponseNumber)
-                .Select(response => new AssessmentResponse
-                {
-                    Id = response.Id,
-                    ReadinessAssessmentId = response.ReadinessAssessmentId,
-                    ResponseNumber = response.ResponseNumber,
-                    ResponseLabel = response.ResponseLabel,
-                    Source = response.Source,
-                    ExternalResponseId = response.ExternalResponseId,
-                    ClientToken = response.ClientToken,
-                    SubmittedAt = response.SubmittedAt,
-                    ReceivedAt = response.ReceivedAt,
-                    AnswerCount = response.AnswerCount,
-                    Status = response.Status,
-                    CreatedAt = response.CreatedAt,
-                    LastModifiedAt = response.LastModifiedAt
-                })
-                .ToListAsync();
+    private async Task<AssessmentResponse?> LoadLatestAssessmentResponseAsync(int assessmentId)
+    {
+        return await context.AssessmentResponses
+            .AsNoTracking()
+            .Where(response => response.ReadinessAssessmentId == assessmentId && response.Status != AssessmentResponseStatus.Ignored)
+            .OrderByDescending(response => response.ReceivedAt)
+            .ThenByDescending(response => response.ResponseNumber)
+            .Select(response => new AssessmentResponse
+            {
+                Id = response.Id,
+                ReadinessAssessmentId = response.ReadinessAssessmentId,
+                ResponseNumber = response.ResponseNumber,
+                ResponseLabel = response.ResponseLabel,
+                Source = response.Source,
+                ExternalResponseId = response.ExternalResponseId,
+                ClientToken = response.ClientToken,
+                SubmittedAt = response.SubmittedAt,
+                ReceivedAt = response.ReceivedAt,
+                AnswerCount = response.AnswerCount,
+                Status = response.Status,
+                CreatedAt = response.CreatedAt,
+                LastModifiedAt = response.LastModifiedAt
+            })
+            .FirstOrDefaultAsync();
+    }
 
-        var selectedAssessmentResponse = responseId.HasValue
-            ? assessmentResponses.FirstOrDefault(response => response.Id == responseId.Value)
-            : assessmentResponses
-                .Where(response => response.Status != AssessmentResponseStatus.Ignored)
-                .OrderByDescending(response => response.ReceivedAt)
-                .ThenByDescending(response => response.ResponseNumber)
-                .FirstOrDefault();
+    private async Task<AssessmentResponse?> LoadLatestAnsweredAssessmentResponseAsync(int assessmentId)
+    {
+        return await context.AssessmentResponses
+            .AsNoTracking()
+            .Where(response => response.ReadinessAssessmentId == assessmentId && response.Status != AssessmentResponseStatus.Ignored && response.AnswerCount > 0)
+            .OrderByDescending(response => response.ReceivedAt)
+            .ThenByDescending(response => response.ResponseNumber)
+            .Select(response => new AssessmentResponse
+            {
+                Id = response.Id,
+                ReceivedAt = response.ReceivedAt,
+                AnswerCount = response.AnswerCount,
+                Status = response.Status
+            })
+            .FirstOrDefaultAsync();
+    }
 
-        var selectedAnswers = selectedAssessmentResponse is null
-            ? []
-            : await context.AssessmentAnswers
-                .AsNoTracking()
-                .Where(answer => answer.AssessmentResponseId == selectedAssessmentResponse.Id)
-                .OrderBy(answer => answer.SectionName)
-                .ThenBy(answer => answer.Id)
-                .Select(answer => new AssessmentAnswer
-                {
-                    Id = answer.Id,
-                    ReadinessAssessmentId = answer.ReadinessAssessmentId,
-                    AssessmentResponseId = answer.AssessmentResponseId,
-                    SectionName = answer.SectionName,
-                    QuestionText = answer.QuestionText,
-                    AnswerText = answer.AnswerText,
-                    AnswerType = answer.AnswerType,
-                    IsMandatory = answer.IsMandatory,
-                    CompletenessStatus = answer.CompletenessStatus,
-                    CreatedAt = answer.CreatedAt
-                })
-                .ToListAsync();
+    private async Task<List<AssessmentAnswer>> LoadAssessmentAnswersAsync(int responseId)
+    {
+        return await context.AssessmentAnswers
+            .AsNoTracking()
+            .Where(answer => answer.AssessmentResponseId == responseId)
+            .OrderBy(answer => answer.SectionName)
+            .ThenBy(answer => answer.Id)
+            .Select(answer => new AssessmentAnswer
+            {
+                Id = answer.Id,
+                ReadinessAssessmentId = answer.ReadinessAssessmentId,
+                AssessmentResponseId = answer.AssessmentResponseId,
+                SectionName = answer.SectionName,
+                QuestionText = answer.QuestionText,
+                AnswerText = answer.AnswerText,
+                AnswerType = answer.AnswerType,
+                IsMandatory = answer.IsMandatory,
+                CompletenessStatus = answer.CompletenessStatus,
+                CreatedAt = answer.CreatedAt
+            })
+            .ToListAsync();
+    }
 
-        if (selectedAssessmentResponse is not null)
-        {
-            selectedAssessmentResponse.Answers = selectedAnswers;
-        }
-
-        ApplyResponseAwareWorkflow(client, assessmentResponses);
-
-        logger.LogInformation(
-            "Client workspace assessment loaded. ClientCompanyId: {ClientCompanyId}; Responses: {ResponseCount}; SelectedAnswers: {SelectedAnswerCount}; ElapsedMs: {ElapsedMs}; RequestId: {RequestId}",
-            id,
-            assessmentResponses.Count,
-            selectedAnswers.Count,
-            stopwatch.ElapsedMilliseconds,
-            HttpContext.TraceIdentifier);
-
-        stopwatch.Restart();
+    private async Task<ClientReport?> LoadLatestReportSummaryAsync(int id, bool includeSections)
+    {
         var latestReportId = await context.ClientReports
             .AsNoTracking()
             .Where(report => report.ClientCompanyId == id)
@@ -403,27 +1074,30 @@ public class ClientsController(
             .Select(report => (int?)report.Id)
             .FirstOrDefaultAsync();
 
-        var latestReport = latestReportId.HasValue
-            ? await context.ClientReports
-                .AsNoTracking()
-                .Where(report => report.Id == latestReportId.Value)
-                .Select(report => new ClientReport
-                {
-                    Id = report.Id,
-                    ClientCompanyId = report.ClientCompanyId,
-                    ReportTitle = report.ReportTitle,
-                    ReportStatus = report.ReportStatus,
-                    VersionNumber = report.VersionNumber,
-                    GeneratedAt = report.GeneratedAt,
-                    ReviewedAt = report.ReviewedAt,
-                    DeliveredAt = report.DeliveredAt,
-                    CreatedAt = report.CreatedAt,
-                    LastModifiedAt = report.LastModifiedAt
-                })
-                .FirstOrDefaultAsync()
-            : null;
+        if (!latestReportId.HasValue)
+        {
+            return null;
+        }
 
-        if (latestReport is not null)
+        var latestReport = await context.ClientReports
+            .AsNoTracking()
+            .Where(report => report.Id == latestReportId.Value)
+            .Select(report => new ClientReport
+            {
+                Id = report.Id,
+                ClientCompanyId = report.ClientCompanyId,
+                ReportTitle = report.ReportTitle,
+                ReportStatus = report.ReportStatus,
+                VersionNumber = report.VersionNumber,
+                GeneratedAt = report.GeneratedAt,
+                ReviewedAt = report.ReviewedAt,
+                DeliveredAt = report.DeliveredAt,
+                CreatedAt = report.CreatedAt,
+                LastModifiedAt = report.LastModifiedAt
+            })
+            .FirstOrDefaultAsync();
+
+        if (latestReport is not null && includeSections)
         {
             latestReport.Sections = await context.ReportSections
                 .AsNoTracking()
@@ -441,60 +1115,23 @@ public class ClientsController(
                     LastModifiedAt = section.LastModifiedAt
                 })
                 .ToListAsync();
-            client.Reports.Add(latestReport);
         }
 
-        var latestScore = await context.ReadinessScores
+        return latestReport;
+    }
+
+    private async Task<ReadinessScore?> LoadLatestReadinessScoreAsync(int id)
+    {
+        return await context.ReadinessScores
             .AsNoTracking()
             .Where(score => score.ClientCompanyId == id)
             .OrderByDescending(score => score.CreatedAt)
             .FirstOrDefaultAsync();
-        if (latestScore is not null)
-        {
-            client.ReadinessScores.Add(latestScore);
-        }
+    }
 
-        client.AnalysisOutputs = [];
-        foreach (var analysisType in Enum.GetValues<AnalysisType>())
-        {
-            var latestOutput = await context.AIAnalysisOutputs
-                .AsNoTracking()
-                .Where(output => output.ClientCompanyId == id && output.AnalysisType == analysisType)
-                .OrderByDescending(output => output.VersionNumber)
-                .ThenByDescending(output => output.CreatedAt)
-                .Select(output => new AIAnalysisOutput
-                {
-                    Id = output.Id,
-                    ClientCompanyId = output.ClientCompanyId,
-                    AnalysisType = output.AnalysisType,
-                    Title = output.Title,
-                    InputSummary = output.InputSummary,
-                    OutputContent = output.OutputContent,
-                    Status = output.Status,
-                    VersionNumber = output.VersionNumber,
-                    GeneratedAt = output.GeneratedAt,
-                    GeneratedBy = output.GeneratedBy,
-                    CreatedAt = output.CreatedAt,
-                    LastModifiedAt = output.LastModifiedAt
-                })
-                .FirstOrDefaultAsync();
-
-            if (latestOutput is not null)
-            {
-                client.AnalysisOutputs.Add(latestOutput);
-            }
-        }
-
-        logger.LogInformation(
-            "Client workspace reports and AI drafts loaded. ClientCompanyId: {ClientCompanyId}; ReportsLoaded: {ReportCount}; AIDraftsLoaded: {AiDraftCount}; ElapsedMs: {ElapsedMs}; RequestId: {RequestId}",
-            id,
-            latestReport is null ? 0 : 1,
-            client.AnalysisOutputs.Count,
-            stopwatch.ElapsedMilliseconds,
-            HttpContext.TraceIdentifier);
-
-        stopwatch.Restart();
-        var counts = new WorkspaceCollectionCounts(
+    private async Task<WorkspaceCollectionCounts> LoadWorkspaceCollectionCountsAsync(int id)
+    {
+        return new WorkspaceCollectionCounts(
             DocumentCount: await context.ClientDocuments.AsNoTracking().CountAsync(item => item.ClientCompanyId == id),
             NoteCount: await context.ConsultantNotes.AsNoTracking().CountAsync(item => item.ClientCompanyId == id),
             TranscriptCount: await context.MeetingTranscripts.AsNoTracking().CountAsync(item => item.ClientCompanyId == id),
@@ -507,168 +1144,6 @@ public class ClientsController(
             ReportCount: await context.ClientReports.AsNoTracking().CountAsync(item => item.ClientCompanyId == id),
             OpenTaskCount: await context.ClientTasks.AsNoTracking().CountAsync(item => item.ClientCompanyId == id && item.Status != ClientTaskStatus.Done),
             ActivityLogCount: await context.ClientActivityLogs.AsNoTracking().CountAsync(item => item.ClientCompanyId == id));
-
-        client.Documents = await context.ClientDocuments
-            .AsNoTracking()
-            .Where(document => document.ClientCompanyId == id)
-            .OrderByDescending(document => document.UploadedAt)
-            .Take(20)
-            .ToListAsync();
-        client.Notes = await context.ConsultantNotes
-            .AsNoTracking()
-            .Where(note => note.ClientCompanyId == id)
-            .OrderByDescending(note => note.CreatedAt)
-            .Take(10)
-            .Select(note => new ConsultantNote
-            {
-                Id = note.Id,
-                ClientCompanyId = note.ClientCompanyId,
-                NoteTitle = note.NoteTitle,
-                NoteText = Truncate(note.NoteText, 700) ?? string.Empty,
-                NoteType = note.NoteType,
-                CreatedAt = note.CreatedAt,
-                CreatedBy = note.CreatedBy,
-                LastModifiedAt = note.LastModifiedAt
-            })
-            .ToListAsync();
-        client.MeetingTranscripts = await context.MeetingTranscripts
-            .AsNoTracking()
-            .Where(transcript => transcript.ClientCompanyId == id)
-            .OrderByDescending(transcript => transcript.SessionDate)
-            .Take(10)
-            .Select(transcript => new MeetingTranscript
-            {
-                Id = transcript.Id,
-                ClientCompanyId = transcript.ClientCompanyId,
-                SessionTitle = transcript.SessionTitle,
-                SessionDate = transcript.SessionDate,
-                TranscriptText = string.Empty,
-                Summary = Truncate(transcript.Summary, 700),
-                KeyDecisions = Truncate(transcript.KeyDecisions, 500),
-                FollowUpQuestions = Truncate(transcript.FollowUpQuestions, 500),
-                CreatedAt = transcript.CreatedAt,
-                CreatedBy = transcript.CreatedBy
-            })
-            .ToListAsync();
-        client.GapAnalysisItems = await context.GapAnalysisItems
-            .AsNoTracking()
-            .Where(gap => gap.ClientCompanyId == id)
-            .OrderByDescending(gap => gap.Severity)
-            .ThenByDescending(gap => gap.CreatedAt)
-            .Take(50)
-            .ToListAsync();
-        client.SwotItems = await context.SwotAnalysisItems
-            .AsNoTracking()
-            .Where(item => item.ClientCompanyId == id)
-            .OrderBy(item => item.Category)
-            .ThenByDescending(item => item.CreatedAt)
-            .Take(40)
-            .ToListAsync();
-        client.IndustryInsights = await context.IndustryInsights
-            .AsNoTracking()
-            .Where(item => item.ClientCompanyId == id)
-            .OrderByDescending(item => item.CreatedAt)
-            .Take(20)
-            .ToListAsync();
-        client.CompetitorInsights = await context.CompetitorInsights
-            .AsNoTracking()
-            .Where(item => item.ClientCompanyId == id)
-            .OrderByDescending(item => item.CreatedAt)
-            .Take(20)
-            .ToListAsync();
-        client.UseCases = await context.AIUseCases
-            .AsNoTracking()
-            .Include(useCase => useCase.Score)
-            .Where(useCase => useCase.ClientCompanyId == id)
-            .OrderByDescending(useCase => useCase.Score == null ? 0 : useCase.Score.PriorityScore)
-            .ThenBy(useCase => useCase.Title)
-            .Take(50)
-            .ToListAsync();
-        client.RoadmapItems = await context.AIRoadmapItems
-            .AsNoTracking()
-            .Where(item => item.ClientCompanyId == id)
-            .OrderBy(item => item.Phase)
-            .ThenBy(item => item.CreatedAt)
-            .Take(50)
-            .ToListAsync();
-        client.Tasks = await context.ClientTasks
-            .AsNoTracking()
-            .Where(task => task.ClientCompanyId == id && task.Status != ClientTaskStatus.Done)
-            .OrderBy(task => task.DueDate ?? DateTime.MaxValue)
-            .ThenByDescending(task => task.Priority)
-            .Take(25)
-            .ToListAsync();
-        client.ActivityLogs = await context.ClientActivityLogs
-            .AsNoTracking()
-            .Where(activity => activity.ClientCompanyId == id)
-            .OrderByDescending(activity => activity.CreatedAt)
-            .Take(20)
-            .ToListAsync();
-
-        logger.LogInformation(
-            "Client workspace related summaries loaded. ClientCompanyId: {ClientCompanyId}; DocumentsLoaded: {DocumentsLoaded}/{DocumentCount}; NotesLoaded: {NotesLoaded}/{NoteCount}; TranscriptsLoaded: {TranscriptsLoaded}/{TranscriptCount}; ActivityLogsLoaded: {ActivityLogsLoaded}/{ActivityLogCount}; ElapsedMs: {ElapsedMs}; RequestId: {RequestId}",
-            id,
-            client.Documents.Count,
-            counts.DocumentCount,
-            client.Notes.Count,
-            counts.NoteCount,
-            client.MeetingTranscripts.Count,
-            counts.TranscriptCount,
-            client.ActivityLogs.Count,
-            counts.ActivityLogCount,
-            stopwatch.ElapsedMilliseconds,
-            HttpContext.TraceIdentifier);
-
-        var readinessFormSettings = await context.ReadinessFormSettings
-            .AsNoTracking()
-            .Where(settings => settings.IsActive)
-            .OrderByDescending(settings => settings.LastModifiedAt ?? settings.CreatedAt)
-            .FirstOrDefaultAsync();
-
-        return new ClientWorkspaceViewModel
-        {
-            Client = client,
-            LatestAssessment = latestAssessment,
-            ReadinessFormSettings = readinessFormSettings,
-            LatestReport = latestReport,
-            LatestScore = latestScore,
-            AssessmentResponseCount = assessmentResponses.Count,
-            SelectedAnswerCount = selectedAnswers.Count,
-            DocumentCount = counts.DocumentCount,
-            NoteCount = counts.NoteCount,
-            TranscriptCount = counts.TranscriptCount,
-            AiDraftCount = counts.AiDraftCount,
-            GapCount = counts.GapCount,
-            OpenGapCount = counts.OpenGapCount,
-            SwotCount = counts.SwotCount,
-            UseCaseCount = counts.UseCaseCount,
-            RoadmapCount = counts.RoadmapCount,
-            ReportCount = counts.ReportCount,
-            OpenTaskCount = counts.OpenTaskCount,
-            ActivityLogCount = counts.ActivityLogCount,
-            AssessmentResponses = assessmentResponses,
-            SelectedAssessmentResponse = selectedAssessmentResponse,
-            SelectedAnswersBySection = selectedAnswers
-                .OrderBy(answer => answer.SectionName)
-                .ThenBy(answer => answer.Id)
-                .GroupBy(answer => answer.SectionName)
-                .ToList(),
-            SwotByCategory = client.SwotItems
-                .OrderBy(item => item.Category)
-                .GroupBy(item => item.Category)
-                .ToList(),
-            RoadmapByPhase = client.RoadmapItems
-                .OrderBy(item => item.Phase)
-                .GroupBy(item => item.Phase)
-                .ToList(),
-            RankedUseCases = client.UseCases
-                .OrderByDescending(useCase => useCase.Score?.PriorityScore ?? 0)
-                .ThenBy(useCase => useCase.Title)
-                .ToList(),
-            LatestAnalysisOutputs = client.AnalysisOutputs
-                .OrderByDescending(output => output.CreatedAt)
-                .ToList()
-        };
     }
 
     private static ReportStatus GetLatestReportStatus(ClientCompany client)
@@ -678,18 +1153,63 @@ public class ClientsController(
             .FirstOrDefault()?.ReportStatus ?? ReportStatus.NotStarted;
     }
 
-    private static void ApplyResponseAwareWorkflow(ClientCompany client, IReadOnlyCollection<AssessmentResponse> assessmentResponses)
+    private static string NormalizeWorkspaceTabKey(string tabKey)
+    {
+        return tabKey
+            .Replace("-", string.Empty, StringComparison.Ordinal)
+            .Replace("_", string.Empty, StringComparison.Ordinal)
+            .Trim()
+            .ToLowerInvariant();
+    }
+
+    private static string GetWorkspaceTabTitle(string normalizedTab)
+    {
+        return normalizedTab switch
+        {
+            "overview" => "Overview",
+            "assessmentanswers" => "Assessment answers",
+            "documents" => "Documents",
+            "notestranscripts" => "Notes and transcripts",
+            "aidrafts" => "AI drafts",
+            "gapanalysis" => "Gap analysis",
+            "swot" => "SWOT",
+            "industrycompetitors" => "Industry and competitors",
+            "usecasesscoring" => "Use cases and scoring",
+            "roadmap" => "Roadmap",
+            "reports" => "Reports",
+            "tasks" => "Tasks and follow-ups",
+            "activitylog" => "Activity log",
+            _ => "Workspace tab"
+        };
+    }
+
+    private static int CountLoadedTabItems(string normalizedTab, ClientWorkspaceViewModel viewModel)
+    {
+        return normalizedTab switch
+        {
+            "assessmentanswers" => viewModel.AssessmentResponses.Count,
+            "documents" => viewModel.Client.Documents.Count,
+            "notestranscripts" => viewModel.Client.Notes.Count + viewModel.Client.MeetingTranscripts.Count,
+            "aidrafts" => viewModel.LatestAnalysisOutputs.Count,
+            "gapanalysis" => viewModel.Client.GapAnalysisItems.Count,
+            "swot" => viewModel.Client.SwotItems.Count,
+            "industrycompetitors" => viewModel.Client.IndustryInsights.Count + viewModel.Client.CompetitorInsights.Count,
+            "usecasesscoring" => viewModel.RankedUseCases.Count,
+            "roadmap" => viewModel.Client.RoadmapItems.Count,
+            "reports" => viewModel.LatestReport?.Sections.Count ?? 0,
+            "tasks" => viewModel.Client.Tasks.Count,
+            "activitylog" => viewModel.Client.ActivityLogs.Count,
+            _ => 0
+        };
+    }
+
+    private static void ApplyResponseAwareWorkflow(ClientCompany client, AssessmentResponse? latestAnsweredResponse)
     {
         var formCompletedStep = client.WorkflowSteps.FirstOrDefault(step => step.StageName == "Form Completed");
         if (formCompletedStep is null)
         {
             return;
         }
-
-        var latestAnsweredResponse = assessmentResponses
-            .Where(response => response.Status != AssessmentResponseStatus.Ignored && response.AnswerCount > 0)
-            .OrderByDescending(response => response.ReceivedAt)
-            .FirstOrDefault();
 
         if (latestAnsweredResponse is null)
         {

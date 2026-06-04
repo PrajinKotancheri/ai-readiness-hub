@@ -58,6 +58,12 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
         modelBuilder.Entity<ClientCompany>()
             .HasIndex(client => client.CompanyName);
 
+        modelBuilder.Entity<ClientCompany>()
+            .HasIndex(client => client.CurrentStage);
+
+        modelBuilder.Entity<ClientCompany>()
+            .HasIndex(client => client.LastModifiedAt);
+
         modelBuilder.Entity<ReadinessFormSettings>()
             .HasIndex(settings => settings.IsActive);
 
@@ -76,6 +82,12 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
 
         modelBuilder.Entity<AssessmentResponse>()
             .HasIndex(response => new { response.ReadinessAssessmentId, response.ReceivedAt });
+
+        modelBuilder.Entity<AssessmentResponse>()
+            .HasIndex(response => response.ReceivedAt);
+
+        modelBuilder.Entity<AssessmentResponse>()
+            .HasIndex(response => response.ExternalResponseId);
 
         modelBuilder.Entity<AssessmentAnswer>()
             .HasIndex(answer => answer.AssessmentResponseId);
@@ -100,6 +112,9 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
 
         modelBuilder.Entity<ClientReport>()
             .HasIndex(report => new { report.ClientCompanyId, report.VersionNumber });
+
+        modelBuilder.Entity<ClientReport>()
+            .HasIndex(report => new { report.ClientCompanyId, report.ReportStatus });
 
         modelBuilder.Entity<ClientTask>()
             .HasIndex(task => new { task.ClientCompanyId, task.Status });
