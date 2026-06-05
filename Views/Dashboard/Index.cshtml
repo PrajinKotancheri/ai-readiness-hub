@@ -146,7 +146,7 @@
                     <div class="status-count-card mb-2">
                         <div>
                             <a class="fw-semibold" asp-controller="Clients" asp-action="Workspace" asp-route-id="@report.ClientCompanyId">@report.ReportTitle</a>
-                            <div class="table-note">Generated @((report.GeneratedAt ?? report.CreatedAt).ToString("yyyy-MM-dd"))</div>
+                            <div class="table-note">Generated @Html.LocalDateTime(report.GeneratedAt ?? report.CreatedAt, "date")</div>
                         </div>
                         <span class="status-badge @report.ReportStatus.ToBadgeClass()">@report.ReportStatus.ToDisplayName()</span>
                     </div>
@@ -177,7 +177,7 @@
                     <div class="status-count-card mb-2">
                         <div>
                             <a asp-controller="Clients" asp-action="Workspace" asp-route-id="@assessment.ClientCompanyId">@assessment.ClientCompany?.CompanyName</a>
-                            <div class="table-note">Sent @(assessment.SentAt?.ToString("yyyy-MM-dd") ?? "date unknown")</div>
+                            <div class="table-note">Sent @Html.LocalDateTime(assessment.SentAt, "date", "date unknown")</div>
                         </div>
                     </div>
                 }
@@ -203,7 +203,7 @@
                     <div class="status-count-card mb-2">
                         <div>
                             <a asp-controller="Clients" asp-action="Workspace" asp-route-id="@response.ReadinessAssessment?.ClientCompanyId" asp-route-responseId="@response.Id">@response.ReadinessAssessment?.ClientCompany?.CompanyName</a>
-                            <div class="table-note">@response.ResponseLabel · @response.AnswerCount answers · received @response.ReceivedAt.ToString("yyyy-MM-dd")</div>
+                            <div class="table-note">@response.ResponseLabel · @response.AnswerCount answers · received @Html.LocalDateTime(response.ReceivedAt, "date")</div>
                         </div>
                         <span class="status-badge @response.Status.ToBadgeClass()">@response.Source.ToDisplayName()</span>
                     </div>
@@ -246,7 +246,7 @@
                                 <td><span class="status-badge @client.CurrentStage.ToBadgeClass()">@client.CurrentStage.ToDisplayName()</span></td>
                                 <td><span class="status-badge @client.LatestReportStatus.ToBadgeClass()">@client.LatestReportStatus.ToDisplayName()</span></td>
                                 <td>@client.NextAction</td>
-                                <td>@client.LastUpdated.ToString("yyyy-MM-dd")</td>
+                                <td>@Html.LocalDateTime(client.LastUpdated, "date")</td>
                             </tr>
                         }
                     </tbody>

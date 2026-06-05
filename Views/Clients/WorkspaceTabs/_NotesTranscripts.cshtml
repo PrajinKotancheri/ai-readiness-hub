@@ -25,7 +25,7 @@
                 <div class="mb-3">
                     <div class="fw-semibold">@note.NoteTitle <span class="status-badge status-neutral">@note.NoteType.ToDisplayName()</span></div>
                     <div class="preline">@note.NoteText</div>
-                    <div class="table-note">@note.CreatedAt.ToString("yyyy-MM-dd HH:mm") · @note.CreatedBy</div>
+                    <div class="table-note">@Html.LocalDateTime(note.CreatedAt, "datetime") · @note.CreatedBy</div>
                 </div>
             }
         }
@@ -59,7 +59,7 @@
             {
                 <div class="mb-3">
                     <div class="fw-semibold">@transcript.SessionTitle</div>
-                    <div class="table-note">@transcript.SessionDate.ToString("yyyy-MM-dd")</div>
+                    <div class="table-note">@Html.LocalDateTime(transcript.SessionDate, "date")</div>
                     <div class="preline">@transcript.Summary</div>
                 </div>
             }

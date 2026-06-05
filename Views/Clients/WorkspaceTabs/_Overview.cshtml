@@ -48,11 +48,11 @@
                 </div>
                 <div>
                     <div class="field-label">Sent date</div>
-                    <div>@(assessment?.SentAt?.ToString("yyyy-MM-dd HH:mm") ?? "Not sent")</div>
+                    <div>@Html.LocalDateTime(assessment?.SentAt, "datetime", "Not sent")</div>
                 </div>
                 <div>
                     <div class="field-label">Latest response</div>
-                    <div>@(latestResponse?.ReceivedAt.ToString("yyyy-MM-dd HH:mm") ?? "Not received")</div>
+                    <div>@Html.LocalDateTime(latestResponse?.ReceivedAt, "datetime", "Not received")</div>
                 </div>
                 <div>
                     <div class="field-label">Latest answers</div>
@@ -90,7 +90,7 @@
         </div>
         <div>
             <div class="field-label">Last calculated</div>
-            <div>@(latestScore?.CreatedAt.ToString("yyyy-MM-dd HH:mm") ?? "Not calculated yet")</div>
+            <div>@Html.LocalDateTime(latestScore?.CreatedAt, "datetime", "Not calculated yet")</div>
         </div>
         <div>
             <div class="field-label">Latest response</div>

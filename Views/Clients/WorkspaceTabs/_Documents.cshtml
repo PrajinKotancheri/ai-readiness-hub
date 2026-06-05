@@ -31,7 +31,7 @@
                     <div class="d-flex justify-content-between gap-2">
                         <div>
                             <div class="fw-semibold">@document.FileName</div>
-                            <div class="table-note">@document.DocumentType.ToDisplayName() · @document.UploadedAt.ToString("yyyy-MM-dd")</div>
+                            <div class="table-note">@document.DocumentType.ToDisplayName() · @Html.LocalDateTime(document.UploadedAt, "date")</div>
                         </div>
                         @if (!string.IsNullOrWhiteSpace(document.FilePath))
                         {

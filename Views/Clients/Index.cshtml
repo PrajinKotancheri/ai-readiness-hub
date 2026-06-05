@@ -102,7 +102,7 @@
                             <td><span class="status-badge @client.ReportStatus.ToBadgeClass()">@client.ReportStatus.ToDisplayName()</span></td>
                             <td><span class="status-badge @client.Priority.ToBadgeClass()">@client.Priority.ToDisplayName()</span></td>
                             <td>@client.NextAction</td>
-                            <td>@client.LastUpdated.ToString("yyyy-MM-dd")</td>
+                            <td>@Html.LocalDateTime(client.LastUpdated, "date")</td>
                         </tr>
                     }
                 </tbody>

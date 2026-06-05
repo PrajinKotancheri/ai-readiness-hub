@@ -36,15 +36,15 @@
                 </div>
                 <div>
                     <div class="field-label">Sent date</div>
-                    <div>@(assessment?.SentAt?.ToString("yyyy-MM-dd HH:mm") ?? "Not sent")</div>
+                    <div>@Html.LocalDateTime(assessment?.SentAt, "datetime", "Not sent")</div>
                 </div>
                 <div>
                     <div class="field-label">Last reminder</div>
-                    <div>@(assessment?.LastReminderSentAt?.ToString("yyyy-MM-dd HH:mm") ?? "No reminder sent")</div>
+                    <div>@Html.LocalDateTime(assessment?.LastReminderSentAt, "datetime", "No reminder sent")</div>
                 </div>
                 <div>
                     <div class="field-label">Response received</div>
-                    <div>@(latestResponse?.ReceivedAt.ToString("yyyy-MM-dd HH:mm") ?? "Not received")</div>
+                    <div>@Html.LocalDateTime(latestResponse?.ReceivedAt, "datetime", "Not received")</div>
                 </div>
                 <div>
                     <div class="field-label">Latest answers</div>
@@ -107,7 +107,7 @@
                 <div class="metric-label">Total responses</div>
             </div>
             <div class="metric-card">
-                <div class="metric-value response-date-value">@(latestResponse?.ReceivedAt.ToString("dd MMM") ?? "-")</div>
+                <div class="metric-value response-date-value">@Html.LocalDateTime(latestResponse?.ReceivedAt, "date", "-")</div>
                 <div class="metric-label">Latest received</div>
             </div>
             <div class="metric-card">
@@ -169,8 +169,8 @@
                                         }
                                     </td>
                                     <td><span class="status-badge status-info">@response.Source.ToDisplayName()</span></td>
-                                    <td>@(response.SubmittedAt?.ToString("dd MMM yyyy HH:mm") ?? "-")</td>
-                                    <td>@response.ReceivedAt.ToString("dd MMM yyyy HH:mm")</td>
+                                    <td>@Html.LocalDateTime(response.SubmittedAt, "datetime", "-")</td>
+                                    <td>@Html.LocalDateTime(response.ReceivedAt, "datetime")</td>
                                     <td>@response.AnswerCount</td>
                                     <td><span class="status-badge @response.Status.ToBadgeClass()">@response.Status.ToDisplayName()</span></td>
                                     <td class="text-break">@(response.ExternalResponseId ?? "-")</td>

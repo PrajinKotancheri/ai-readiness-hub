@@ -22,11 +22,11 @@
         </div>
         <div>
             <div class="field-label">Submitted at</div>
-            <div>@(selectedResponse.SubmittedAt?.ToString("dd MMM yyyy HH:mm") ?? "Not provided")</div>
+            <div>@Html.LocalDateTime(selectedResponse.SubmittedAt, "datetime", "Not provided")</div>
         </div>
         <div>
             <div class="field-label">Received at</div>
-            <div>@selectedResponse.ReceivedAt.ToString("dd MMM yyyy HH:mm")</div>
+            <div>@Html.LocalDateTime(selectedResponse.ReceivedAt, "datetime")</div>
         </div>
         <div>
             <div class="field-label">External response ID</div>

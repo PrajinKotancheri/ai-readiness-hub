@@ -18,7 +18,7 @@
             <div class="d-flex justify-content-between gap-2 mb-2">
                 <div>
                     <div class="fw-semibold">@output.Title</div>
-                    <div class="table-note">@output.AnalysisType.ToDisplayName() · version @output.VersionNumber · @(output.GeneratedAt?.ToString("yyyy-MM-dd HH:mm") ?? "not generated")</div>
+                    <div class="table-note">@output.AnalysisType.ToDisplayName() · version @output.VersionNumber · @Html.LocalDateTime(output.GeneratedAt, "datetime", "not generated")</div>
                 </div>
                 <span class="status-badge @output.Status.ToBadgeClass()">@output.Status.ToDisplayName()</span>
             </div>

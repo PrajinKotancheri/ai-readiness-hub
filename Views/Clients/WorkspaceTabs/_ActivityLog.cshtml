@@ -16,7 +16,7 @@
                 @foreach (var activity in client.ActivityLogs.OrderByDescending(item => item.CreatedAt))
                 {
                     <tr>
-                        <td>@activity.CreatedAt.ToString("yyyy-MM-dd HH:mm")</td>
+                        <td>@Html.LocalDateTime(activity.CreatedAt, "datetime")</td>
                         <td>@activity.ActivityType</td>
                         <td>@activity.Description</td>
                         <td>@activity.CreatedBy</td>

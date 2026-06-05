@@ -6,6 +6,8 @@ const responseDetailCache = new Map();
 let pendingWorkspaceScrollY = null;
 let workspaceScrollRestoreQueued = false;
 
+const localDateFormatters = new Map();
+
 const workspaceTabAliases = {
   "": "overview",
   "overview": "overview",
@@ -255,6 +257,98 @@ function restoreWorkspaceScrollAfterTabLoad(panel) {
   }
 }
 
+function formatterOptions(format) {
+  switch ((format || "datetime").toLowerCase()) {
+    case "date":
+      return { day: "2-digit", month: "short", year: "numeric" };
+    case "time":
+      return { hour: "2-digit", minute: "2-digit" };
+    default:
+      return { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" };
+  }
+}
+
+function localDateFormatter(format) {
+  const key = (format || "datetime").toLowerCase();
+  if (!localDateFormatters.has(key)) {
+    localDateFormatters.set(key, new Intl.DateTimeFormat(undefined, formatterOptions(key)));
+  }
+
+  return localDateFormatters.get(key);
+}
+
+function relativeLocalTime(date) {
+  const seconds = Math.round((date.getTime() - Date.now()) / 1000);
+  const divisions = [
+    { amount: 60, unit: "second" },
+    { amount: 60, unit: "minute" },
+    { amount: 24, unit: "hour" },
+    { amount: 7, unit: "day" },
+    { amount: 4.345, unit: "week" },
+    { amount: 12, unit: "month" },
+    { amount: Number.POSITIVE_INFINITY, unit: "year" }
+  ];
+  let value = seconds;
+  for (const division of divisions) {
+    if (Math.abs(value) < division.amount) {
+      if (typeof Intl.RelativeTimeFormat === "function") {
+        return new Intl.RelativeTimeFormat(undefined, { numeric: "auto" }).format(Math.round(value), division.unit);
+      }
+
+      return localDateFormatter("datetime").format(date);
+    }
+
+    value /= division.amount;
+  }
+
+  return localDateFormatter("datetime").format(date);
+}
+
+function utcTooltipText(date) {
+  return `UTC: ${new Intl.DateTimeFormat(undefined, {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    timeZone: "UTC",
+    timeZoneName: "short"
+  }).format(date)}`;
+}
+
+function formatLocalTimestamps(root = document) {
+  const selector = "[data-utc], [data-utc-date], [data-utc-datetime]";
+  const items = [
+    ...(root.matches?.(selector) ? [root] : []),
+    ...(root.querySelectorAll?.(selector) || [])
+  ];
+  items.forEach((item) => {
+    const utcValue = item.getAttribute("data-utc") ||
+      item.getAttribute("data-utc-datetime") ||
+      item.getAttribute("data-utc-date");
+    if (!utcValue) {
+      return;
+    }
+
+    const date = new Date(utcValue);
+    if (Number.isNaN(date.getTime())) {
+      return;
+    }
+
+    const inferredFormat = item.hasAttribute("data-utc-date")
+      ? "date"
+      : item.hasAttribute("data-utc-datetime")
+        ? "datetime"
+        : "datetime";
+    const format = item.getAttribute("data-format") || inferredFormat;
+    item.textContent = format.toLowerCase() === "relative"
+      ? relativeLocalTime(date)
+      : localDateFormatter(format).format(date);
+
+    item.setAttribute("title", item.getAttribute("title") || utcTooltipText(date));
+  });
+}
+
 function firstPresentValue(...values) {
   return values.find((value) => value !== null && value !== undefined && value !== "");
 }
@@ -461,6 +555,7 @@ async function loadWorkspaceTab(panel, force = false) {
   if (!force && workspaceTabCache.has(url)) {
     panel.innerHTML = workspaceTabCache.get(url);
     panel.setAttribute("data-loaded", "true");
+    formatLocalTimestamps(panel);
     restoreWorkspaceScrollAfterTabLoad(panel);
     return;
   }
@@ -483,6 +578,7 @@ async function loadWorkspaceTab(panel, force = false) {
     workspaceTabCache.set(url, html);
     panel.innerHTML = html;
     panel.setAttribute("data-loaded", "true");
+    formatLocalTimestamps(panel);
     restoreWorkspaceScrollAfterTabLoad(panel);
   } catch {
     panel.removeAttribute("data-loaded");
@@ -531,6 +627,7 @@ async function loadAssessmentResponseDetails(button) {
     }
 
     panel.innerHTML = html;
+    formatLocalTimestamps(panel);
     document.querySelectorAll("[data-assessment-response-row]").forEach((row) => {
       const selected = row.getAttribute("data-assessment-response-row") === responseId;
       row.classList.toggle("selected-response-row", selected);
@@ -626,6 +723,7 @@ document.addEventListener("click", async (event) => {
           throw new Error("Retry failed");
         }
         responsePanel.innerHTML = html;
+        formatLocalTimestamps(responsePanel);
       } catch {
         responsePanel.innerHTML = tabErrorHtml("Response details", retryUrl);
       }
@@ -710,6 +808,7 @@ window.addEventListener("beforeunload", () => startGlobalLoading("Loading..."));
 
 document.addEventListener("DOMContentLoaded", () => {
   const shell = initializeWorkspaceReturnContext();
+  formatLocalTimestamps();
   loadWorkspaceCounts();
 
   const activeLazyPanels = document.querySelectorAll("[data-workspace-tab-panel].active, [data-workspace-tab-panel].show");

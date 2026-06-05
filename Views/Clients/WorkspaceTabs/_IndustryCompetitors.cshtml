@@ -18,7 +18,7 @@
                 <div class="mb-3">
                     <div class="fw-semibold">@insight.Topic <span class="status-badge @insight.Status.ToBadgeClass()">@insight.Status.ToDisplayName()</span></div>
                     <div class="preline">@insight.InsightText</div>
-                    <div class="table-note">@insight.SourceType.ToDisplayName()</div>
+                    <div class="table-note">@insight.SourceType.ToDisplayName() · @Html.LocalDateTime(insight.CreatedAt, "date")</div>
                 </div>
             }
         }
@@ -46,7 +46,7 @@
                 <div class="mb-3">
                     <div class="fw-semibold">@insight.CompetitorName <span class="status-badge @insight.Status.ToBadgeClass()">@insight.Status.ToDisplayName()</span></div>
                     <div class="preline">@insight.InsightText</div>
-                    <div class="table-note">@insight.AiUseCasesObserved</div>
+                    <div class="table-note">@(!string.IsNullOrWhiteSpace(insight.AiUseCasesObserved) ? insight.AiUseCasesObserved : "Captured") · @Html.LocalDateTime(insight.CreatedAt, "date")</div>
                 </div>
             }
         }

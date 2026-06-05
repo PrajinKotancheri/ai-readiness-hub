@@ -12,6 +12,7 @@
     <div class="d-flex justify-content-between flex-wrap gap-2 mb-3">
         <div>
             <h3 class="panel-title mb-1">@Model.LatestReport.ReportTitle</h3>
+            <div class="table-note">Generated @Html.LocalDateTime(Model.LatestReport.GeneratedAt ?? Model.LatestReport.CreatedAt, "datetime")</div>
             <span class="status-badge @Model.LatestReport.ReportStatus.ToBadgeClass()">@Model.LatestReport.ReportStatus.ToDisplayName()</span>
         </div>
         <a class="btn btn-outline-secondary" asp-controller="Reports" asp-action="Export" asp-route-reportId="@Model.LatestReport.Id">Export markdown</a>

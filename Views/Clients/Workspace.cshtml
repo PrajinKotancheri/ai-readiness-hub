@@ -63,7 +63,7 @@
             @if (Model.LatestScore is not null)
             {
                 <span class="status-badge @Model.LatestScore.ScoreCategory.ToBadgeClass()">@Model.LatestScore.ScoreCategory.ToDisplayName()</span>
-                <div class="table-note mt-2">Calculated @Model.LatestScore.CreatedAt.ToString("yyyy-MM-dd")</div>
+                <div class="table-note mt-2">Calculated @Html.LocalDateTime(Model.LatestScore.CreatedAt, "date")</div>
             }
         </div>
     </div>
@@ -111,7 +111,7 @@
                     <div class="timeline-card">
                         <div class="timeline-label">@step.StageName</div>
                         <span class="status-badge @step.Status.ToBadgeClass()">@step.Status.ToDisplayName()</span>
-                        <div class="table-note mt-2">@(step.CompletedAt?.ToString("yyyy-MM-dd") ?? "No completion date")</div>
+                        <div class="table-note mt-2">@Html.LocalDateTime(step.CompletedAt, "date", "No completion date")</div>
                     </div>
                 </div>
             }
