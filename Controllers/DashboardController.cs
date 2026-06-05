@@ -125,7 +125,7 @@ public class DashboardController(
                     .Distinct()
                     .Count()
             })
-            .FirstOrDefaultAsync();
+            .SingleOrDefaultAsync();
 
         var formsAwaitingCompletion = formAwaitingSummary?.FormsAwaitingCompletion ?? 0;
         var clientsAwaitingFormResponse = formAwaitingSummary?.ClientsAwaitingFormResponse ?? 0;

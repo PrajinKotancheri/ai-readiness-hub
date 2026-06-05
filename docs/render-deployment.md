@@ -21,6 +21,14 @@ Do not commit the Supabase password. Set the same connection string in Render en
 
 If the Supabase password contains a semicolon `;` or other connection-string-breaking characters, reset it to a safer password or escape it correctly before adding it to Render.
 
+## Data Protection / Antiforgery
+
+Production persists ASP.NET Core Data Protection keys in the PostgreSQL database so antiforgery tokens survive Render redeploys and restarts.
+
+No additional Render environment variable is required. The `DataProtectionKeys` table is created by EF migrations when `RunMigrationsOnStartup=true`.
+
+Keep the PostgreSQL connection string private. The Data Protection key ring is sensitive runtime material and must remain in the production database, not source control.
+
 ## Email Settings
 
 The AI Readiness Consultant Hub follows the same SendGrid-style configuration pattern as the AcademicCostPlanner project.
@@ -72,6 +80,7 @@ https://YOUR-APP.onrender.com/Dashboard
 - Missing PostgreSQL connection string: set `ConnectionStrings__DefaultConnection` to the Supabase PostgreSQL connection string.
 - Migrations not applied: check startup logs for `Applying database migrations...` and `Database migrations completed.`
 - Database provider configured incorrectly: remove `DatabaseProvider` or set it to `Postgres`; the app supports PostgreSQL only.
+- Antiforgery token could not be decrypted after deploy: confirm the `DataProtectionKeys` table exists and that `RunMigrationsOnStartup=true` ran successfully against the same PostgreSQL database used by the web service.
 - Webhook URL still localhost: update Apps Script to `https://ai-readiness-hub.onrender.com/api/google-forms/assessment-response`.
 - Missing email configuration: set `SMTP_PASSWORD`, `Smtp__FromEmail`, and optionally `Smtp__FromName`.
 - Google Form client token not submitted: confirm the form contains a `Client Reference ID` question and the generated link pre-fills it.

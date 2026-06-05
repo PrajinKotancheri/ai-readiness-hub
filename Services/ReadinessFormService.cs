@@ -224,7 +224,10 @@ public class ReadinessFormService(
     private async Task MarkWorkflowAsync(int clientId, string stageName, WorkflowStepStatus status, CancellationToken cancellationToken)
     {
         var step = await context.ClientWorkflowSteps
-            .FirstOrDefaultAsync(item => item.ClientCompanyId == clientId && item.StageName == stageName, cancellationToken);
+            .Where(item => item.ClientCompanyId == clientId && item.StageName == stageName)
+            .OrderBy(item => item.DisplayOrder)
+            .ThenBy(item => item.Id)
+            .FirstOrDefaultAsync(cancellationToken);
 
         if (step is null)
         {

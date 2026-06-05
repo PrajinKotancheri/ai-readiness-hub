@@ -64,7 +64,10 @@ public class GoogleFormsController(
             var assessment = await context.ReadinessAssessments
                 .Include(item => item.Responses)
                 .Include(item => item.ClientCompany)
-                .FirstOrDefaultAsync(item => item.ClientToken == token, cancellationToken);
+                .Where(item => item.ClientToken == token)
+                .OrderByDescending(item => item.CreatedAt)
+                .ThenByDescending(item => item.Id)
+                .FirstOrDefaultAsync(cancellationToken);
 
             if (assessment is null)
             {
@@ -173,7 +176,10 @@ public class GoogleFormsController(
             .Include(item => item.Responses)
                 .ThenInclude(response => response.Answers)
             .Include(item => item.ClientCompany)
-            .FirstOrDefaultAsync(item => item.ClientToken == request.ClientToken);
+            .Where(item => item.ClientToken == request.ClientToken)
+            .OrderByDescending(item => item.CreatedAt)
+            .ThenByDescending(item => item.Id)
+            .FirstOrDefaultAsync();
 
         if (assessment is null)
         {
@@ -299,10 +305,12 @@ public class GoogleFormsController(
         }
 
         return await context.AssessmentResponses
-            .FirstOrDefaultAsync(response =>
+            .Where(response =>
                 response.ReadinessAssessmentId == assessmentId &&
-                response.ExternalResponseId == externalResponseId,
-                cancellationToken);
+                response.ExternalResponseId == externalResponseId)
+            .OrderByDescending(response => response.ReceivedAt)
+            .ThenByDescending(response => response.Id)
+            .FirstOrDefaultAsync(cancellationToken);
     }
 
     private static AssessmentResponse CreateAssessmentResponse(
@@ -352,7 +360,10 @@ public class GoogleFormsController(
     private async Task MarkWorkflowAsync(int clientId, string stageName, CancellationToken cancellationToken = default)
     {
         var step = await context.ClientWorkflowSteps
-            .FirstOrDefaultAsync(item => item.ClientCompanyId == clientId && item.StageName == stageName, cancellationToken);
+            .Where(item => item.ClientCompanyId == clientId && item.StageName == stageName)
+            .OrderBy(item => item.DisplayOrder)
+            .ThenBy(item => item.Id)
+            .FirstOrDefaultAsync(cancellationToken);
 
         if (step is null)
         {

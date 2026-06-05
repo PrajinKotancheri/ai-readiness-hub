@@ -5,6 +5,7 @@ namespace AI_Readiness_Hub.Data;
 
 public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options) : DbContext(options)
 {
+    public DbSet<DataProtectionKey> DataProtectionKeys => Set<DataProtectionKey>();
     public DbSet<ClientCompany> ClientCompanies => Set<ClientCompany>();
     public DbSet<ClientWorkflowStep> ClientWorkflowSteps => Set<ClientWorkflowStep>();
     public DbSet<ReadinessFormSettings> ReadinessFormSettings => Set<ReadinessFormSettings>();
@@ -50,6 +51,10 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
         modelBuilder.Entity<ClientCompany>()
             .Property(client => client.OverallReadinessScore)
             .HasPrecision(5, 2);
+
+        modelBuilder.Entity<DataProtectionKey>()
+            .HasIndex(key => key.FriendlyName)
+            .IsUnique();
 
         modelBuilder.Entity<AIUseCaseScore>()
             .Property(score => score.PriorityScore)

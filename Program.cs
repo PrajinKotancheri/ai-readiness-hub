@@ -1,5 +1,6 @@
 using AI_Readiness_Hub.Data;
 using AI_Readiness_Hub.Services;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.EntityFrameworkCore;
 
 var seedOnly = args.Any(arg => arg.Equals("--seed-only", StringComparison.OrdinalIgnoreCase));
@@ -50,6 +51,13 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
 {
     options.UseNpgsql(postgresConnectionString);
 });
+builder.Services.AddDataProtection()
+    .SetApplicationName("AI Readiness Consultant Hub");
+if (!builder.Environment.IsDevelopment())
+{
+    builder.Services.AddSingleton<DatabaseDataProtectionXmlRepository>();
+    builder.Services.ConfigureOptions<DatabaseDataProtectionKeyManagementOptionsSetup>();
+}
 builder.Services.AddScoped<IAIConsultingAnalysisService, MockAIConsultingAnalysisService>();
 builder.Services.AddScoped<IClientDocumentSummaryService, MockClientDocumentSummaryService>();
 builder.Services.AddScoped<IEmailService, SendGridEmailService>();

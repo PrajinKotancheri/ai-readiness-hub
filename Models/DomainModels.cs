@@ -2,6 +2,20 @@ using System.ComponentModel.DataAnnotations;
 
 namespace AI_Readiness_Hub.Models;
 
+public class DataProtectionKey
+{
+    public int Id { get; set; }
+
+    [Required, StringLength(180)]
+    public string FriendlyName { get; set; } = string.Empty;
+
+    [Required]
+    public string Xml { get; set; } = string.Empty;
+
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime? LastModifiedAt { get; set; }
+}
+
 public enum ClientStage
 {
     New,

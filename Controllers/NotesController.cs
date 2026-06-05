@@ -48,7 +48,11 @@ public class NotesController(ApplicationDbContext context) : Controller
 
     private async Task MarkWorkflowAsync(int clientId, string stageName, WorkflowStepStatus status)
     {
-        var step = await context.ClientWorkflowSteps.FirstOrDefaultAsync(item => item.ClientCompanyId == clientId && item.StageName == stageName);
+        var step = await context.ClientWorkflowSteps
+            .Where(item => item.ClientCompanyId == clientId && item.StageName == stageName)
+            .OrderBy(item => item.DisplayOrder)
+            .ThenBy(item => item.Id)
+            .FirstOrDefaultAsync();
         if (step is not null)
         {
             step.Status = status;
