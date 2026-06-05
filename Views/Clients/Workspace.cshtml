@@ -60,6 +60,11 @@
         <div class="summary-stat">
             <div class="field-label">Readiness score</div>
             <div class="score-number">@(Model.LatestScore?.OverallScore.ToString() ?? client.OverallReadinessScore?.ToString("0.##") ?? "-")</div>
+            @if (Model.LatestScore is not null)
+            {
+                <span class="status-badge @Model.LatestScore.ScoreCategory.ToBadgeClass()">@Model.LatestScore.ScoreCategory.ToDisplayName()</span>
+                <div class="table-note mt-2">Calculated @Model.LatestScore.CreatedAt.ToString("yyyy-MM-dd")</div>
+            }
         </div>
     </div>
     <div>

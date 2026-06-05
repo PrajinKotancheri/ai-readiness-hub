@@ -120,6 +120,20 @@
             </div>
         </div>
 
+        @if (responses.Any())
+        {
+            <section class="panel">
+                <div class="panel-header">
+                    <h3 class="panel-title">Readiness score</h3>
+                    <span class="table-note">Uses latest completed response: @(latestResponse?.ResponseLabel ?? "not available")</span>
+                </div>
+                <form asp-controller="Analysis" asp-action="CalculateReadinessScore" method="post">
+                    <input type="hidden" name="clientId" value="@client.Id" />
+                    <button class="btn btn-primary btn-sm" type="submit">Calculate Readiness Score from Latest Response</button>
+                </form>
+            </section>
+        }
+
         <section class="panel">
             <div class="panel-header">
                 <h3 class="panel-title">Assessment responses</h3>

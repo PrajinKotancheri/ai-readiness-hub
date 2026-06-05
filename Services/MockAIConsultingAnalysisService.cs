@@ -1,10 +1,13 @@
+using System.Diagnostics;
 using AI_Readiness_Hub.Data;
 using AI_Readiness_Hub.Models;
 using Microsoft.EntityFrameworkCore;
 
 namespace AI_Readiness_Hub.Services;
 
-public class MockAIConsultingAnalysisService(ApplicationDbContext context) : IAIConsultingAnalysisService
+public class MockAIConsultingAnalysisService(
+    ApplicationDbContext context,
+    ILogger<MockAIConsultingAnalysisService> logger) : IAIConsultingAnalysisService
 {
     private static readonly string[] ReportSections =
     [
@@ -25,16 +28,21 @@ public class MockAIConsultingAnalysisService(ApplicationDbContext context) : IAI
 
     public async Task GenerateCompanySummaryAsync(int clientId)
     {
-        var client = await LoadClientAsync(clientId);
-        var assessment = client.ReadinessAssessments.OrderByDescending(item => item.CreatedAt).FirstOrDefault();
+        var totalStopwatch = Stopwatch.StartNew();
+        var loadStopwatch = Stopwatch.StartNew();
+        var profile = await LoadClientProfileAsync(clientId);
+        var latestResponse = await LoadLatestResponseEvidenceAsync(clientId, loadAnswers: false);
+        var loadMs = loadStopwatch.ElapsedMilliseconds;
+
+        var generateStopwatch = Stopwatch.StartNew();
         var output = $"""
-            Company: {client.CompanyName}
-            Industry: {client.Industry ?? "Not specified"}
-            Business model: {client.BusinessModel ?? "Not specified"}
-            Current stage: {client.CurrentStage}
+            Company: {profile.CompanyName}
+            Industry: {profile.Industry ?? "Not specified"}
+            Business model: {profile.BusinessModel ?? "Not specified"}
+            Current stage: {profile.CurrentStage}
 
             Draft summary:
-            {client.CompanyName} is being assessed for practical AI readiness across business clarity, data quality, process maturity, technology fit, and governance. The current assessment suggests {assessment?.Summary ?? "the consultant should validate the client context and import assessment answers before final review."}
+            {profile.CompanyName} is being assessed for practical AI readiness across business clarity, data quality, process maturity, technology fit, and governance. The current assessment context suggests {(latestResponse is null ? "the consultant should collect or import assessment answers before final review." : $"{latestResponse.ResponseLabel} has {latestResponse.AnswerCount} captured answers for consultant review.")}
 
             Consultant review notes:
             - Confirm the core business goals.
@@ -42,110 +50,169 @@ public class MockAIConsultingAnalysisService(ApplicationDbContext context) : IAI
             - Identify the first safe, measurable pilot candidate.
             """;
 
-        await AddAnalysisOutputAsync(client, AnalysisType.CompanySummary, "Company summary draft", output);
-        await LogAsync(clientId, "Company summary generated", "Mock company summary draft saved for consultant review.");
+        await AddAnalysisOutputAsync(profile.Id, AnalysisType.CompanySummary, "Company summary draft", output, BuildInputSummary(profile, latestResponse));
+        AddActivityLog(profile.Id, "Company summary generated", "Mock company summary draft saved for consultant review.");
+        var generateMs = generateStopwatch.ElapsedMilliseconds;
+
+        var saveMs = await SaveChangesWithTimingAsync();
+        LogOperationCompleted(clientId, "CompanySummary", loadMs, generateMs, saveMs, totalStopwatch.ElapsedMilliseconds, recordsCreated: 2);
     }
 
     public async Task GenerateGapAnalysisAsync(int clientId)
     {
-        var client = await LoadClientAsync(clientId);
-        var text = BuildEvidenceText(client);
-        var gaps = new List<GapAnalysisItem>();
+        var totalStopwatch = Stopwatch.StartNew();
+        var loadStopwatch = Stopwatch.StartNew();
+        var profile = await LoadClientProfileAsync(clientId);
+        var evidence = await LoadRequiredLatestResponseEvidenceAsync(clientId);
+        var existingOpenAreas = await context.GapAnalysisItems
+            .AsNoTracking()
+            .Where(gap => gap.ClientCompanyId == clientId && gap.Status != GapStatus.Resolved)
+            .Select(gap => gap.GapArea)
+            .Distinct()
+            .ToListAsync();
+        var loadMs = loadStopwatch.ElapsedMilliseconds;
 
-        AddGapIfMissing(gaps, clientId, text, ["data source", "data sources", "dataset", "crm", "analytics", "warehouse"], GapArea.DataReadiness,
+        var generateStopwatch = Stopwatch.StartNew();
+        var evidenceText = BuildEvidenceText(profile, evidence);
+        var candidates = new List<GapAnalysisItem>();
+
+        AddGapIfMissing(candidates, clientId, evidenceText, ["data source", "data sources", "dataset", "crm", "analytics", "warehouse"], GapArea.DataReadiness,
             "Available data sources are unclear or incomplete.",
             "The consultant cannot reliably assess data readiness or pilot feasibility.",
             "Which data sources, owners, and access constraints should the first pilots rely on?",
             "Document source systems, data owners, access rules, and known quality issues.");
 
-        AddGapIfMissing(gaps, clientId, text, ["process", "workflow", "manual", "handoff", "operation"], GapArea.ProcessReadiness,
+        AddGapIfMissing(candidates, clientId, evidenceText, ["process", "workflow", "manual", "handoff", "operation"], GapArea.ProcessReadiness,
             "Manual and repetitive processes have not been described enough.",
             "Use-case generation may miss high-value internal automation opportunities.",
             "Which processes consume the most time or create the most rework?",
             "Map candidate workflows and quantify time spent, volume, and error rates.");
 
-        AddGapIfMissing(gaps, clientId, text, ["budget", "timeline", "funding", "investment"], GapArea.Budget,
+        AddGapIfMissing(candidates, clientId, evidenceText, ["budget", "timeline", "funding", "investment"], GapArea.Budget,
             "Budget or timeline expectations are unclear.",
             "Recommendations may not align with the client's implementation capacity.",
             "What budget range and timeline should the first AI roadmap assume?",
             "Agree budget bands and timeline constraints before prioritizing pilots.");
 
-        AddGapIfMissing(gaps, clientId, text, ["owner", "sponsor", "accountable", "product owner"], GapArea.Ownership,
+        AddGapIfMissing(candidates, clientId, evidenceText, ["owner", "sponsor", "accountable", "product owner"], GapArea.Ownership,
             "No AI owner or executive sponsor is clearly identified.",
             "Pilots may stall without accountable decision makers.",
             "Who owns AI prioritization, approvals, and adoption?",
             "Assign an executive sponsor and operational owner for each shortlisted use case.");
 
-        AddGapIfMissing(gaps, clientId, text, ["governance", "policy", "risk", "compliance", "approval"], GapArea.Governance,
+        AddGapIfMissing(candidates, clientId, evidenceText, ["governance", "policy", "risk", "compliance", "approval"], GapArea.Governance,
             "AI governance, policy, or risk review is not sufficiently described.",
             "Client-facing or regulated AI use cases may carry unmanaged risk.",
             "What rules govern AI use, model review, privacy, and human oversight?",
             "Create a lightweight AI usage policy before live pilots.");
 
-        foreach (var gap in gaps)
-        {
-            var exists = await context.GapAnalysisItems.AnyAsync(existing =>
-                existing.ClientCompanyId == clientId &&
-                existing.GapArea == gap.GapArea &&
-                existing.Status != GapStatus.Resolved);
-            if (!exists)
-            {
-                context.GapAnalysisItems.Add(gap);
-            }
-        }
+        var newGaps = candidates
+            .Where(gap => !existingOpenAreas.Contains(gap.GapArea))
+            .ToList();
+        context.GapAnalysisItems.AddRange(newGaps);
 
-        await AddAnalysisOutputAsync(client, AnalysisType.GapAnalysis, "Gap analysis draft", BuildGapOutput(client, gaps));
+        var client = await LoadClientForUpdateAsync(clientId);
         client.CurrentStage = ClientStage.GapAnalysis;
         client.NextAction = "Review and clarify open gap items";
         Touch(client);
-        await context.SaveChangesAsync();
+
+        await AddAnalysisOutputAsync(clientId, AnalysisType.GapAnalysis, "Gap analysis draft", BuildGapOutput(profile, newGaps), BuildInputSummary(profile, evidence));
         await MarkWorkflowAsync(clientId, "Gap Analysis Completed", WorkflowStepStatus.InProgress);
-        await LogAsync(clientId, "Gap analysis generated", "Rule-based gap analysis draft generated from available evidence.");
+        AddActivityLog(clientId, "Gap analysis generated", "Rule-based gap analysis draft generated from latest assessment evidence.");
+        var generateMs = generateStopwatch.ElapsedMilliseconds;
+
+        var saveMs = await SaveChangesWithTimingAsync();
+        LogOperationCompleted(clientId, "GapAnalysis", loadMs, generateMs, saveMs, totalStopwatch.ElapsedMilliseconds, recordsCreated: newGaps.Count + 2, recordsUpdated: 2);
     }
 
     public async Task GenerateSwotAnalysisAsync(int clientId)
     {
-        var client = await LoadClientAsync(clientId);
-        if (!client.SwotItems.Any())
+        var totalStopwatch = Stopwatch.StartNew();
+        var loadStopwatch = Stopwatch.StartNew();
+        var profile = await LoadClientProfileAsync(clientId);
+        var evidence = await LoadRequiredLatestResponseEvidenceAsync(clientId);
+        var existingCategories = await context.SwotAnalysisItems
+            .AsNoTracking()
+            .Where(item => item.ClientCompanyId == clientId)
+            .Select(item => item.Category)
+            .Distinct()
+            .ToListAsync();
+        var loadMs = loadStopwatch.ElapsedMilliseconds;
+
+        var generateStopwatch = Stopwatch.StartNew();
+        var created = 0;
+        if (!existingCategories.Contains(SwotCategory.Strength))
         {
-            context.SwotAnalysisItems.AddRange(
-                CreateSwot(clientId, SwotCategory.Strength, "Clear consultant ownership and structured readiness workflow in progress.", "Client workspace"),
-                CreateSwot(clientId, SwotCategory.Weakness, "Several readiness inputs still need validation before final recommendations.", "Assessment and gap analysis"),
-                CreateSwot(clientId, SwotCategory.Opportunity, $"High-value AI opportunities likely exist in {client.Industry ?? "the client's operating model"}.", "Mock analysis"),
-                CreateSwot(clientId, SwotCategory.Threat, "Poorly governed pilots could create adoption, privacy, or trust risks.", "Risk review"));
+            context.SwotAnalysisItems.Add(CreateSwot(clientId, SwotCategory.Strength, "Structured readiness workflow and consultant ownership are already in place.", evidence.ResponseLabel));
+            created++;
         }
 
-        await AddAnalysisOutputAsync(client, AnalysisType.Swot, "SWOT draft", $"Draft SWOT generated for {client.CompanyName}. Review each quadrant and approve before report use.");
-        await context.SaveChangesAsync();
-        await LogAsync(clientId, "SWOT generated", "SWOT draft generated for consultant review.");
+        if (!existingCategories.Contains(SwotCategory.Weakness))
+        {
+            context.SwotAnalysisItems.Add(CreateSwot(clientId, SwotCategory.Weakness, "Several readiness inputs still need validation before final recommendations.", evidence.ResponseLabel));
+            created++;
+        }
+
+        if (!existingCategories.Contains(SwotCategory.Opportunity))
+        {
+            context.SwotAnalysisItems.Add(CreateSwot(clientId, SwotCategory.Opportunity, $"High-value AI opportunities likely exist in {profile.Industry ?? "the client's operating model"}.", "Mock analysis"));
+            created++;
+        }
+
+        if (!existingCategories.Contains(SwotCategory.Threat))
+        {
+            context.SwotAnalysisItems.Add(CreateSwot(clientId, SwotCategory.Threat, "Poorly governed pilots could create adoption, privacy, or trust risks.", "Risk review"));
+            created++;
+        }
+
+        await AddAnalysisOutputAsync(clientId, AnalysisType.Swot, "SWOT draft", $"Draft SWOT generated for {profile.CompanyName}. Review each quadrant and approve before report use.", BuildInputSummary(profile, evidence));
+        AddActivityLog(clientId, "SWOT generated", "SWOT draft generated for consultant review.");
+        var generateMs = generateStopwatch.ElapsedMilliseconds;
+
+        var saveMs = await SaveChangesWithTimingAsync();
+        LogOperationCompleted(clientId, "SWOT", loadMs, generateMs, saveMs, totalStopwatch.ElapsedMilliseconds, recordsCreated: created + 2);
     }
 
     public async Task GenerateIndustryAnalysisAsync(int clientId)
     {
-        var client = await LoadClientAsync(clientId);
+        var totalStopwatch = Stopwatch.StartNew();
+        var loadStopwatch = Stopwatch.StartNew();
+        var profile = await LoadClientProfileAsync(clientId);
+        var loadMs = loadStopwatch.ElapsedMilliseconds;
+
+        var generateStopwatch = Stopwatch.StartNew();
         context.IndustryInsights.Add(new IndustryInsight
         {
             ClientCompanyId = clientId,
-            Topic = $"{client.Industry ?? "Industry"} AI adoption themes",
-            InsightText = $"Organizations in {client.Industry ?? "this industry"} are prioritizing internal productivity assistants, document intelligence, decision support, and carefully governed customer-facing automation.",
-            Relevance = "Use as a starting draft and replace with sourced research during consultant review.",
+            Topic = $"{profile.Industry ?? "Industry"} AI adoption themes",
+            InsightText = $"Organizations in {profile.Industry ?? "this industry"} are prioritizing internal productivity assistants, document intelligence, decision support, and carefully governed customer-facing automation.",
+            Relevance = $"Use as a starting draft for {profile.Country ?? "the client's market"} and replace with sourced research during consultant review.",
             SourceType = InsightSourceType.AiGenerated,
             Status = InsightStatus.Draft,
             CreatedAt = DateTime.UtcNow
         });
-        await AddAnalysisOutputAsync(client, AnalysisType.IndustryAnalysis, "Industry analysis draft", "Placeholder industry analysis generated. Add sourced consultant research before approving.");
-        await context.SaveChangesAsync();
-        await LogAsync(clientId, "Industry analysis generated", "Placeholder industry insight saved.");
+        await AddAnalysisOutputAsync(clientId, AnalysisType.IndustryAnalysis, "Industry analysis draft", "Placeholder industry analysis generated. Add sourced consultant research before approving.", BuildInputSummary(profile));
+        AddActivityLog(clientId, "Industry analysis generated", "Placeholder industry insight saved.");
+        var generateMs = generateStopwatch.ElapsedMilliseconds;
+
+        var saveMs = await SaveChangesWithTimingAsync();
+        LogOperationCompleted(clientId, "IndustryAnalysis", loadMs, generateMs, saveMs, totalStopwatch.ElapsedMilliseconds, recordsCreated: 3);
     }
 
     public async Task GenerateCompetitorInsightsAsync(int clientId)
     {
-        var client = await LoadClientAsync(clientId);
+        var totalStopwatch = Stopwatch.StartNew();
+        var loadStopwatch = Stopwatch.StartNew();
+        var profile = await LoadClientProfileAsync(clientId);
+        var loadMs = loadStopwatch.ElapsedMilliseconds;
+
+        var generateStopwatch = Stopwatch.StartNew();
         context.CompetitorInsights.Add(new CompetitorInsight
         {
             ClientCompanyId = clientId,
             CompetitorName = "Representative competitor",
-            InsightText = $"A comparable {client.Industry ?? "industry"} organization may use AI for customer support, knowledge retrieval, workflow automation, and analytics acceleration.",
+            WebsiteUrl = profile.WebsiteUrl,
+            InsightText = $"A comparable {profile.Industry ?? "industry"} organization may use AI for customer support, knowledge retrieval, workflow automation, and analytics acceleration.",
             AiUseCasesObserved = "Support assistant; internal knowledge assistant; automated reporting.",
             StrengthComparedToClient = "May move faster if governance and data foundations are already clear.",
             WeaknessComparedToClient = "May lack the client's domain-specific process knowledge.",
@@ -153,14 +220,446 @@ public class MockAIConsultingAnalysisService(ApplicationDbContext context) : IAI
             Status = InsightStatus.Draft,
             CreatedAt = DateTime.UtcNow
         });
-        await AddAnalysisOutputAsync(client, AnalysisType.CompetitorInsights, "Competitor insight draft", "Placeholder competitor insight generated. Validate sources before approval.");
-        await context.SaveChangesAsync();
-        await LogAsync(clientId, "Competitor insights generated", "Placeholder competitor insight saved.");
+        await AddAnalysisOutputAsync(clientId, AnalysisType.CompetitorInsights, "Competitor insight draft", "Placeholder competitor insight generated. Validate sources before approval.", BuildInputSummary(profile));
+        AddActivityLog(clientId, "Competitor insights generated", "Placeholder competitor insight saved.");
+        var generateMs = generateStopwatch.ElapsedMilliseconds;
+
+        var saveMs = await SaveChangesWithTimingAsync();
+        LogOperationCompleted(clientId, "CompetitorInsights", loadMs, generateMs, saveMs, totalStopwatch.ElapsedMilliseconds, recordsCreated: 3);
     }
 
     public async Task GenerateUseCasesAsync(int clientId)
     {
-        var client = await LoadClientAsync(clientId);
+        var totalStopwatch = Stopwatch.StartNew();
+        var loadStopwatch = Stopwatch.StartNew();
+        var profile = await LoadClientProfileAsync(clientId);
+        var evidence = await LoadRequiredLatestResponseEvidenceAsync(clientId);
+        var existingTitles = await context.AIUseCases
+            .AsNoTracking()
+            .Where(useCase => useCase.ClientCompanyId == clientId)
+            .Select(useCase => useCase.Title)
+            .ToListAsync();
+        var loadMs = loadStopwatch.ElapsedMilliseconds;
+
+        var generateStopwatch = Stopwatch.StartNew();
+        var created = AddDefaultUseCases(clientId, existingTitles);
+        await AddAnalysisOutputAsync(clientId, AnalysisType.UseCaseGeneration, "AI use case suggestions", "Suggested use cases generated from the default consulting library. Shortlist the top three after scoring.", BuildInputSummary(profile, evidence));
+        AddActivityLog(clientId, "Use cases generated", "Default AI use case library suggestions saved.");
+        var generateMs = generateStopwatch.ElapsedMilliseconds;
+
+        var saveMs = await SaveChangesWithTimingAsync();
+        LogOperationCompleted(clientId, "UseCases", loadMs, generateMs, saveMs, totalStopwatch.ElapsedMilliseconds, recordsCreated: created + 2);
+    }
+
+    public async Task ScoreUseCasesAsync(int clientId)
+    {
+        var totalStopwatch = Stopwatch.StartNew();
+        var loadStopwatch = Stopwatch.StartNew();
+        var profile = await LoadClientProfileAsync(clientId);
+        var latestScore = await LoadLatestReadinessScoreAsync(clientId);
+        var useCases = await context.AIUseCases
+            .Where(useCase => useCase.ClientCompanyId == clientId)
+            .OrderBy(useCase => useCase.Title)
+            .ToListAsync();
+        if (useCases.Count == 0)
+        {
+            throw new InvalidOperationException("Cannot score use cases yet. Please generate AI use cases first.");
+        }
+
+        var useCaseIds = useCases.Select(useCase => useCase.Id).ToList();
+        var scores = await context.AIUseCaseScores
+            .Where(score => useCaseIds.Contains(score.AIUseCaseId))
+            .ToDictionaryAsync(score => score.AIUseCaseId);
+        var loadMs = loadStopwatch.ElapsedMilliseconds;
+
+        var generateStopwatch = Stopwatch.StartNew();
+        var created = 0;
+        foreach (var useCase in useCases)
+        {
+            if (!scores.TryGetValue(useCase.Id, out var score))
+            {
+                score = new AIUseCaseScore
+                {
+                    AIUseCaseId = useCase.Id,
+                    CreatedAt = DateTime.UtcNow
+                };
+                context.AIUseCaseScores.Add(score);
+                created++;
+            }
+
+            score.RoiScore = useCase.Title.Contains("report", StringComparison.OrdinalIgnoreCase) ? 5 : 4;
+            score.FeasibilityScore = useCase.ImplementationComplexity switch
+            {
+                ComplexityLevel.Low => 5,
+                ComplexityLevel.Medium => 4,
+                _ => 3
+            };
+            score.RiskSafetyScore = useCase.RiskLevel switch
+            {
+                RiskLevel.Low => 5,
+                RiskLevel.Medium => 3,
+                _ => 2
+            };
+            score.StrategicFitScore = latestScore?.OverallScore >= 70 ? 4 : 3;
+            score.DataReadinessScore = latestScore is null
+                ? 3
+                : Math.Clamp((int)Math.Round(latestScore.DataReadinessScore / 20.0), 1, 5);
+            score.ScoringComment = "MVP weighted score using ROI, feasibility, strategic fit, data readiness, and risk/safety.";
+            score.LastModifiedAt = DateTime.UtcNow;
+            score.RecalculatePriority();
+        }
+
+        await AddAnalysisOutputAsync(clientId, AnalysisType.UseCaseScoring, "Use case scoring draft", "Use cases scored with the MVP weighted rule. Consultant should adjust scores where client context warrants.", BuildInputSummary(profile, latestScore: latestScore));
+        AddActivityLog(clientId, "Use cases scored", "Use case priority scores recalculated.");
+        var generateMs = generateStopwatch.ElapsedMilliseconds;
+
+        var saveMs = await SaveChangesWithTimingAsync();
+        LogOperationCompleted(clientId, "ScoreUseCases", loadMs, generateMs, saveMs, totalStopwatch.ElapsedMilliseconds, recordsCreated: created + 2, recordsUpdated: useCases.Count - created);
+    }
+
+    public async Task GenerateReadinessScoreAsync(int clientId)
+    {
+        var totalStopwatch = Stopwatch.StartNew();
+        var loadStopwatch = Stopwatch.StartNew();
+        var profile = await LoadClientProfileAsync(clientId);
+        var evidence = await LoadRequiredLatestResponseEvidenceAsync(clientId);
+        var loadMs = loadStopwatch.ElapsedMilliseconds;
+
+        var generateStopwatch = Stopwatch.StartNew();
+        var calculation = CalculateReadinessScore(profile, evidence.Answers);
+        var score = new ReadinessScore
+        {
+            ClientCompanyId = clientId,
+            BusinessClarityScore = calculation.BusinessClarityScore,
+            DataReadinessScore = calculation.DataReadinessScore,
+            ProcessReadinessScore = calculation.ProcessReadinessScore,
+            TechnologyReadinessScore = calculation.TechnologyReadinessScore,
+            PeopleGovernanceScore = calculation.PeopleGovernanceScore,
+            OverallScore = calculation.OverallScore,
+            ScoreCategory = calculation.ScoreCategory,
+            ScoringSummary = calculation.ScoringSummary,
+            CreatedAt = DateTime.UtcNow
+        };
+        context.ReadinessScores.Add(score);
+
+        var client = await LoadClientForUpdateAsync(clientId);
+        client.OverallReadinessScore = calculation.OverallScore;
+        client.NextAction = "Review readiness score rationale";
+        Touch(client);
+
+        await AddAnalysisOutputAsync(clientId, AnalysisType.RiskAnalysis, "Readiness score rationale", calculation.ScoringSummary, BuildInputSummary(profile, evidence));
+        AddActivityLog(clientId, "Readiness score calculated", "Readiness score calculated.");
+        var generateMs = generateStopwatch.ElapsedMilliseconds;
+
+        var saveMs = await SaveChangesWithTimingAsync();
+        LogOperationCompleted(clientId, "CalculateReadinessScore", loadMs, generateMs, saveMs, totalStopwatch.ElapsedMilliseconds, recordsCreated: 3, recordsUpdated: 1, score: calculation.OverallScore);
+    }
+
+    public async Task GenerateRoadmapAsync(int clientId)
+    {
+        var totalStopwatch = Stopwatch.StartNew();
+        var loadStopwatch = Stopwatch.StartNew();
+        var profile = await LoadClientProfileAsync(clientId);
+        var existingTitles = await context.AIUseCases
+            .AsNoTracking()
+            .Where(useCase => useCase.ClientCompanyId == clientId)
+            .Select(useCase => useCase.Title)
+            .ToListAsync();
+        if (existingTitles.Count == 0)
+        {
+            _ = await LoadRequiredLatestResponseEvidenceAsync(clientId);
+            AddDefaultUseCases(clientId, existingTitles);
+            await context.SaveChangesAsync();
+        }
+
+        var useCases = await LoadTopUseCasesAsync(clientId, take: 4);
+        var gapItems = await context.GapAnalysisItems
+            .AsNoTracking()
+            .Where(gap => gap.ClientCompanyId == clientId && gap.Status != GapStatus.Resolved)
+            .OrderByDescending(gap => gap.Severity)
+            .ThenByDescending(gap => gap.CreatedAt)
+            .Take(8)
+            .Select(gap => new GapSummary(gap.GapArea, gap.IssueDescription, gap.Severity, gap.Status))
+            .ToListAsync();
+        var loadMs = loadStopwatch.ElapsedMilliseconds;
+
+        if (useCases.Count == 0)
+        {
+            throw new InvalidOperationException("Cannot generate a roadmap yet. Please generate AI use cases first.");
+        }
+
+        var generateStopwatch = Stopwatch.StartNew();
+        var phases = new[] { RoadmapPhase.ZeroToThreeMonths, RoadmapPhase.ThreeToSixMonths, RoadmapPhase.SixToTwelveMonths, RoadmapPhase.TwelvePlusMonths };
+        var created = 0;
+        for (var i = 0; i < useCases.Count; i++)
+        {
+            var useCase = useCases[i];
+            var exists = await context.AIRoadmapItems
+                .AnyAsync(item => item.ClientCompanyId == clientId && item.Title == useCase.Title);
+            if (exists)
+            {
+                continue;
+            }
+
+            context.AIRoadmapItems.Add(new AIRoadmapItem
+            {
+                ClientCompanyId = clientId,
+                Phase = phases[Math.Min(i, phases.Length - 1)],
+                Title = useCase.Title,
+                Description = $"Plan and deliver a controlled pilot for {useCase.Title}.",
+                RelatedUseCaseId = useCase.Id,
+                Owner = useCase.Department,
+                ExpectedOutcome = useCase.ExpectedBenefit,
+                Dependencies = gapItems.Count > 0 ? "Resolve priority readiness gaps, approve data access, assign owner, and define success metric." : "Approved data access, use-case owner, success metric, and risk review.",
+                Status = ApprovalStatus.Draft,
+                CreatedAt = DateTime.UtcNow
+            });
+            created++;
+        }
+
+        await AddAnalysisOutputAsync(clientId, AnalysisType.Roadmap, "Roadmap draft", "Roadmap generated from top use cases and known readiness gaps.", BuildInputSummary(profile, gapCount: gapItems.Count, useCaseCount: useCases.Count));
+        AddActivityLog(clientId, "Roadmap generated", "Roadmap draft generated from use case priorities.");
+        var generateMs = generateStopwatch.ElapsedMilliseconds;
+
+        var saveMs = await SaveChangesWithTimingAsync();
+        LogOperationCompleted(clientId, "Roadmap", loadMs, generateMs, saveMs, totalStopwatch.ElapsedMilliseconds, recordsCreated: created + 2);
+    }
+
+    public async Task GenerateReportDraftAsync(int clientId)
+    {
+        var totalStopwatch = Stopwatch.StartNew();
+        var loadStopwatch = Stopwatch.StartNew();
+        var profile = await LoadClientProfileAsync(clientId);
+        var evidence = await LoadRequiredLatestResponseEvidenceAsync(clientId);
+        var latestScore = await LoadLatestReadinessScoreAsync(clientId);
+        var gaps = await LoadGapSummariesAsync(clientId, take: 8);
+        var swotItems = await LoadSwotSummariesAsync(clientId, take: 12);
+        var industryInsights = await LoadIndustrySummariesAsync(clientId, take: 4);
+        var competitorInsights = await LoadCompetitorSummariesAsync(clientId, take: 4);
+        var useCases = await LoadTopUseCasesAsync(clientId, take: 6);
+        var roadmapItems = await LoadRoadmapSummariesAsync(clientId, take: 8);
+        var version = await context.ClientReports
+            .Where(report => report.ClientCompanyId == clientId)
+            .Select(report => (int?)report.VersionNumber)
+            .MaxAsync() ?? 0;
+        var loadMs = loadStopwatch.ElapsedMilliseconds;
+
+        var generateStopwatch = Stopwatch.StartNew();
+        var reportContext = new ReportDraftContext(profile, evidence, latestScore, gaps, swotItems, industryInsights, competitorInsights, useCases, roadmapItems);
+        var report = new ClientReport
+        {
+            ClientCompanyId = clientId,
+            ReportTitle = $"{profile.CompanyName} AI Readiness Report",
+            ReportStatus = ReportStatus.DraftGenerated,
+            VersionNumber = version + 1,
+            GeneratedAt = DateTime.UtcNow,
+            CreatedAt = DateTime.UtcNow,
+            FinalReportContent = $"Draft report for {profile.CompanyName}. Overall score: {latestScore?.OverallScore.ToString() ?? "not generated"}."
+        };
+
+        for (var i = 0; i < ReportSections.Length; i++)
+        {
+            report.Sections.Add(new ReportSection
+            {
+                SectionTitle = ReportSections[i],
+                SectionOrder = i + 1,
+                SectionContent = BuildReportSectionDraft(reportContext, ReportSections[i]),
+                SectionStatus = SectionStatus.DraftGenerated,
+                CreatedAt = DateTime.UtcNow
+            });
+        }
+
+        context.ClientReports.Add(report);
+        var client = await LoadClientForUpdateAsync(clientId);
+        client.CurrentStage = ClientStage.ReportDraft;
+        client.NextAction = "Review and approve report sections";
+        Touch(client);
+
+        await AddAnalysisOutputAsync(clientId, AnalysisType.FinalReportSection, "Report draft generated", "A full report draft with editable sections has been generated.", BuildInputSummary(profile, evidence, gaps.Count, useCases.Count, roadmapItems.Count, latestScore));
+        await MarkWorkflowAsync(clientId, "Report Draft Generated", WorkflowStepStatus.Completed);
+        AddActivityLog(clientId, "Report draft generated", $"Report version {report.VersionNumber} generated.");
+        var generateMs = generateStopwatch.ElapsedMilliseconds;
+
+        var saveMs = await SaveChangesWithTimingAsync();
+        LogOperationCompleted(clientId, "ReportDraft", loadMs, generateMs, saveMs, totalStopwatch.ElapsedMilliseconds, recordsCreated: report.Sections.Count + 3, recordsUpdated: 2);
+    }
+
+    private async Task<ClientAnalysisProfile> LoadClientProfileAsync(int clientId)
+    {
+        return await context.ClientCompanies
+            .AsNoTracking()
+            .Where(client => client.Id == clientId)
+            .Select(client => new ClientAnalysisProfile(
+                client.Id,
+                client.CompanyName,
+                client.Industry,
+                client.WebsiteUrl,
+                client.Country,
+                client.Region,
+                client.CompanySizeRange,
+                client.RevenueRange,
+                client.BusinessModel,
+                client.KeyRisksSummary,
+                client.NextAction,
+                client.CurrentStage,
+                client.OverallReadinessScore))
+            .FirstOrDefaultAsync()
+            ?? throw new InvalidOperationException("Client was not found.");
+    }
+
+    private async Task<ClientCompany> LoadClientForUpdateAsync(int clientId)
+    {
+        return await context.ClientCompanies
+            .FirstOrDefaultAsync(client => client.Id == clientId)
+            ?? throw new InvalidOperationException("Client was not found.");
+    }
+
+    private async Task<AssessmentResponseEvidence> LoadRequiredLatestResponseEvidenceAsync(int clientId)
+    {
+        return await LoadLatestResponseEvidenceAsync(clientId, loadAnswers: true)
+            ?? throw new InvalidOperationException("Cannot calculate or generate analysis yet. Please collect or import an assessment response first.");
+    }
+
+    private async Task<AssessmentResponseEvidence?> LoadLatestResponseEvidenceAsync(int clientId, bool loadAnswers)
+    {
+        var response = await context.AssessmentResponses
+            .AsNoTracking()
+            .Where(item =>
+                item.ReadinessAssessment!.ClientCompanyId == clientId &&
+                item.Status != AssessmentResponseStatus.Ignored &&
+                item.AnswerCount > 0)
+            .OrderByDescending(item => item.ReceivedAt)
+            .ThenByDescending(item => item.ResponseNumber)
+            .ThenByDescending(item => item.Id)
+            .Select(item => new AssessmentResponseEvidence
+            {
+                Id = item.Id,
+                ReadinessAssessmentId = item.ReadinessAssessmentId,
+                ResponseNumber = item.ResponseNumber,
+                ResponseLabel = item.ResponseLabel,
+                Source = item.Source,
+                ReceivedAt = item.ReceivedAt,
+                AnswerCount = item.AnswerCount,
+                Status = item.Status
+            })
+            .FirstOrDefaultAsync();
+
+        if (response is null)
+        {
+            return null;
+        }
+
+        if (loadAnswers)
+        {
+            response.Answers = await context.AssessmentAnswers
+                .AsNoTracking()
+                .Where(answer => answer.AssessmentResponseId == response.Id)
+                .OrderBy(answer => answer.SectionName)
+                .ThenBy(answer => answer.Id)
+                .Select(answer => new AssessmentAnswerEvidence(
+                    answer.SectionName,
+                    answer.QuestionText,
+                    answer.AnswerText,
+                    answer.AnswerType,
+                    answer.CompletenessStatus))
+                .ToListAsync();
+        }
+
+        return response;
+    }
+
+    private async Task<ReadinessScore?> LoadLatestReadinessScoreAsync(int clientId)
+    {
+        return await context.ReadinessScores
+            .AsNoTracking()
+            .Where(score => score.ClientCompanyId == clientId)
+            .OrderByDescending(score => score.CreatedAt)
+            .ThenByDescending(score => score.Id)
+            .FirstOrDefaultAsync();
+    }
+
+    private async Task<List<UseCaseSummary>> LoadTopUseCasesAsync(int clientId, int take)
+    {
+        var useCases = await context.AIUseCases
+            .AsNoTracking()
+            .Where(useCase => useCase.ClientCompanyId == clientId)
+            .Select(useCase => new UseCaseSummary(
+                useCase.Id,
+                useCase.Title,
+                useCase.Description,
+                useCase.Department,
+                useCase.ExpectedBenefit,
+                useCase.RequiredData,
+                useCase.Score == null ? null : useCase.Score.PriorityScore))
+            .OrderByDescending(useCase => useCase.PriorityScore ?? 0)
+            .ThenBy(useCase => useCase.Title)
+            .Take(take)
+            .ToListAsync();
+
+        return useCases;
+    }
+
+    private async Task<List<GapSummary>> LoadGapSummariesAsync(int clientId, int take)
+    {
+        return await context.GapAnalysisItems
+            .AsNoTracking()
+            .Where(gap => gap.ClientCompanyId == clientId)
+            .OrderByDescending(gap => gap.Severity)
+            .ThenByDescending(gap => gap.CreatedAt)
+            .Take(take)
+            .Select(gap => new GapSummary(gap.GapArea, gap.IssueDescription, gap.Severity, gap.Status))
+            .ToListAsync();
+    }
+
+    private async Task<List<SwotSummary>> LoadSwotSummariesAsync(int clientId, int take)
+    {
+        return await context.SwotAnalysisItems
+            .AsNoTracking()
+            .Where(item => item.ClientCompanyId == clientId)
+            .OrderBy(item => item.Category)
+            .ThenByDescending(item => item.CreatedAt)
+            .Take(take)
+            .Select(item => new SwotSummary(item.Category, item.Description))
+            .ToListAsync();
+    }
+
+    private async Task<List<IndustrySummary>> LoadIndustrySummariesAsync(int clientId, int take)
+    {
+        return await context.IndustryInsights
+            .AsNoTracking()
+            .Where(item => item.ClientCompanyId == clientId)
+            .OrderByDescending(item => item.CreatedAt)
+            .Take(take)
+            .Select(item => new IndustrySummary(item.Topic, item.InsightText))
+            .ToListAsync();
+    }
+
+    private async Task<List<CompetitorSummary>> LoadCompetitorSummariesAsync(int clientId, int take)
+    {
+        return await context.CompetitorInsights
+            .AsNoTracking()
+            .Where(item => item.ClientCompanyId == clientId)
+            .OrderByDescending(item => item.CreatedAt)
+            .Take(take)
+            .Select(item => new CompetitorSummary(item.CompetitorName, item.InsightText, item.AiUseCasesObserved))
+            .ToListAsync();
+    }
+
+    private async Task<List<RoadmapSummary>> LoadRoadmapSummariesAsync(int clientId, int take)
+    {
+        return await context.AIRoadmapItems
+            .AsNoTracking()
+            .Where(item => item.ClientCompanyId == clientId)
+            .OrderBy(item => item.Phase)
+            .ThenBy(item => item.CreatedAt)
+            .Take(take)
+            .Select(item => new RoadmapSummary(item.Phase, item.Title, item.ExpectedOutcome))
+            .ToListAsync();
+    }
+
+    private int AddDefaultUseCases(int clientId, IReadOnlyCollection<string> existingTitles)
+    {
+        var existing = existingTitles.ToHashSet(StringComparer.OrdinalIgnoreCase);
         var useCases = new[]
         {
             ("Internal knowledge assistant", "Answer employee questions from approved company knowledge.", "Operations", ComplexityLevel.Medium, RiskLevel.Low, TimeToValue.ThreeToSixMonths),
@@ -175,10 +674,10 @@ public class MockAIConsultingAnalysisService(ApplicationDbContext context) : IAI
             ("Data quality assistant", "Detect incomplete, inconsistent, or stale business data.", "Data", ComplexityLevel.High, RiskLevel.Medium, TimeToValue.SixToTwelveMonths)
         };
 
+        var created = 0;
         foreach (var useCase in useCases)
         {
-            var exists = await context.AIUseCases.AnyAsync(existing => existing.ClientCompanyId == clientId && existing.Title == useCase.Item1);
-            if (exists)
+            if (existing.Contains(useCase.Item1))
             {
                 continue;
             }
@@ -198,204 +697,25 @@ public class MockAIConsultingAnalysisService(ApplicationDbContext context) : IAI
                 Status = UseCaseStatus.Suggested,
                 CreatedAt = DateTime.UtcNow
             });
+            created++;
         }
 
-        await AddAnalysisOutputAsync(client, AnalysisType.UseCaseGeneration, "AI use case suggestions", "Suggested use cases generated from the default consulting library. Shortlist the top three after scoring.");
-        await context.SaveChangesAsync();
-        await LogAsync(clientId, "Use cases generated", "Default AI use case library suggestions saved.");
+        return created;
     }
 
-    public async Task ScoreUseCasesAsync(int clientId)
-    {
-        var useCases = await context.AIUseCases
-            .Include(useCase => useCase.Score)
-            .Where(useCase => useCase.ClientCompanyId == clientId)
-            .ToListAsync();
-
-        foreach (var useCase in useCases)
-        {
-            var score = useCase.Score ?? new AIUseCaseScore { AIUseCaseId = useCase.Id };
-            score.RoiScore = useCase.Title.Contains("report", StringComparison.OrdinalIgnoreCase) ? 5 : 4;
-            score.FeasibilityScore = useCase.ImplementationComplexity == ComplexityLevel.Low ? 5 : useCase.ImplementationComplexity == ComplexityLevel.Medium ? 4 : 3;
-            score.RiskSafetyScore = useCase.RiskLevel == RiskLevel.Low ? 5 : useCase.RiskLevel == RiskLevel.Medium ? 3 : 2;
-            score.StrategicFitScore = 4;
-            score.DataReadinessScore = useCase.RequiredData?.Contains("approved", StringComparison.OrdinalIgnoreCase) == true ? 4 : 3;
-            score.ScoringComment = "Mock weighted score using ROI, feasibility, strategic fit, data readiness, and risk/safety.";
-            score.LastModifiedAt = DateTime.UtcNow;
-            score.RecalculatePriority();
-
-            if (useCase.Score is null)
-            {
-                useCase.Score = score;
-            }
-        }
-
-        var client = await LoadClientAsync(clientId);
-        await AddAnalysisOutputAsync(client, AnalysisType.UseCaseScoring, "Use case scoring draft", "Use cases scored with the MVP weighted rule. Consultant should adjust scores where client context warrants.");
-        await context.SaveChangesAsync();
-        await LogAsync(clientId, "Use cases scored", "Use case priority scores recalculated.");
-    }
-
-    public async Task GenerateReadinessScoreAsync(int clientId)
-    {
-        var client = await LoadClientAsync(clientId);
-        var answerCount = GetLatestEvidenceResponse(client)?.Answers.Count(answer => !string.IsNullOrWhiteSpace(answer.AnswerText)) ?? 0;
-        var openCriticalOrHighGaps = client.GapAnalysisItems.Count(gap => gap.Status == GapStatus.Open && gap.Severity is Severity.High or Severity.Critical);
-
-        var business = Clamp(45 + answerCount * 5);
-        var data = Clamp(55 - openCriticalOrHighGaps * 6 + CountEvidence(client, "data") * 4);
-        var process = Clamp(50 + CountEvidence(client, "process") * 8);
-        var technology = Clamp(55 + CountEvidence(client, "tool") * 5);
-        var governance = Clamp(45 + CountEvidence(client, "governance") * 10 - openCriticalOrHighGaps * 5);
-        var overall = (int)Math.Round(0.20 * business + 0.25 * data + 0.20 * process + 0.15 * technology + 0.20 * governance);
-
-        var score = new ReadinessScore
-        {
-            ClientCompanyId = clientId,
-            BusinessClarityScore = business,
-            DataReadinessScore = data,
-            ProcessReadinessScore = process,
-            TechnologyReadinessScore = technology,
-            PeopleGovernanceScore = governance,
-            OverallScore = overall,
-            ScoreCategory = GetScoreCategory(overall),
-            ScoringSummary = "MVP score generated from assessment completeness, evidence signals, and unresolved high-severity gaps.",
-            CreatedAt = DateTime.UtcNow
-        };
-
-        context.ReadinessScores.Add(score);
-        client.OverallReadinessScore = overall;
-        client.NextAction = "Review readiness score rationale";
-        Touch(client);
-        await AddAnalysisOutputAsync(client, AnalysisType.RiskAnalysis, "Readiness score rationale", score.ScoringSummary);
-        await context.SaveChangesAsync();
-        await LogAsync(clientId, "Readiness score generated", $"Overall score generated: {overall} ({score.ScoreCategory}).");
-    }
-
-    public async Task GenerateRoadmapAsync(int clientId)
-    {
-        var client = await LoadClientAsync(clientId);
-        var useCases = await context.AIUseCases
-            .Include(useCase => useCase.Score)
-            .Where(useCase => useCase.ClientCompanyId == clientId)
-            .OrderByDescending(useCase => useCase.Score == null ? 0 : useCase.Score.PriorityScore)
-            .Take(4)
-            .ToListAsync();
-
-        if (!useCases.Any())
-        {
-            await GenerateUseCasesAsync(clientId);
-            useCases = await context.AIUseCases
-                .Include(useCase => useCase.Score)
-                .Where(useCase => useCase.ClientCompanyId == clientId)
-                .Take(4)
-                .ToListAsync();
-        }
-
-        var phases = new[] { RoadmapPhase.ZeroToThreeMonths, RoadmapPhase.ThreeToSixMonths, RoadmapPhase.SixToTwelveMonths, RoadmapPhase.TwelvePlusMonths };
-        for (var i = 0; i < useCases.Count; i++)
-        {
-            var useCase = useCases[i];
-            context.AIRoadmapItems.Add(new AIRoadmapItem
-            {
-                ClientCompanyId = clientId,
-                Phase = phases[Math.Min(i, phases.Length - 1)],
-                Title = useCase.Title,
-                Description = $"Plan and deliver a controlled pilot for {useCase.Title}.",
-                RelatedUseCaseId = useCase.Id,
-                Owner = useCase.Department,
-                ExpectedOutcome = useCase.ExpectedBenefit,
-                Dependencies = "Approved data access, use-case owner, success metric, and risk review.",
-                Status = ApprovalStatus.Draft,
-                CreatedAt = DateTime.UtcNow
-            });
-        }
-
-        await AddAnalysisOutputAsync(client, AnalysisType.Roadmap, "Roadmap draft", "Roadmap generated from top use cases and known readiness gaps.");
-        await context.SaveChangesAsync();
-        await LogAsync(clientId, "Roadmap generated", "Roadmap draft generated from use case priorities.");
-    }
-
-    public async Task GenerateReportDraftAsync(int clientId)
-    {
-        var client = await LoadClientAsync(clientId);
-        var version = await context.ClientReports
-            .Where(report => report.ClientCompanyId == clientId)
-            .Select(report => (int?)report.VersionNumber)
-            .MaxAsync() ?? 0;
-
-        var latestScore = client.ReadinessScores.OrderByDescending(score => score.CreatedAt).FirstOrDefault();
-        var report = new ClientReport
-        {
-            ClientCompanyId = clientId,
-            ReportTitle = $"{client.CompanyName} AI Readiness Report",
-            ReportStatus = ReportStatus.DraftGenerated,
-            VersionNumber = version + 1,
-            GeneratedAt = DateTime.UtcNow,
-            CreatedAt = DateTime.UtcNow,
-            FinalReportContent = $"Draft report for {client.CompanyName}. Overall score: {latestScore?.OverallScore.ToString() ?? "not generated"}."
-        };
-
-        for (var i = 0; i < ReportSections.Length; i++)
-        {
-            report.Sections.Add(new ReportSection
-            {
-                SectionTitle = ReportSections[i],
-                SectionOrder = i + 1,
-                SectionContent = BuildReportSectionDraft(client, ReportSections[i], latestScore),
-                SectionStatus = SectionStatus.DraftGenerated,
-                CreatedAt = DateTime.UtcNow
-            });
-        }
-
-        context.ClientReports.Add(report);
-        client.CurrentStage = ClientStage.ReportDraft;
-        client.NextAction = "Review and approve report sections";
-        Touch(client);
-        await AddAnalysisOutputAsync(client, AnalysisType.FinalReportSection, "Report draft generated", "A full report draft with editable sections has been generated.");
-        await context.SaveChangesAsync();
-        await MarkWorkflowAsync(clientId, "Report Draft Generated", WorkflowStepStatus.Completed);
-        await LogAsync(clientId, "Report draft generated", $"Report version {report.VersionNumber} generated.");
-    }
-
-    private async Task<ClientCompany> LoadClientAsync(int clientId)
-    {
-        return await context.ClientCompanies
-            .Include(client => client.WorkflowSteps)
-            .Include(client => client.ReadinessAssessments)
-                .ThenInclude(assessment => assessment.Answers)
-            .Include(client => client.ReadinessAssessments)
-                .ThenInclude(assessment => assessment.Responses)
-                    .ThenInclude(response => response.Answers)
-            .Include(client => client.Documents)
-            .Include(client => client.Notes)
-            .Include(client => client.MeetingTranscripts)
-            .Include(client => client.GapAnalysisItems)
-            .Include(client => client.SwotItems)
-            .Include(client => client.IndustryInsights)
-            .Include(client => client.CompetitorInsights)
-            .Include(client => client.UseCases)
-                .ThenInclude(useCase => useCase.Score)
-            .Include(client => client.ReadinessScores)
-            .Include(client => client.RoadmapItems)
-            .Include(client => client.Reports)
-                .ThenInclude(report => report.Sections)
-            .FirstAsync(client => client.Id == clientId);
-    }
-
-    private async Task AddAnalysisOutputAsync(ClientCompany client, AnalysisType type, string title, string content)
+    private async Task AddAnalysisOutputAsync(int clientId, AnalysisType type, string title, string content, string inputSummary)
     {
         var version = await context.AIAnalysisOutputs
-            .Where(output => output.ClientCompanyId == client.Id && output.AnalysisType == type)
+            .Where(output => output.ClientCompanyId == clientId && output.AnalysisType == type)
             .Select(output => (int?)output.VersionNumber)
             .MaxAsync() ?? 0;
 
         context.AIAnalysisOutputs.Add(new AIAnalysisOutput
         {
-            ClientCompanyId = client.Id,
+            ClientCompanyId = clientId,
             AnalysisType = type,
             Title = title,
-            InputSummary = BuildInputSummary(client),
+            InputSummary = inputSummary,
             OutputContent = content,
             Status = DraftStatus.DraftGenerated,
             VersionNumber = version + 1,
@@ -405,47 +725,101 @@ public class MockAIConsultingAnalysisService(ApplicationDbContext context) : IAI
         });
     }
 
-    private static string BuildInputSummary(ClientCompany client)
+    private static string BuildInputSummary(
+        ClientAnalysisProfile profile,
+        AssessmentResponseEvidence? evidence = null,
+        int gapCount = 0,
+        int useCaseCount = 0,
+        int roadmapCount = 0,
+        ReadinessScore? latestScore = null)
     {
-        var latestResponse = GetLatestEvidenceResponse(client);
-        var assessmentCount = latestResponse?.Answers.Count ?? 0;
-        var responseLabel = latestResponse?.ResponseLabel ?? "no selected response";
-        return $"{client.CompanyName}; {client.Industry ?? "industry not set"}; {assessmentCount} assessment answers from {responseLabel}; {client.Documents.Count} documents; {client.Notes.Count} notes; {client.GapAnalysisItems.Count} gaps.";
+        var responseText = evidence is null
+            ? "no selected response"
+            : $"{evidence.AnswerCount} answers from {evidence.ResponseLabel}";
+        var scoreText = latestScore is null ? "no readiness score" : $"score {latestScore.OverallScore}";
+        return $"{profile.CompanyName}; {profile.Industry ?? "industry not set"}; {responseText}; {scoreText}; {gapCount} gaps; {useCaseCount} use cases; {roadmapCount} roadmap items.";
     }
 
-    private static string BuildEvidenceText(ClientCompany client)
+    private static string BuildEvidenceText(ClientAnalysisProfile profile, AssessmentResponseEvidence evidence)
     {
-        // MVP default: generated analyses use the latest non-ignored assessment response
-        // that has answers, so repeat submissions are not merged into one evidence set.
-        var latestResponse = GetLatestEvidenceResponse(client);
         var values = new List<string?>
         {
-            client.CompanyName,
-            client.Industry,
-            client.BusinessModel,
-            client.KeyRisksSummary,
-            client.NextAction
+            profile.CompanyName,
+            profile.Industry,
+            profile.BusinessModel,
+            profile.KeyRisksSummary,
+            profile.NextAction
         };
-        values.AddRange(latestResponse?.Answers.Select(answer => $"{answer.QuestionText} {answer.AnswerText} {answer.SectionName}") ?? []);
-        values.AddRange(client.Documents.Select(document => $"{document.Description} {document.AiSummary} {document.KeyInsights}"));
-        values.AddRange(client.Notes.Select(note => $"{note.NoteTitle} {note.NoteText}"));
-        values.AddRange(client.MeetingTranscripts.Select(transcript => $"{transcript.TranscriptText} {transcript.Summary} {transcript.KeyDecisions} {transcript.FollowUpQuestions}"));
+        values.AddRange(evidence.Answers.Select(answer => $"{answer.QuestionText} {answer.AnswerText} {answer.SectionName}"));
         return string.Join(" ", values.Where(value => !string.IsNullOrWhiteSpace(value))).ToLowerInvariant();
     }
 
-    private static AssessmentResponse? GetLatestEvidenceResponse(ClientCompany client)
+    private static ReadinessScoreCalculation CalculateReadinessScore(ClientAnalysisProfile profile, IReadOnlyList<AssessmentAnswerEvidence> answers)
     {
-        return client.ReadinessAssessments
-            .SelectMany(assessment => assessment.Responses)
-            .Where(response => response.Status != AssessmentResponseStatus.Ignored && response.Answers.Any())
-            .OrderByDescending(response => response.ReceivedAt)
-            .ThenByDescending(response => response.ResponseNumber)
-            .FirstOrDefault();
+        var business = CalculateCategoryScore(profile, answers, ["strategy", "objective", "business model", "revenue", "differentiator", "goal", "pain point"]);
+        var data = CalculateCategoryScore(profile, answers, ["data", "quality", "system", "reporting", "integration", "crm", "warehouse", "source"]);
+        var technology = CalculateCategoryScore(profile, answers, ["tool", "cloud", "saas", "automation", "technical", "integration", "platform", "software"]);
+        var process = CalculateCategoryScore(profile, answers, ["process", "workflow", "standard", "repeat", "operation", "bottleneck", "manual", "handoff"]);
+        var governance = CalculateCategoryScore(profile, answers, ["skill", "owner", "leadership", "risk", "compliance", "governance", "policy", "change", "training"]);
+        var overall = (int)Math.Round((business + data + technology + process + governance) / 5.0);
+        var category = GetScoreCategory(overall);
+
+        var categoryScores = new Dictionary<string, int>
+        {
+            ["Business clarity"] = business,
+            ["Data readiness"] = data,
+            ["Technology readiness"] = technology,
+            ["Process readiness"] = process,
+            ["People and governance"] = governance
+        };
+        var strongest = categoryScores.OrderByDescending(item => item.Value).First();
+        var weakest = categoryScores.OrderBy(item => item.Value).First();
+        var missingAnswers = answers.Count(answer => IsMissing(answer));
+
+        var summary = $"{category} readiness based on {answers.Count} answers from the latest assessment response. Strongest area: {strongest.Key} ({strongest.Value}/100). Needs attention: {weakest.Key} ({weakest.Value}/100). {missingAnswers} missing or weak answer{(missingAnswers == 1 ? "" : "s")} reduced the score.";
+
+        return new ReadinessScoreCalculation(business, data, technology, process, governance, overall, category, summary);
     }
 
-    private static int CountEvidence(ClientCompany client, string keyword)
+    private static int CalculateCategoryScore(ClientAnalysisProfile profile, IReadOnlyList<AssessmentAnswerEvidence> answers, string[] keywords)
     {
-        return BuildEvidenceText(client).Split(keyword, StringSplitOptions.RemoveEmptyEntries).Length - 1;
+        var relevantAnswers = answers
+            .Where(answer => ContainsAny($"{answer.SectionName} {answer.QuestionText} {answer.AnswerText}", keywords))
+            .ToList();
+
+        if (relevantAnswers.Count == 0)
+        {
+            relevantAnswers = answers.ToList();
+        }
+
+        if (relevantAnswers.Count == 0)
+        {
+            return 25;
+        }
+
+        var completeAnswers = relevantAnswers.Count(answer => !IsMissing(answer));
+        var detailedAnswers = relevantAnswers.Count(answer => (answer.AnswerText?.Trim().Length ?? 0) >= 80);
+        var strongSignals = relevantAnswers.Count(answer => ContainsAny(answer.AnswerText ?? string.Empty, ["clear", "defined", "owner", "available", "documented", "measured", "standard", "approved", "cloud", "integrated"]));
+        var weakSignals = relevantAnswers.Count(answer => ContainsAny(answer.AnswerText ?? string.Empty, ["unknown", "none", "missing", "not sure", "unclear", "manual", "ad hoc", "spreadsheet"]));
+
+        var completenessScore = (double)completeAnswers / relevantAnswers.Count * 45;
+        var detailScore = (double)detailedAnswers / relevantAnswers.Count * 20;
+        var signalScore = Math.Min(strongSignals * 4, 15);
+        var weakPenalty = Math.Min(weakSignals * 5, 20);
+        var profileBoost = string.IsNullOrWhiteSpace(profile.BusinessModel) ? 0 : 5;
+
+        return Clamp((int)Math.Round(25 + completenessScore + detailScore + signalScore + profileBoost - weakPenalty));
+    }
+
+    private static bool IsMissing(AssessmentAnswerEvidence answer)
+    {
+        return string.IsNullOrWhiteSpace(answer.AnswerText) ||
+            answer.CompletenessStatus == CompletenessStatus.Missing;
+    }
+
+    private static bool ContainsAny(string text, IEnumerable<string> keywords)
+    {
+        return keywords.Any(keyword => text.Contains(keyword, StringComparison.OrdinalIgnoreCase));
     }
 
     private static void AddGapIfMissing(List<GapAnalysisItem> gaps, int clientId, string evidenceText, string[] keywords, GapArea area, string issue, string impact, string question, string action)
@@ -469,11 +843,11 @@ public class MockAIConsultingAnalysisService(ApplicationDbContext context) : IAI
         });
     }
 
-    private static string BuildGapOutput(ClientCompany client, IReadOnlyCollection<GapAnalysisItem> gaps)
+    private static string BuildGapOutput(ClientAnalysisProfile profile, IReadOnlyCollection<GapAnalysisItem> gaps)
     {
         if (gaps.Count == 0)
         {
-            return $"No new rule-based gaps were detected for {client.CompanyName}. Consultant should still review completeness manually.";
+            return $"No new rule-based gaps were detected for {profile.CompanyName}. Consultant should still review completeness manually.";
         }
 
         return string.Join(Environment.NewLine, gaps.Select(gap => $"- {gap.GapArea}: {gap.IssueDescription} Suggested action: {gap.SuggestedAction}"));
@@ -501,25 +875,31 @@ public class MockAIConsultingAnalysisService(ApplicationDbContext context) : IAI
     {
         return score switch
         {
-            <= 30 => ScoreCategory.AiBeginner,
-            <= 60 => ScoreCategory.ExplorationReady,
-            <= 80 => ScoreCategory.PilotReady,
+            <= 39 => ScoreCategory.AiBeginner,
+            <= 69 => ScoreCategory.ExplorationReady,
+            <= 84 => ScoreCategory.PilotReady,
             _ => ScoreCategory.ImplementationReady
         };
     }
 
-    private static string BuildReportSectionDraft(ClientCompany client, string sectionTitle, ReadinessScore? latestScore)
+    private static string BuildReportSectionDraft(ReportDraftContext context, string sectionTitle)
     {
         return sectionTitle switch
         {
-            "Executive Summary" => $"{client.CompanyName} shows {latestScore?.ScoreCategory.ToString() ?? "an unscored readiness profile"} with practical opportunities that should be validated by the consultant.",
-            "AI Readiness Score" => latestScore is null ? "Readiness score has not been generated yet." : $"Overall score: {latestScore.OverallScore}/100. {latestScore.ScoringSummary}",
-            "Gap Analysis" => client.GapAnalysisItems.Any() ? string.Join(Environment.NewLine, client.GapAnalysisItems.Take(5).Select(gap => $"- {gap.GapArea}: {gap.IssueDescription}")) : "No gap analysis items available yet.",
-            "SWOT Analysis" => client.SwotItems.Any() ? string.Join(Environment.NewLine, client.SwotItems.Take(8).Select(item => $"- {item.Category}: {item.Description}")) : "No SWOT draft available yet.",
-            "Recommended AI Use Cases" => client.UseCases.Any() ? string.Join(Environment.NewLine, client.UseCases.Take(5).Select(useCase => $"- {useCase.Title}: {useCase.Description}")) : "No AI use cases have been generated yet.",
-            "Use Case Scoring" => client.UseCases.Any(useCase => useCase.Score is not null) ? string.Join(Environment.NewLine, client.UseCases.Where(useCase => useCase.Score is not null).Take(5).Select(useCase => $"- {useCase.Title}: {useCase.Score!.PriorityScore}/5")) : "Use cases are not scored yet.",
-            "1-Year Roadmap" => client.RoadmapItems.Any() ? string.Join(Environment.NewLine, client.RoadmapItems.Take(5).Select(item => $"- {item.Phase}: {item.Title}")) : "Roadmap has not been generated yet.",
-            _ => $"Draft {sectionTitle.ToLowerInvariant()} content for {client.CompanyName}. Consultant review required before approval."
+            "Executive Summary" => $"{context.Profile.CompanyName} shows {context.LatestScore?.ScoreCategory.ToString() ?? "an unscored readiness profile"} with practical opportunities that should be validated by the consultant.",
+            "Company Context" => $"{context.Profile.CompanyName} operates in {context.Profile.Industry ?? "an unspecified industry"} with a {context.Profile.BusinessModel ?? "business model still to be clarified"}.",
+            "AI Readiness Score" => context.LatestScore is null ? "Readiness score has not been generated yet." : $"Overall score: {context.LatestScore.OverallScore}/100. {context.LatestScore.ScoringSummary}",
+            "Current State" => $"{context.Evidence.ResponseLabel} contains {context.Evidence.AnswerCount} assessment answers collected on {context.Evidence.ReceivedAt:yyyy-MM-dd}.",
+            "Gap Analysis" => context.Gaps.Count > 0 ? string.Join(Environment.NewLine, context.Gaps.Take(5).Select(gap => $"- {gap.GapArea}: {gap.IssueDescription}")) : "No gap analysis items available yet.",
+            "SWOT Analysis" => context.SwotItems.Count > 0 ? string.Join(Environment.NewLine, context.SwotItems.Take(8).Select(item => $"- {item.Category}: {item.Description}")) : "No SWOT draft available yet.",
+            "Industry Trends" => context.IndustryInsights.Count > 0 ? string.Join(Environment.NewLine, context.IndustryInsights.Select(item => $"- {item.Topic}: {item.InsightText}")) : "No industry insight draft available yet.",
+            "Competitor Insights" => context.CompetitorInsights.Count > 0 ? string.Join(Environment.NewLine, context.CompetitorInsights.Select(item => $"- {item.CompetitorName}: {item.InsightText}")) : "No competitor insight draft available yet.",
+            "Recommended AI Use Cases" => context.UseCases.Count > 0 ? string.Join(Environment.NewLine, context.UseCases.Take(5).Select(useCase => $"- {useCase.Title}: {useCase.Description}")) : "No AI use cases have been generated yet.",
+            "Use Case Scoring" => context.UseCases.Any(useCase => useCase.PriorityScore is not null) ? string.Join(Environment.NewLine, context.UseCases.Where(useCase => useCase.PriorityScore is not null).Take(5).Select(useCase => $"- {useCase.Title}: {useCase.PriorityScore}/5")) : "Use cases are not scored yet.",
+            "1-Year Roadmap" => context.RoadmapItems.Count > 0 ? string.Join(Environment.NewLine, context.RoadmapItems.Take(5).Select(item => $"- {item.Phase}: {item.Title}")) : "Roadmap has not been generated yet.",
+            "Risks and Mitigation" => context.Gaps.Any(gap => gap.Severity is Severity.High or Severity.Critical) ? "Prioritize high-severity readiness gaps before client-facing or regulated AI pilots." : "No high-severity gaps have been captured yet; consultant review still required.",
+            "Recommended Next Steps" => context.Profile.NextAction ?? "Confirm readiness score, shortlist use cases, and validate roadmap owners.",
+            _ => $"Draft {sectionTitle.ToLowerInvariant()} content for {context.Profile.CompanyName}. Consultant review required before approval."
         };
     }
 
@@ -537,10 +917,9 @@ public class MockAIConsultingAnalysisService(ApplicationDbContext context) : IAI
 
         step.Status = status;
         step.CompletedAt = status == WorkflowStepStatus.Completed ? DateTime.UtcNow : step.CompletedAt;
-        await context.SaveChangesAsync();
     }
 
-    private async Task LogAsync(int clientId, string activityType, string description)
+    private void AddActivityLog(int clientId, string activityType, string description)
     {
         context.ClientActivityLogs.Add(new ClientActivityLog
         {
@@ -550,7 +929,37 @@ public class MockAIConsultingAnalysisService(ApplicationDbContext context) : IAI
             CreatedAt = DateTime.UtcNow,
             CreatedBy = "System"
         });
+    }
+
+    private async Task<long> SaveChangesWithTimingAsync()
+    {
+        var stopwatch = Stopwatch.StartNew();
         await context.SaveChangesAsync();
+        return stopwatch.ElapsedMilliseconds;
+    }
+
+    private void LogOperationCompleted(
+        int clientId,
+        string operation,
+        long loadMs,
+        long generateMs,
+        long saveMs,
+        long totalMs,
+        int recordsCreated,
+        int recordsUpdated = 0,
+        int? score = null)
+    {
+        logger.LogInformation(
+            "Analysis operation completed. ClientCompanyId: {ClientCompanyId}; Operation: {Operation}; LoadContextMs: {LoadContextMs}; GenerateMs: {GenerateMs}; SaveMs: {SaveMs}; TotalMs: {TotalMs}; RecordsCreated: {RecordsCreated}; RecordsUpdated: {RecordsUpdated}; Score: {Score}",
+            clientId,
+            operation,
+            loadMs,
+            generateMs,
+            saveMs,
+            totalMs,
+            recordsCreated,
+            recordsUpdated,
+            score);
     }
 
     private static void Touch(ClientCompany client)
@@ -558,4 +967,75 @@ public class MockAIConsultingAnalysisService(ApplicationDbContext context) : IAI
         client.LastModifiedAt = DateTime.UtcNow;
         client.LastModifiedBy = "System";
     }
+
+    private sealed record ClientAnalysisProfile(
+        int Id,
+        string CompanyName,
+        string? Industry,
+        string? WebsiteUrl,
+        string? Country,
+        string? Region,
+        string? CompanySizeRange,
+        string? RevenueRange,
+        string? BusinessModel,
+        string? KeyRisksSummary,
+        string? NextAction,
+        ClientStage CurrentStage,
+        decimal? OverallReadinessScore);
+
+    private sealed class AssessmentResponseEvidence
+    {
+        public int Id { get; init; }
+        public int ReadinessAssessmentId { get; init; }
+        public int ResponseNumber { get; init; }
+        public string ResponseLabel { get; init; } = string.Empty;
+        public AssessmentResponseSource Source { get; init; }
+        public DateTime ReceivedAt { get; init; }
+        public int AnswerCount { get; init; }
+        public AssessmentResponseStatus Status { get; init; }
+        public IReadOnlyList<AssessmentAnswerEvidence> Answers { get; set; } = [];
+    }
+
+    private sealed record AssessmentAnswerEvidence(
+        string SectionName,
+        string QuestionText,
+        string? AnswerText,
+        string? AnswerType,
+        CompletenessStatus CompletenessStatus);
+
+    private sealed record ReadinessScoreCalculation(
+        int BusinessClarityScore,
+        int DataReadinessScore,
+        int TechnologyReadinessScore,
+        int ProcessReadinessScore,
+        int PeopleGovernanceScore,
+        int OverallScore,
+        ScoreCategory ScoreCategory,
+        string ScoringSummary);
+
+    private sealed record UseCaseSummary(
+        int Id,
+        string Title,
+        string Description,
+        string? Department,
+        string? ExpectedBenefit,
+        string? RequiredData,
+        decimal? PriorityScore);
+
+    private sealed record GapSummary(GapArea GapArea, string IssueDescription, Severity Severity, GapStatus Status);
+    private sealed record SwotSummary(SwotCategory Category, string Description);
+    private sealed record IndustrySummary(string Topic, string InsightText);
+    private sealed record CompetitorSummary(string CompetitorName, string InsightText, string? AiUseCasesObserved);
+    private sealed record RoadmapSummary(RoadmapPhase Phase, string Title, string? ExpectedOutcome);
+
+    private sealed record ReportDraftContext(
+        ClientAnalysisProfile Profile,
+        AssessmentResponseEvidence Evidence,
+        ReadinessScore? LatestScore,
+        IReadOnlyList<GapSummary> Gaps,
+        IReadOnlyList<SwotSummary> SwotItems,
+        IReadOnlyList<IndustrySummary> IndustryInsights,
+        IReadOnlyList<CompetitorSummary> CompetitorInsights,
+        IReadOnlyList<UseCaseSummary> UseCases,
+        IReadOnlyList<RoadmapSummary> RoadmapItems);
 }

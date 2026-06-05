@@ -3,6 +3,7 @@
     var client = Model.Client;
     var assessment = Model.LatestAssessment;
     var latestResponse = Model.LatestAssessmentResponse;
+    var latestScore = Model.LatestScore;
     var latestReportStatus = Model.LatestReport?.ReportStatus ?? ReportStatus.NotStarted;
 }
 
@@ -25,7 +26,6 @@
                     <button class="btn btn-primary btn-sm" name="operation" value="gap-analysis">Gap Analysis</button>
                     <button class="btn btn-primary btn-sm" name="operation" value="swot">SWOT</button>
                     <button class="btn btn-primary btn-sm" name="operation" value="use-cases">Use Cases</button>
-                    <button class="btn btn-primary btn-sm" name="operation" value="readiness-score">Score</button>
                     <button class="btn btn-primary btn-sm" name="operation" value="roadmap">Roadmap</button>
                 </div>
             </div>
@@ -70,6 +70,44 @@
         </section>
     </div>
 </div>
+
+<section class="panel mb-3">
+    <div class="panel-header">
+        <h3 class="panel-title">Readiness score</h3>
+        @if (latestScore is not null)
+        {
+            <span class="status-badge @latestScore.ScoreCategory.ToBadgeClass()">@latestScore.ScoreCategory.ToDisplayName()</span>
+        }
+        else
+        {
+            <span class="status-badge status-neutral">Not calculated</span>
+        }
+    </div>
+    <div class="detail-grid">
+        <div>
+            <div class="field-label">Overall score</div>
+            <div class="score-number">@(latestScore?.OverallScore.ToString() ?? client.OverallReadinessScore?.ToString("0.##") ?? "-")</div>
+        </div>
+        <div>
+            <div class="field-label">Last calculated</div>
+            <div>@(latestScore?.CreatedAt.ToString("yyyy-MM-dd HH:mm") ?? "Not calculated yet")</div>
+        </div>
+        <div>
+            <div class="field-label">Latest response</div>
+            <div>@(latestResponse is null ? "No assessment response" : $"{latestResponse.ResponseLabel} · {latestResponse.AnswerCount} answers")</div>
+        </div>
+        <div>
+            <form asp-controller="Analysis" asp-action="CalculateReadinessScore" method="post">
+                <input type="hidden" name="clientId" value="@client.Id" />
+                <button class="btn btn-primary btn-sm" type="submit">@(latestScore is null ? "Calculate Readiness Score" : "Recalculate Readiness Score")</button>
+            </form>
+        </div>
+    </div>
+    @if (!string.IsNullOrWhiteSpace(latestScore?.ScoringSummary))
+    {
+        <p class="mb-0 mt-3">@latestScore.ScoringSummary</p>
+    }
+</section>
 
 <div class="metric-grid">
     <div class="metric-card"><div class="metric-value" data-workspace-count="assessmentResponseCount">@Model.AssessmentResponseCount</div><div class="metric-label">Assessment responses</div></div>
