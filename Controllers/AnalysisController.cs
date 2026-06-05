@@ -112,7 +112,7 @@ public class AnalysisController(
 
     private RedirectToActionResult RedirectToWorkspace(int clientId)
     {
-        return RedirectToAction("Workspace", "Clients", new { id = clientId });
+        return RedirectToAction("Workspace", "Clients", this.ToWorkspaceRouteValues(clientId));
     }
 
     private async Task<bool> RunAnalysisOperationAsync(int clientId, string operation, string operationName)

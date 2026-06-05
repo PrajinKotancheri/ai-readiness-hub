@@ -51,6 +51,6 @@ public class RoadmapController(ApplicationDbContext context) : Controller
 
     private RedirectToActionResult RedirectToWorkspace(int clientId)
     {
-        return RedirectToAction("Workspace", "Clients", new { id = clientId });
+        return RedirectToAction("Workspace", "Clients", this.ToWorkspaceRouteValues(clientId));
     }
 }

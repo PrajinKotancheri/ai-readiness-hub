@@ -119,38 +119,44 @@
     </div>
 </section>
 
-<section class="panel tabs-shell" data-workspace-tabs data-workspace-counts-url="@Url.Action("WorkspaceCounts", "Clients", new { id = client.Id })">
+<section class="panel tabs-shell"
+         data-workspace-tabs
+         data-workspace-client-id="@client.Id"
+         data-workspace-active-tab="@Model.ActiveWorkspaceTabKey"
+         data-workspace-scroll-y="@Model.ReturnScrollY"
+         data-workspace-selected-response-id="@Model.RequestedResponseId"
+         data-workspace-counts-url="@Url.Action("WorkspaceCounts", "Clients", new { id = client.Id })">
     <ul class="nav nav-tabs workflow-tabs" id="workspaceTabs" role="tablist">
-        <li class="nav-item" role="presentation"><button class="@NavClass("overview")" data-bs-toggle="tab" data-bs-target="#overview" type="button">Overview</button></li>
-        <li class="nav-item" role="presentation"><button class="@NavClass("assessment")" data-bs-toggle="tab" data-bs-target="#assessment" data-workspace-tab-url="@TabUrl("AssessmentAnswers")" data-loading-label="Loading assessment answers..." type="button">Assessment Answers</button></li>
-        <li class="nav-item" role="presentation"><button class="@NavClass("documents")" data-bs-toggle="tab" data-bs-target="#documents" data-workspace-tab-url="@TabUrl("Documents")" data-loading-label="Loading documents..." type="button">Documents</button></li>
-        <li class="nav-item" role="presentation"><button class="@NavClass("notes")" data-bs-toggle="tab" data-bs-target="#notes" data-workspace-tab-url="@TabUrl("NotesTranscripts")" data-loading-label="Loading notes and transcripts..." type="button">Notes & Transcripts</button></li>
-        <li class="nav-item" role="presentation"><button class="@NavClass("analysis")" data-bs-toggle="tab" data-bs-target="#analysis" data-workspace-tab-url="@TabUrl("AIDrafts")" data-loading-label="Loading AI drafts..." type="button">AI Drafts</button></li>
-        <li class="nav-item" role="presentation"><button class="@NavClass("gap")" data-bs-toggle="tab" data-bs-target="#gap" data-workspace-tab-url="@TabUrl("GapAnalysis")" data-loading-label="Loading gap analysis..." type="button">Gap Analysis</button></li>
-        <li class="nav-item" role="presentation"><button class="@NavClass("swot")" data-bs-toggle="tab" data-bs-target="#swot" data-workspace-tab-url="@TabUrl("SWOT")" data-loading-label="Loading SWOT..." type="button">SWOT</button></li>
-        <li class="nav-item" role="presentation"><button class="@NavClass("insights")" data-bs-toggle="tab" data-bs-target="#insights" data-workspace-tab-url="@TabUrl("IndustryCompetitors")" data-loading-label="Loading industry and competitors..." type="button">Industry & Competitors</button></li>
-        <li class="nav-item" role="presentation"><button class="@NavClass("usecases")" data-bs-toggle="tab" data-bs-target="#usecases" data-workspace-tab-url="@TabUrl("UseCasesScoring")" data-loading-label="Loading use cases..." type="button">Use Cases & Scoring</button></li>
-        <li class="nav-item" role="presentation"><button class="@NavClass("roadmap")" data-bs-toggle="tab" data-bs-target="#roadmap" data-workspace-tab-url="@TabUrl("Roadmap")" data-loading-label="Loading roadmap..." type="button">Roadmap</button></li>
-        <li class="nav-item" role="presentation"><button class="@NavClass("reports")" data-bs-toggle="tab" data-bs-target="#reports" data-workspace-tab-url="@TabUrl("Reports")" data-loading-label="Loading reports..." type="button">Reports</button></li>
-        <li class="nav-item" role="presentation"><button class="@NavClass("tasks")" data-bs-toggle="tab" data-bs-target="#tasks" data-workspace-tab-url="@TabUrl("Tasks")" data-loading-label="Loading tasks..." type="button">Tasks / Follow-ups</button></li>
-        <li class="nav-item" role="presentation"><button class="@NavClass("activity")" data-bs-toggle="tab" data-bs-target="#activity" data-workspace-tab-url="@TabUrl("ActivityLog")" data-loading-label="Loading activity log..." type="button">Activity Log</button></li>
+        <li class="nav-item" role="presentation"><button class="@NavClass("overview")" data-bs-toggle="tab" data-bs-target="#overview" data-workspace-tab-key="overview" type="button">Overview</button></li>
+        <li class="nav-item" role="presentation"><button class="@NavClass("assessment")" data-bs-toggle="tab" data-bs-target="#assessment" data-workspace-tab-key="assessment-answers" data-workspace-tab-url="@TabUrl("AssessmentAnswers")" data-loading-label="Loading assessment answers..." type="button">Assessment Answers</button></li>
+        <li class="nav-item" role="presentation"><button class="@NavClass("documents")" data-bs-toggle="tab" data-bs-target="#documents" data-workspace-tab-key="documents" data-workspace-tab-url="@TabUrl("Documents")" data-loading-label="Loading documents..." type="button">Documents</button></li>
+        <li class="nav-item" role="presentation"><button class="@NavClass("notes")" data-bs-toggle="tab" data-bs-target="#notes" data-workspace-tab-key="notes-transcripts" data-workspace-tab-url="@TabUrl("NotesTranscripts")" data-loading-label="Loading notes and transcripts..." type="button">Notes & Transcripts</button></li>
+        <li class="nav-item" role="presentation"><button class="@NavClass("analysis")" data-bs-toggle="tab" data-bs-target="#analysis" data-workspace-tab-key="ai-drafts" data-workspace-tab-url="@TabUrl("AIDrafts")" data-loading-label="Loading AI drafts..." type="button">AI Drafts</button></li>
+        <li class="nav-item" role="presentation"><button class="@NavClass("gap")" data-bs-toggle="tab" data-bs-target="#gap" data-workspace-tab-key="gap-analysis" data-workspace-tab-url="@TabUrl("GapAnalysis")" data-loading-label="Loading gap analysis..." type="button">Gap Analysis</button></li>
+        <li class="nav-item" role="presentation"><button class="@NavClass("swot")" data-bs-toggle="tab" data-bs-target="#swot" data-workspace-tab-key="swot" data-workspace-tab-url="@TabUrl("SWOT")" data-loading-label="Loading SWOT..." type="button">SWOT</button></li>
+        <li class="nav-item" role="presentation"><button class="@NavClass("insights")" data-bs-toggle="tab" data-bs-target="#insights" data-workspace-tab-key="industry-competitors" data-workspace-tab-url="@TabUrl("IndustryCompetitors")" data-loading-label="Loading industry and competitors..." type="button">Industry & Competitors</button></li>
+        <li class="nav-item" role="presentation"><button class="@NavClass("usecases")" data-bs-toggle="tab" data-bs-target="#usecases" data-workspace-tab-key="use-cases-scoring" data-workspace-tab-url="@TabUrl("UseCasesScoring")" data-loading-label="Loading use cases..." type="button">Use Cases & Scoring</button></li>
+        <li class="nav-item" role="presentation"><button class="@NavClass("roadmap")" data-bs-toggle="tab" data-bs-target="#roadmap" data-workspace-tab-key="roadmap" data-workspace-tab-url="@TabUrl("Roadmap")" data-loading-label="Loading roadmap..." type="button">Roadmap</button></li>
+        <li class="nav-item" role="presentation"><button class="@NavClass("reports")" data-bs-toggle="tab" data-bs-target="#reports" data-workspace-tab-key="reports" data-workspace-tab-url="@TabUrl("Reports")" data-loading-label="Loading reports..." type="button">Reports</button></li>
+        <li class="nav-item" role="presentation"><button class="@NavClass("tasks")" data-bs-toggle="tab" data-bs-target="#tasks" data-workspace-tab-key="tasks" data-workspace-tab-url="@TabUrl("Tasks")" data-loading-label="Loading tasks..." type="button">Tasks / Follow-ups</button></li>
+        <li class="nav-item" role="presentation"><button class="@NavClass("activity")" data-bs-toggle="tab" data-bs-target="#activity" data-workspace-tab-key="activity-log" data-workspace-tab-url="@TabUrl("ActivityLog")" data-loading-label="Loading activity log..." type="button">Activity Log</button></li>
     </ul>
 
     <div class="tab-content pt-3">
-        <div class="@PaneClass("overview")" id="overview">
+        <div class="@PaneClass("overview")" id="overview" data-workspace-tab-key="overview">
             <partial name="WorkspaceTabs/_Overview" model="Model" />
         </div>
-        <div class="@PaneClass("assessment")" id="assessment" data-workspace-tab-panel data-workspace-tab-url="@TabUrl("AssessmentAnswers")" data-loading-label="Loading assessment answers..."></div>
-        <div class="@PaneClass("documents")" id="documents" data-workspace-tab-panel data-workspace-tab-url="@TabUrl("Documents")" data-loading-label="Loading documents..."></div>
-        <div class="@PaneClass("notes")" id="notes" data-workspace-tab-panel data-workspace-tab-url="@TabUrl("NotesTranscripts")" data-loading-label="Loading notes and transcripts..."></div>
-        <div class="@PaneClass("analysis")" id="analysis" data-workspace-tab-panel data-workspace-tab-url="@TabUrl("AIDrafts")" data-loading-label="Loading AI drafts..."></div>
-        <div class="@PaneClass("gap")" id="gap" data-workspace-tab-panel data-workspace-tab-url="@TabUrl("GapAnalysis")" data-loading-label="Loading gap analysis..."></div>
-        <div class="@PaneClass("swot")" id="swot" data-workspace-tab-panel data-workspace-tab-url="@TabUrl("SWOT")" data-loading-label="Loading SWOT..."></div>
-        <div class="@PaneClass("insights")" id="insights" data-workspace-tab-panel data-workspace-tab-url="@TabUrl("IndustryCompetitors")" data-loading-label="Loading industry and competitors..."></div>
-        <div class="@PaneClass("usecases")" id="usecases" data-workspace-tab-panel data-workspace-tab-url="@TabUrl("UseCasesScoring")" data-loading-label="Loading use cases..."></div>
-        <div class="@PaneClass("roadmap")" id="roadmap" data-workspace-tab-panel data-workspace-tab-url="@TabUrl("Roadmap")" data-loading-label="Loading roadmap..."></div>
-        <div class="@PaneClass("reports")" id="reports" data-workspace-tab-panel data-workspace-tab-url="@TabUrl("Reports")" data-loading-label="Loading reports..."></div>
-        <div class="@PaneClass("tasks")" id="tasks" data-workspace-tab-panel data-workspace-tab-url="@TabUrl("Tasks")" data-loading-label="Loading tasks..."></div>
-        <div class="@PaneClass("activity")" id="activity" data-workspace-tab-panel data-workspace-tab-url="@TabUrl("ActivityLog")" data-loading-label="Loading activity log..."></div>
+        <div class="@PaneClass("assessment")" id="assessment" data-workspace-tab-panel data-workspace-tab-key="assessment-answers" data-workspace-tab-url="@TabUrl("AssessmentAnswers")" data-loading-label="Loading assessment answers..."></div>
+        <div class="@PaneClass("documents")" id="documents" data-workspace-tab-panel data-workspace-tab-key="documents" data-workspace-tab-url="@TabUrl("Documents")" data-loading-label="Loading documents..."></div>
+        <div class="@PaneClass("notes")" id="notes" data-workspace-tab-panel data-workspace-tab-key="notes-transcripts" data-workspace-tab-url="@TabUrl("NotesTranscripts")" data-loading-label="Loading notes and transcripts..."></div>
+        <div class="@PaneClass("analysis")" id="analysis" data-workspace-tab-panel data-workspace-tab-key="ai-drafts" data-workspace-tab-url="@TabUrl("AIDrafts")" data-loading-label="Loading AI drafts..."></div>
+        <div class="@PaneClass("gap")" id="gap" data-workspace-tab-panel data-workspace-tab-key="gap-analysis" data-workspace-tab-url="@TabUrl("GapAnalysis")" data-loading-label="Loading gap analysis..."></div>
+        <div class="@PaneClass("swot")" id="swot" data-workspace-tab-panel data-workspace-tab-key="swot" data-workspace-tab-url="@TabUrl("SWOT")" data-loading-label="Loading SWOT..."></div>
+        <div class="@PaneClass("insights")" id="insights" data-workspace-tab-panel data-workspace-tab-key="industry-competitors" data-workspace-tab-url="@TabUrl("IndustryCompetitors")" data-loading-label="Loading industry and competitors..."></div>
+        <div class="@PaneClass("usecases")" id="usecases" data-workspace-tab-panel data-workspace-tab-key="use-cases-scoring" data-workspace-tab-url="@TabUrl("UseCasesScoring")" data-loading-label="Loading use cases..."></div>
+        <div class="@PaneClass("roadmap")" id="roadmap" data-workspace-tab-panel data-workspace-tab-key="roadmap" data-workspace-tab-url="@TabUrl("Roadmap")" data-loading-label="Loading roadmap..."></div>
+        <div class="@PaneClass("reports")" id="reports" data-workspace-tab-panel data-workspace-tab-key="reports" data-workspace-tab-url="@TabUrl("Reports")" data-loading-label="Loading reports..."></div>
+        <div class="@PaneClass("tasks")" id="tasks" data-workspace-tab-panel data-workspace-tab-key="tasks" data-workspace-tab-url="@TabUrl("Tasks")" data-loading-label="Loading tasks..."></div>
+        <div class="@PaneClass("activity")" id="activity" data-workspace-tab-panel data-workspace-tab-key="activity-log" data-workspace-tab-url="@TabUrl("ActivityLog")" data-loading-label="Loading activity log..."></div>
     </div>
 </section>

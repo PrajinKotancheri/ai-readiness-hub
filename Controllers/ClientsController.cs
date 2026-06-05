@@ -216,21 +216,28 @@ public class ClientsController(
     }
 
     [HttpGet("Workspace/{id:int}")]
-    public async Task<IActionResult> Workspace(int id, int? responseId)
+    public async Task<IActionResult> Workspace(
+        int id,
+        int? responseId,
+        string? activeTab,
+        int? selectedResponseId,
+        int? scrollY)
     {
         var totalStopwatch = Stopwatch.StartNew();
+        var requestedResponseId = selectedResponseId ?? responseId;
         try
         {
-            var viewModel = await LoadWorkspaceShellViewModelAsync(id, responseId);
+            var viewModel = await LoadWorkspaceShellViewModelAsync(id, requestedResponseId, activeTab, scrollY);
             if (viewModel is null)
             {
                 return NotFound();
             }
 
             logger.LogInformation(
-                "Client workspace shell loaded. ClientCompanyId: {ClientCompanyId}; ActiveTab: {ActiveTab}; Responses: {ResponseCount}; LatestReportStatus: {LatestReportStatus}; ElapsedMs: {ElapsedMs}; RequestId: {RequestId}",
+                "Client workspace shell loaded. ClientCompanyId: {ClientCompanyId}; ActiveTab: {ActiveTab}; SelectedResponseId: {SelectedResponseId}; Responses: {ResponseCount}; LatestReportStatus: {LatestReportStatus}; ElapsedMs: {ElapsedMs}; RequestId: {RequestId}",
                 id,
-                viewModel.ActiveWorkspaceTab,
+                viewModel.ActiveWorkspaceTabKey,
+                viewModel.RequestedResponseId,
                 viewModel.AssessmentResponseCount,
                 viewModel.LatestReport?.ReportStatus ?? ReportStatus.NotStarted,
                 totalStopwatch.ElapsedMilliseconds,
@@ -242,9 +249,11 @@ public class ClientsController(
         {
             logger.LogError(
                 ex,
-                "Client workspace failed. ClientCompanyId: {ClientCompanyId}; ResponseId: {ResponseId}; ElapsedMs: {ElapsedMs}; RequestId: {RequestId}",
+                "Client workspace failed. ClientCompanyId: {ClientCompanyId}; ActiveTab: {ActiveTab}; ResponseId: {ResponseId}; SelectedResponseId: {SelectedResponseId}; ElapsedMs: {ElapsedMs}; RequestId: {RequestId}",
                 id,
+                activeTab,
                 responseId,
+                selectedResponseId,
                 totalStopwatch.ElapsedMilliseconds,
                 HttpContext.TraceIdentifier);
             throw;
@@ -420,10 +429,16 @@ public class ClientsController(
         }
     }
 
-    private async Task<ClientWorkspaceViewModel?> LoadWorkspaceShellViewModelAsync(int id, int? responseId)
+    private async Task<ClientWorkspaceViewModel?> LoadWorkspaceShellViewModelAsync(
+        int id,
+        int? responseId,
+        string? activeTab = null,
+        int? scrollY = null)
     {
         var stopwatch = Stopwatch.StartNew();
         var stepStopwatch = Stopwatch.StartNew();
+        var activePaneKey = GetWorkspacePaneKey(activeTab, responseId);
+        var activeTabKey = GetWorkspaceCanonicalTabKey(activePaneKey, responseId);
         var client = await LoadClientSummaryAsync(id);
         if (client is null)
         {
@@ -531,8 +546,10 @@ public class ClientsController(
             LatestAssessmentResponse = latestResponse,
             LatestReport = latestReport,
             LatestScore = latestScore,
-            ActiveWorkspaceTab = responseId.HasValue ? "assessment" : "overview",
+            ActiveWorkspaceTab = activePaneKey,
+            ActiveWorkspaceTabKey = activeTabKey,
             RequestedResponseId = responseId,
+            ReturnScrollY = scrollY is >= 0 ? scrollY : null,
             AssessmentResponseCount = assessmentResponseCount,
             DocumentCount = 0,
             NoteCount = 0,
@@ -1277,13 +1294,67 @@ public class ClientsController(
             .FirstOrDefault()?.ReportStatus ?? ReportStatus.NotStarted;
     }
 
-    private static string NormalizeWorkspaceTabKey(string tabKey)
+    private static string NormalizeWorkspaceTabKey(string? tabKey)
     {
+        if (string.IsNullOrWhiteSpace(tabKey))
+        {
+            return "overview";
+        }
+
         return tabKey
+            .Trim()
+            .TrimStart('#')
             .Replace("-", string.Empty, StringComparison.Ordinal)
             .Replace("_", string.Empty, StringComparison.Ordinal)
-            .Trim()
             .ToLowerInvariant();
+    }
+
+    private static string GetWorkspacePaneKey(string? tabKey, int? responseId)
+    {
+        var hasRequestedTab = !string.IsNullOrWhiteSpace(tabKey);
+        var normalizedTab = NormalizeWorkspaceTabKey(tabKey);
+        if (!hasRequestedTab && normalizedTab == "overview" && responseId.HasValue)
+        {
+            normalizedTab = "assessmentanswers";
+        }
+
+        return normalizedTab switch
+        {
+            "overview" => "overview",
+            "assessment" or "assessmentanswers" => "assessment",
+            "documents" => "documents",
+            "notes" or "notestranscripts" => "notes",
+            "analysis" or "aidrafts" => "analysis",
+            "gap" or "gapanalysis" => "gap",
+            "swot" => "swot",
+            "insights" or "industrycompetitors" => "insights",
+            "usecases" or "usecasesscoring" => "usecases",
+            "roadmap" => "roadmap",
+            "reports" => "reports",
+            "tasks" => "tasks",
+            "activity" or "activitylog" => "activity",
+            _ => responseId.HasValue ? "assessment" : "overview"
+        };
+    }
+
+    private static string GetWorkspaceCanonicalTabKey(string? tabKey, int? responseId)
+    {
+        return GetWorkspacePaneKey(tabKey, responseId) switch
+        {
+            "assessment" => "assessment-answers",
+            "documents" => "documents",
+            "notes" => "notes-transcripts",
+            "analysis" => "ai-drafts",
+            "gap" => "gap-analysis",
+            "swot" => "swot",
+            "insights" => "industry-competitors",
+            "usecases" => "use-cases-scoring",
+            "roadmap" => "roadmap",
+            "reports" => "reports",
+            "tasks" => "tasks",
+            "activity" => "activity-log",
+            _ => "overview"
+        };
     }
 
     private static string GetWorkspaceTabTitle(string normalizedTab)

@@ -11,7 +11,9 @@ public class ClientWorkspaceViewModel
     public ReadinessScore? LatestScore { get; set; }
     public AssessmentResponse? LatestAssessmentResponse { get; set; }
     public string ActiveWorkspaceTab { get; set; } = "overview";
+    public string ActiveWorkspaceTabKey { get; set; } = "overview";
     public int? RequestedResponseId { get; set; }
+    public int? ReturnScrollY { get; set; }
     public int AssessmentResponseCount { get; set; }
     public int SelectedAnswerCount { get; set; }
     public int DocumentCount { get; set; }

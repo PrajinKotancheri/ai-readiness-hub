@@ -3,6 +3,322 @@
 
 const workspaceTabCache = new Map();
 const responseDetailCache = new Map();
+let pendingWorkspaceScrollY = null;
+let workspaceScrollRestoreQueued = false;
+
+const workspaceTabAliases = {
+  "": "overview",
+  "overview": "overview",
+  "assessment": "assessment-answers",
+  "assessmentanswers": "assessment-answers",
+  "assessment-answers": "assessment-answers",
+  "documents": "documents",
+  "notes": "notes-transcripts",
+  "notestranscripts": "notes-transcripts",
+  "notes-transcripts": "notes-transcripts",
+  "analysis": "ai-drafts",
+  "aidrafts": "ai-drafts",
+  "ai-drafts": "ai-drafts",
+  "gap": "gap-analysis",
+  "gapanalysis": "gap-analysis",
+  "gap-analysis": "gap-analysis",
+  "swot": "swot",
+  "insights": "industry-competitors",
+  "industrycompetitors": "industry-competitors",
+  "industry-competitors": "industry-competitors",
+  "usecases": "use-cases-scoring",
+  "usecasesscoring": "use-cases-scoring",
+  "use-cases-scoring": "use-cases-scoring",
+  "roadmap": "roadmap",
+  "reports": "reports",
+  "tasks": "tasks",
+  "activity": "activity-log",
+  "activitylog": "activity-log",
+  "activity-log": "activity-log"
+};
+
+function normalizeWorkspaceTabKey(value) {
+  const raw = (value || "")
+    .toString()
+    .trim()
+    .replace(/^#/, "")
+    .toLowerCase();
+  const dashed = raw.replace(/[_\s]+/g, "-");
+  const compact = dashed.replace(/-/g, "");
+  return workspaceTabAliases[dashed] || workspaceTabAliases[compact] || "overview";
+}
+
+function getWorkspaceShell(element = document) {
+  return element?.closest?.("[data-workspace-tabs]") || document.querySelector("[data-workspace-tabs]");
+}
+
+function getWorkspaceStorageKey(shell = getWorkspaceShell()) {
+  const clientId = shell?.getAttribute("data-workspace-client-id") || window.location.pathname;
+  return `ai-readiness-workspace-return:${clientId}`;
+}
+
+function getWorkspaceSessionStorage() {
+  try {
+    return window.sessionStorage;
+  } catch {
+    return null;
+  }
+}
+
+function readPositiveInteger(value) {
+  const parsed = Number.parseInt(value, 10);
+  return Number.isFinite(parsed) && parsed >= 0 ? parsed : null;
+}
+
+function findWorkspaceTabButton(shell, tabKey) {
+  const normalizedTab = normalizeWorkspaceTabKey(tabKey);
+  return Array.from(shell?.querySelectorAll("[data-bs-toggle='tab'][data-workspace-tab-key]") || [])
+    .find((button) => normalizeWorkspaceTabKey(button.getAttribute("data-workspace-tab-key")) === normalizedTab);
+}
+
+function findWorkspaceTabPanel(shell, tabKey) {
+  const normalizedTab = normalizeWorkspaceTabKey(tabKey);
+  return Array.from(shell?.querySelectorAll("[data-workspace-tab-key]") || [])
+    .find((panel) => panel.id && normalizeWorkspaceTabKey(panel.getAttribute("data-workspace-tab-key")) === normalizedTab);
+}
+
+function getCurrentWorkspaceTabKey(shell = getWorkspaceShell()) {
+  const activeButton = shell?.querySelector("[data-bs-toggle='tab'][data-workspace-tab-key].active");
+  if (activeButton) {
+    return normalizeWorkspaceTabKey(activeButton.getAttribute("data-workspace-tab-key"));
+  }
+
+  const activePanel = shell?.querySelector(".tab-pane.active[data-workspace-tab-key], .tab-pane.show[data-workspace-tab-key]");
+  if (activePanel) {
+    return normalizeWorkspaceTabKey(activePanel.getAttribute("data-workspace-tab-key"));
+  }
+
+  return normalizeWorkspaceTabKey(shell?.getAttribute("data-workspace-active-tab"));
+}
+
+function getSelectedWorkspaceResponseId(shell = getWorkspaceShell()) {
+  const selectedRow = shell?.querySelector("[data-assessment-response-row].selected-response-row");
+  const selectedRowId = readPositiveInteger(selectedRow?.getAttribute("data-assessment-response-row"));
+  if (selectedRowId !== null) {
+    return selectedRowId.toString();
+  }
+
+  const selectedButton = shell?.querySelector("[data-response-detail-url].btn-primary[data-response-id]");
+  const selectedButtonId = readPositiveInteger(selectedButton?.getAttribute("data-response-id"));
+  if (selectedButtonId !== null) {
+    return selectedButtonId.toString();
+  }
+
+  const shellValue = readPositiveInteger(shell?.getAttribute("data-workspace-selected-response-id"));
+  return shellValue !== null ? shellValue.toString() : null;
+}
+
+function getWorkspaceReturnContext(shell = getWorkspaceShell()) {
+  const activeTab = getCurrentWorkspaceTabKey(shell);
+  const context = {
+    activeTab,
+    scrollY: Math.max(0, Math.round(window.scrollY || 0))
+  };
+
+  if (activeTab === "assessment-answers") {
+    const selectedResponseId = getSelectedWorkspaceResponseId(shell);
+    if (selectedResponseId) {
+      context.selectedResponseId = selectedResponseId;
+    }
+  }
+
+  return context;
+}
+
+function saveWorkspaceReturnContext(shell, context) {
+  const storage = getWorkspaceSessionStorage();
+  if (!shell || !storage) {
+    return;
+  }
+
+  try {
+    storage.setItem(getWorkspaceStorageKey(shell), JSON.stringify(context));
+  } catch {
+    // Non-critical: hidden form fields still carry the return context.
+  }
+}
+
+function consumeStoredWorkspaceReturnContext(shell) {
+  const storage = getWorkspaceSessionStorage();
+  if (!shell || !storage) {
+    return null;
+  }
+
+  const key = getWorkspaceStorageKey(shell);
+  try {
+    const raw = storage.getItem(key);
+    storage.removeItem(key);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    try {
+      storage.removeItem(key);
+    } catch {
+      // Ignore cleanup failure.
+    }
+    return null;
+  }
+}
+
+function upsertWorkspaceReturnInput(form, name, value) {
+  let input = form.querySelector(`input[type="hidden"][name="${name}"][data-workspace-return]`);
+  if (value === null || value === undefined || value === "") {
+    input?.remove();
+    return;
+  }
+
+  if (!input) {
+    input = document.createElement("input");
+    input.type = "hidden";
+    input.name = name;
+    input.setAttribute("data-workspace-return", "");
+    form.appendChild(input);
+  }
+
+  input.value = value.toString();
+}
+
+function appendWorkspaceReturnContext(form) {
+  const shell = getWorkspaceShell(form);
+  if (!shell) {
+    return;
+  }
+
+  const context = getWorkspaceReturnContext(shell);
+  shell.setAttribute("data-workspace-active-tab", context.activeTab);
+  upsertWorkspaceReturnInput(form, "activeTab", context.activeTab);
+  upsertWorkspaceReturnInput(form, "scrollY", context.scrollY);
+  upsertWorkspaceReturnInput(form, "selectedResponseId", context.selectedResponseId || "");
+  saveWorkspaceReturnContext(shell, context);
+}
+
+function workspaceTabFetchUrl(panel) {
+  const url = panel?.getAttribute("data-workspace-tab-url");
+  if (!url) {
+    return null;
+  }
+
+  if (normalizeWorkspaceTabKey(panel.getAttribute("data-workspace-tab-key")) !== "assessment-answers") {
+    return url;
+  }
+
+  const responseId = getSelectedWorkspaceResponseId();
+  if (!responseId) {
+    return url;
+  }
+
+  const nextUrl = new URL(url, window.location.href);
+  nextUrl.searchParams.set("responseId", responseId);
+  return `${nextUrl.pathname}${nextUrl.search}${nextUrl.hash}`;
+}
+
+function queueWorkspaceScrollRestore(scrollY) {
+  const parsed = readPositiveInteger(scrollY);
+  if (parsed !== null) {
+    pendingWorkspaceScrollY = parsed;
+  }
+}
+
+function restoreWorkspaceScroll(shell = getWorkspaceShell()) {
+  if (pendingWorkspaceScrollY === null || workspaceScrollRestoreQueued) {
+    return;
+  }
+
+  const scrollY = pendingWorkspaceScrollY;
+  workspaceScrollRestoreQueued = true;
+  window.requestAnimationFrame(() => {
+    window.setTimeout(() => {
+      window.scrollTo({ top: scrollY, behavior: "auto" });
+      pendingWorkspaceScrollY = null;
+      workspaceScrollRestoreQueued = false;
+      if (shell) {
+        shell.removeAttribute("data-workspace-scroll-y");
+      }
+    }, 80);
+  });
+}
+
+function restoreWorkspaceScrollAfterTabLoad(panel) {
+  if (pendingWorkspaceScrollY === null) {
+    return;
+  }
+
+  const shell = getWorkspaceShell(panel);
+  const activeTab = getCurrentWorkspaceTabKey(shell);
+  const panelTab = normalizeWorkspaceTabKey(panel?.getAttribute("data-workspace-tab-key"));
+  if (activeTab === panelTab) {
+    restoreWorkspaceScroll(shell);
+  }
+}
+
+function firstPresentValue(...values) {
+  return values.find((value) => value !== null && value !== undefined && value !== "");
+}
+
+function getInitialWorkspaceReturnContext(shell) {
+  const params = new URLSearchParams(window.location.search);
+  const stored = consumeStoredWorkspaceReturnContext(shell) || {};
+  const activeTab = normalizeWorkspaceTabKey(firstPresentValue(
+    params.get("activeTab"),
+    stored.activeTab,
+    shell?.getAttribute("data-workspace-active-tab")
+  ));
+  const selectedResponseId = readPositiveInteger(firstPresentValue(
+    params.get("selectedResponseId"),
+    params.get("responseId"),
+    stored.selectedResponseId,
+    shell?.getAttribute("data-workspace-selected-response-id")
+  ));
+  const scrollY = readPositiveInteger(firstPresentValue(
+    params.get("scrollY"),
+    stored.scrollY,
+    shell?.getAttribute("data-workspace-scroll-y")
+  ));
+
+  return {
+    activeTab,
+    selectedResponseId: selectedResponseId === null ? null : selectedResponseId.toString(),
+    scrollY
+  };
+}
+
+function initializeWorkspaceReturnContext() {
+  const shell = getWorkspaceShell();
+  if (!shell) {
+    return null;
+  }
+
+  const context = getInitialWorkspaceReturnContext(shell);
+  shell.setAttribute("data-workspace-active-tab", context.activeTab);
+  if (context.selectedResponseId) {
+    shell.setAttribute("data-workspace-selected-response-id", context.selectedResponseId);
+  }
+
+  queueWorkspaceScrollRestore(context.scrollY);
+
+  const button = findWorkspaceTabButton(shell, context.activeTab);
+  if (button && !button.classList.contains("active")) {
+    if (window.bootstrap?.Tab) {
+      window.bootstrap.Tab.getOrCreateInstance(button).show();
+    } else {
+      button.click();
+    }
+    return shell;
+  }
+
+  const activePanel = findWorkspaceTabPanel(shell, context.activeTab);
+  if (activePanel?.hasAttribute("data-workspace-tab-panel")) {
+    loadWorkspaceTab(activePanel);
+  } else {
+    restoreWorkspaceScroll(shell);
+  }
+
+  return shell;
+}
 
 function ensureProgressBar() {
   let bar = document.querySelector("[data-global-progress]");
@@ -128,23 +444,30 @@ function tabErrorHtml(label, retryUrl) {
 }
 
 async function loadWorkspaceTab(panel, force = false) {
-  const url = panel?.getAttribute("data-workspace-tab-url");
+  const url = workspaceTabFetchUrl(panel);
   if (!panel || !url) {
     return;
   }
 
   if (!force && panel.getAttribute("data-loaded") === "true") {
+    restoreWorkspaceScrollAfterTabLoad(panel);
+    return;
+  }
+
+  if (!force && panel.getAttribute("data-loading") === "true") {
     return;
   }
 
   if (!force && workspaceTabCache.has(url)) {
     panel.innerHTML = workspaceTabCache.get(url);
     panel.setAttribute("data-loaded", "true");
+    restoreWorkspaceScrollAfterTabLoad(panel);
     return;
   }
 
   const label = panel.getAttribute("data-loading-label") || "Loading...";
   panel.innerHTML = skeleton(label);
+  panel.setAttribute("data-loading", "true");
 
   try {
     const response = await fetch(url, {
@@ -160,9 +483,13 @@ async function loadWorkspaceTab(panel, force = false) {
     workspaceTabCache.set(url, html);
     panel.innerHTML = html;
     panel.setAttribute("data-loaded", "true");
+    restoreWorkspaceScrollAfterTabLoad(panel);
   } catch {
     panel.removeAttribute("data-loaded");
     panel.innerHTML = tabErrorHtml(label.replace(/\.\.\.$/, ""), url);
+    restoreWorkspaceScrollAfterTabLoad(panel);
+  } finally {
+    panel.removeAttribute("data-loading");
   }
 }
 
@@ -172,6 +499,17 @@ async function loadAssessmentResponseDetails(button) {
   const panel = document.querySelector("[data-response-detail-panel]");
   if (!url || !panel) {
     return;
+  }
+
+  const shell = getWorkspaceShell(button);
+  if (shell && readPositiveInteger(responseId) !== null) {
+    shell.setAttribute("data-workspace-active-tab", "assessment-answers");
+    shell.setAttribute("data-workspace-selected-response-id", responseId);
+    saveWorkspaceReturnContext(shell, {
+      activeTab: "assessment-answers",
+      selectedResponseId: responseId,
+      scrollY: Math.max(0, Math.round(window.scrollY || 0))
+    });
   }
 
   panel.innerHTML = skeleton("Loading response details...");
@@ -317,6 +655,7 @@ document.addEventListener("submit", (event) => {
     return;
   }
 
+  appendWorkspaceReturnContext(form);
   form.dataset.submitting = "true";
   const submitter = event.submitter || form.querySelector("button[type='submit'], input[type='submit']");
   if (submitter?.name && !form.querySelector(`input[type="hidden"][data-submit-proxy="${submitter.name}"]`)) {
@@ -347,6 +686,12 @@ document.addEventListener("input", (event) => {
 
 document.addEventListener("shown.bs.tab", (event) => {
   const targetSelector = event.target?.getAttribute("data-bs-target");
+  const shell = getWorkspaceShell(event.target);
+  const activeTab = normalizeWorkspaceTabKey(event.target?.getAttribute("data-workspace-tab-key") || targetSelector);
+  if (shell) {
+    shell.setAttribute("data-workspace-active-tab", activeTab);
+  }
+
   if (!targetSelector) {
     return;
   }
@@ -354,16 +699,25 @@ document.addEventListener("shown.bs.tab", (event) => {
   const panel = document.querySelector(targetSelector);
   if (panel?.hasAttribute("data-workspace-tab-panel")) {
     loadWorkspaceTab(panel);
+    return;
   }
+
+  restoreWorkspaceScroll(shell);
 });
 
 window.addEventListener("pageshow", stopGlobalLoading);
 window.addEventListener("beforeunload", () => startGlobalLoading("Loading..."));
 
 document.addEventListener("DOMContentLoaded", () => {
+  const shell = initializeWorkspaceReturnContext();
   loadWorkspaceCounts();
 
-  document.querySelectorAll("[data-workspace-tab-panel].active, [data-workspace-tab-panel].show").forEach((panel) => {
+  const activeLazyPanels = document.querySelectorAll("[data-workspace-tab-panel].active, [data-workspace-tab-panel].show");
+  activeLazyPanels.forEach((panel) => {
     loadWorkspaceTab(panel);
   });
+
+  if (activeLazyPanels.length === 0) {
+    restoreWorkspaceScroll(shell);
+  }
 });

@@ -98,6 +98,6 @@ public class DocumentsController(ApplicationDbContext context, IClientDocumentSu
 
     private RedirectToActionResult RedirectToWorkspace(int clientId)
     {
-        return RedirectToAction("Workspace", "Clients", new { id = clientId });
+        return RedirectToAction("Workspace", "Clients", this.ToWorkspaceRouteValues(clientId));
     }
 }
