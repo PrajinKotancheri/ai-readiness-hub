@@ -64,7 +64,7 @@
                 </div>
                 <div>
                     <div class="field-label">Open tasks</div>
-                    <div>@Model.OpenTaskCount</div>
+                    <div data-workspace-count="openTaskCount">@Model.OpenTaskCount</div>
                 </div>
             </div>
         </section>
@@ -72,15 +72,15 @@
 </div>
 
 <div class="metric-grid">
-    <div class="metric-card"><div class="metric-value">@Model.AssessmentResponseCount</div><div class="metric-label">Assessment responses</div></div>
-    <div class="metric-card"><div class="metric-value">@Model.DocumentCount</div><div class="metric-label">Documents</div></div>
-    <div class="metric-card"><div class="metric-value">@(Model.NoteCount + Model.TranscriptCount)</div><div class="metric-label">Notes & transcripts</div></div>
-    <div class="metric-card"><div class="metric-value">@Model.AiDraftCount</div><div class="metric-label">AI drafts</div></div>
-    <div class="metric-card"><div class="metric-value">@Model.OpenGapCount</div><div class="metric-label">Open gaps</div></div>
-    <div class="metric-card"><div class="metric-value">@Model.SwotCount</div><div class="metric-label">SWOT items</div></div>
-    <div class="metric-card"><div class="metric-value">@Model.UseCaseCount</div><div class="metric-label">AI use cases</div></div>
-    <div class="metric-card"><div class="metric-value">@Model.RoadmapCount</div><div class="metric-label">Roadmap items</div></div>
-    <div class="metric-card"><div class="metric-value">@Model.ReportCount</div><div class="metric-label">Reports</div></div>
-    <div class="metric-card"><div class="metric-value">@Model.OpenTaskCount</div><div class="metric-label">Open tasks</div></div>
-    <div class="metric-card"><div class="metric-value">@Model.ActivityLogCount</div><div class="metric-label">Activity log entries</div></div>
+    <div class="metric-card"><div class="metric-value" data-workspace-count="assessmentResponseCount">@Model.AssessmentResponseCount</div><div class="metric-label">Assessment responses</div></div>
+    <div class="metric-card"><div class="metric-value" data-workspace-count="documentCount">@Model.DocumentCount</div><div class="metric-label">Documents</div></div>
+    <div class="metric-card"><div class="metric-value" data-workspace-count="noteTranscriptCount">@(Model.NoteCount + Model.TranscriptCount)</div><div class="metric-label">Notes & transcripts</div></div>
+    <div class="metric-card"><div class="metric-value" data-workspace-count="aiDraftCount">@Model.AiDraftCount</div><div class="metric-label">AI drafts</div></div>
+    <div class="metric-card"><div class="metric-value" data-workspace-count="openGapCount">@Model.OpenGapCount</div><div class="metric-label">Open gaps</div></div>
+    <div class="metric-card"><div class="metric-value" data-workspace-count="swotCount">@Model.SwotCount</div><div class="metric-label">SWOT items</div></div>
+    <div class="metric-card"><div class="metric-value" data-workspace-count="useCaseCount">@Model.UseCaseCount</div><div class="metric-label">AI use cases</div></div>
+    <div class="metric-card"><div class="metric-value" data-workspace-count="roadmapCount">@Model.RoadmapCount</div><div class="metric-label">Roadmap items</div></div>
+    <div class="metric-card"><div class="metric-value" data-workspace-count="reportCount">@Model.ReportCount</div><div class="metric-label">Reports</div></div>
+    <div class="metric-card"><div class="metric-value" data-workspace-count="openTaskCount">@Model.OpenTaskCount</div><div class="metric-label">Open tasks</div></div>
+    <div class="metric-card"><div class="metric-value" data-workspace-count="activityLogCount">@Model.ActivityLogCount</div><div class="metric-label">Activity log entries</div></div>
 </div>

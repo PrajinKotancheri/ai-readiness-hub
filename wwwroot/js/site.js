@@ -207,6 +207,37 @@ async function loadAssessmentResponseDetails(button) {
   }
 }
 
+async function loadWorkspaceCounts() {
+  const shell = document.querySelector("[data-workspace-counts-url]");
+  const url = shell?.getAttribute("data-workspace-counts-url");
+  if (!shell || !url || shell.getAttribute("data-counts-loaded") === "true") {
+    return;
+  }
+
+  try {
+    const response = await fetch(url, {
+      headers: {
+        "Accept": "application/json",
+        "X-Requested-With": "XMLHttpRequest"
+      }
+    });
+    if (!response.ok) {
+      throw new Error(`Counts request failed with ${response.status}`);
+    }
+
+    const counts = await response.json();
+    document.querySelectorAll("[data-workspace-count]").forEach((item) => {
+      const key = item.getAttribute("data-workspace-count");
+      if (key && Object.prototype.hasOwnProperty.call(counts, key)) {
+        item.textContent = counts[key];
+      }
+    });
+    shell.setAttribute("data-counts-loaded", "true");
+  } catch {
+    shell.removeAttribute("data-counts-loaded");
+  }
+}
+
 document.addEventListener("click", async (event) => {
   const copyButton = event.target.closest("[data-copy-target]");
   if (copyButton) {
@@ -330,6 +361,8 @@ window.addEventListener("pageshow", stopGlobalLoading);
 window.addEventListener("beforeunload", () => startGlobalLoading("Loading..."));
 
 document.addEventListener("DOMContentLoaded", () => {
+  loadWorkspaceCounts();
+
   document.querySelectorAll("[data-workspace-tab-panel].active, [data-workspace-tab-panel].show").forEach((panel) => {
     loadWorkspaceTab(panel);
   });

@@ -114,7 +114,7 @@
     </div>
 </section>
 
-<section class="panel tabs-shell" data-workspace-tabs>
+<section class="panel tabs-shell" data-workspace-tabs data-workspace-counts-url="@Url.Action("WorkspaceCounts", "Clients", new { id = client.Id })">
     <ul class="nav nav-tabs workflow-tabs" id="workspaceTabs" role="tablist">
         <li class="nav-item" role="presentation"><button class="@NavClass("overview")" data-bs-toggle="tab" data-bs-target="#overview" type="button">Overview</button></li>
         <li class="nav-item" role="presentation"><button class="@NavClass("assessment")" data-bs-toggle="tab" data-bs-target="#assessment" data-workspace-tab-url="@TabUrl("AssessmentAnswers")" data-loading-label="Loading assessment answers..." type="button">Assessment Answers</button></li>

@@ -228,16 +228,11 @@ public class ClientsController(
             }
 
             logger.LogInformation(
-                "Client workspace shell loaded. ClientCompanyId: {ClientCompanyId}; ActiveTab: {ActiveTab}; Responses: {ResponseCount}; Documents: {DocumentCount}; Notes: {NoteCount}; Transcripts: {TranscriptCount}; AI drafts: {AiDraftCount}; OpenTasks: {OpenTaskCount}; ActivityLogs: {ActivityLogCount}; ElapsedMs: {ElapsedMs}; RequestId: {RequestId}",
+                "Client workspace shell loaded. ClientCompanyId: {ClientCompanyId}; ActiveTab: {ActiveTab}; Responses: {ResponseCount}; LatestReportStatus: {LatestReportStatus}; ElapsedMs: {ElapsedMs}; RequestId: {RequestId}",
                 id,
                 viewModel.ActiveWorkspaceTab,
                 viewModel.AssessmentResponseCount,
-                viewModel.DocumentCount,
-                viewModel.NoteCount,
-                viewModel.TranscriptCount,
-                viewModel.AiDraftCount,
-                viewModel.OpenTaskCount,
-                viewModel.ActivityLogCount,
+                viewModel.LatestReport?.ReportStatus ?? ReportStatus.NotStarted,
                 totalStopwatch.ElapsedMilliseconds,
                 HttpContext.TraceIdentifier);
 
@@ -322,6 +317,67 @@ public class ClientsController(
         }
     }
 
+    [HttpGet("Workspace/{id:int}/Counts")]
+    public async Task<IActionResult> WorkspaceCounts(int id)
+    {
+        var stopwatch = Stopwatch.StartNew();
+        try
+        {
+            var counts = await LoadWorkspaceCollectionCountsAsync(id);
+            if (counts is null)
+            {
+                return NotFound();
+            }
+
+            logger.LogInformation(
+                "Client workspace deferred tab counts loaded. ClientCompanyId: {ClientCompanyId}; Responses: {ResponseCount}; Documents: {DocumentCount}; Notes: {NoteCount}; Transcripts: {TranscriptCount}; AI drafts: {AiDraftCount}; OpenGaps: {OpenGapCount}; SwotItems: {SwotCount}; UseCases: {UseCaseCount}; RoadmapItems: {RoadmapCount}; Reports: {ReportCount}; OpenTasks: {OpenTaskCount}; ActivityLogs: {ActivityLogCount}; LatestActivityType: {LatestActivityType}; LatestActivityAt: {LatestActivityAt}; ElapsedMs: {ElapsedMs}; RequestId: {RequestId}",
+                id,
+                counts.AssessmentResponseCount,
+                counts.DocumentCount,
+                counts.NoteCount,
+                counts.TranscriptCount,
+                counts.AiDraftCount,
+                counts.OpenGapCount,
+                counts.SwotCount,
+                counts.UseCaseCount,
+                counts.RoadmapCount,
+                counts.ReportCount,
+                counts.OpenTaskCount,
+                counts.ActivityLogCount,
+                counts.LatestActivityType ?? "(none)",
+                counts.LatestActivityCreatedAt,
+                stopwatch.ElapsedMilliseconds,
+                HttpContext.TraceIdentifier);
+
+            return Json(new
+            {
+                assessmentResponseCount = counts.AssessmentResponseCount,
+                documentCount = counts.DocumentCount,
+                noteTranscriptCount = counts.NoteCount + counts.TranscriptCount,
+                noteCount = counts.NoteCount,
+                transcriptCount = counts.TranscriptCount,
+                aiDraftCount = counts.AiDraftCount,
+                openGapCount = counts.OpenGapCount,
+                swotCount = counts.SwotCount,
+                useCaseCount = counts.UseCaseCount,
+                roadmapCount = counts.RoadmapCount,
+                reportCount = counts.ReportCount,
+                openTaskCount = counts.OpenTaskCount,
+                activityLogCount = counts.ActivityLogCount
+            });
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(
+                ex,
+                "Client workspace deferred tab counts failed. ClientCompanyId: {ClientCompanyId}; ElapsedMs: {ElapsedMs}; RequestId: {RequestId}",
+                id,
+                stopwatch.ElapsedMilliseconds,
+                HttpContext.TraceIdentifier);
+            return StatusCode(StatusCodes.Status500InternalServerError);
+        }
+    }
+
     [HttpGet("Workspace/{clientId:int}/AssessmentResponses/{responseId:int}")]
     public async Task<IActionResult> AssessmentResponseDetails(int clientId, int responseId)
     {
@@ -367,6 +423,7 @@ public class ClientsController(
     private async Task<ClientWorkspaceViewModel?> LoadWorkspaceShellViewModelAsync(int id, int? responseId)
     {
         var stopwatch = Stopwatch.StartNew();
+        var stepStopwatch = Stopwatch.StartNew();
         var client = await LoadClientSummaryAsync(id);
         if (client is null)
         {
@@ -376,10 +433,19 @@ public class ClientsController(
         logger.LogInformation(
             "Client workspace base client loaded. ClientCompanyId: {ClientCompanyId}; ElapsedMs: {ElapsedMs}; RequestId: {RequestId}",
             id,
-            stopwatch.ElapsedMilliseconds,
+            stepStopwatch.ElapsedMilliseconds,
             HttpContext.TraceIdentifier);
+        stepStopwatch.Restart();
 
         client.WorkflowSteps = await LoadWorkflowStepsAsync(id);
+        logger.LogInformation(
+            "Client workspace timeline query loaded. ClientCompanyId: {ClientCompanyId}; WorkflowSteps: {WorkflowStepCount}; ElapsedMs: {ElapsedMs}; RequestId: {RequestId}",
+            id,
+            client.WorkflowSteps.Count,
+            stepStopwatch.ElapsedMilliseconds,
+            HttpContext.TraceIdentifier);
+        stepStopwatch.Restart();
+
         var latestAssessment = await LoadLatestAssessmentAsync(id);
 
         if (latestAssessment is not null)
@@ -387,25 +453,69 @@ public class ClientsController(
             client.ReadinessAssessments.Add(latestAssessment);
         }
 
-        var assessmentResponseCount = latestAssessment is null
-            ? 0
-            : await context.AssessmentResponses
-                .AsNoTracking()
-                .Where(response => response.ReadinessAssessmentId == latestAssessment.Id)
-                .CountAsync();
+        logger.LogInformation(
+            "Client workspace assessment summary loaded. ClientCompanyId: {ClientCompanyId}; LatestAssessmentId: {LatestAssessmentId}; FormStatus: {FormStatus}; ElapsedMs: {ElapsedMs}; RequestId: {RequestId}",
+            id,
+            latestAssessment?.Id,
+            latestAssessment?.FormStatus,
+            stepStopwatch.ElapsedMilliseconds,
+            HttpContext.TraceIdentifier);
+        stepStopwatch.Restart();
 
-        var latestResponse = latestAssessment is null
-            ? null
-            : await LoadLatestAssessmentResponseAsync(latestAssessment.Id);
-        var latestAnsweredResponse = latestAssessment is null
-            ? null
-            : await LoadLatestAnsweredAssessmentResponseAsync(latestAssessment.Id);
+        var assessmentResponses = latestAssessment is null
+            ? []
+            : await LoadAssessmentResponseSummariesAsync(latestAssessment.Id);
+        var assessmentResponseCount = assessmentResponses.Count;
+        var latestResponse = assessmentResponses
+            .Where(response => response.Status != AssessmentResponseStatus.Ignored)
+            .OrderByDescending(response => response.ReceivedAt)
+            .ThenByDescending(response => response.ResponseNumber)
+            .FirstOrDefault();
+        var latestAnsweredResponse = assessmentResponses
+            .Where(response => response.Status != AssessmentResponseStatus.Ignored && response.AnswerCount > 0)
+            .OrderByDescending(response => response.ReceivedAt)
+            .ThenByDescending(response => response.ResponseNumber)
+            .FirstOrDefault();
+
+        logger.LogInformation(
+            "Client workspace latest response summary loaded. ClientCompanyId: {ClientCompanyId}; ResponseCount: {ResponseCount}; LatestResponseId: {LatestResponseId}; LatestAnsweredResponseId: {LatestAnsweredResponseId}; ElapsedMs: {ElapsedMs}; RequestId: {RequestId}",
+            id,
+            assessmentResponseCount,
+            latestResponse?.Id,
+            latestAnsweredResponse?.Id,
+            stepStopwatch.ElapsedMilliseconds,
+            HttpContext.TraceIdentifier);
+        stepStopwatch.Restart();
 
         ApplyResponseAwareWorkflow(client, latestAnsweredResponse);
+        logger.LogInformation(
+            "Client workspace timeline/stage calculation completed. ClientCompanyId: {ClientCompanyId}; CurrentStage: {CurrentStage}; WorkflowSteps: {WorkflowStepCount}; ElapsedMs: {ElapsedMs}; RequestId: {RequestId}",
+            id,
+            client.CurrentStage,
+            client.WorkflowSteps.Count,
+            stepStopwatch.ElapsedMilliseconds,
+            HttpContext.TraceIdentifier);
+        stepStopwatch.Restart();
 
         var latestReport = await LoadLatestReportSummaryAsync(id, includeSections: false);
         var latestScore = await LoadLatestReadinessScoreAsync(id);
-        var counts = await LoadWorkspaceCollectionCountsAsync(id);
+
+        logger.LogInformation(
+            "Client workspace overview data loaded. ClientCompanyId: {ClientCompanyId}; LatestReportId: {LatestReportId}; LatestReportStatus: {LatestReportStatus}; LatestScoreId: {LatestScoreId}; ElapsedMs: {ElapsedMs}; RequestId: {RequestId}",
+            id,
+            latestReport?.Id,
+            latestReport?.ReportStatus,
+            latestScore?.Id,
+            stepStopwatch.ElapsedMilliseconds,
+            HttpContext.TraceIdentifier);
+        stepStopwatch.Restart();
+
+        logger.LogInformation(
+            "Client workspace tab counts deferred. ClientCompanyId: {ClientCompanyId}; CountsUrl: {CountsUrl}; ElapsedMs: {ElapsedMs}; RequestId: {RequestId}",
+            id,
+            Url.Action(nameof(WorkspaceCounts), new { id }) ?? string.Empty,
+            stepStopwatch.ElapsedMilliseconds,
+            HttpContext.TraceIdentifier);
 
         logger.LogInformation(
             "Client workspace shell summaries loaded. ClientCompanyId: {ClientCompanyId}; Responses: {ResponseCount}; ElapsedMs: {ElapsedMs}; RequestId: {RequestId}",
@@ -424,18 +534,18 @@ public class ClientsController(
             ActiveWorkspaceTab = responseId.HasValue ? "assessment" : "overview",
             RequestedResponseId = responseId,
             AssessmentResponseCount = assessmentResponseCount,
-            DocumentCount = counts.DocumentCount,
-            NoteCount = counts.NoteCount,
-            TranscriptCount = counts.TranscriptCount,
-            AiDraftCount = counts.AiDraftCount,
-            GapCount = counts.GapCount,
-            OpenGapCount = counts.OpenGapCount,
-            SwotCount = counts.SwotCount,
-            UseCaseCount = counts.UseCaseCount,
-            RoadmapCount = counts.RoadmapCount,
-            ReportCount = counts.ReportCount,
-            OpenTaskCount = counts.OpenTaskCount,
-            ActivityLogCount = counts.ActivityLogCount
+            DocumentCount = 0,
+            NoteCount = 0,
+            TranscriptCount = 0,
+            AiDraftCount = 0,
+            GapCount = 0,
+            OpenGapCount = 0,
+            SwotCount = 0,
+            UseCaseCount = 0,
+            RoadmapCount = 0,
+            ReportCount = 0,
+            OpenTaskCount = 0,
+            ActivityLogCount = 0
         };
     }
 
@@ -950,6 +1060,7 @@ public class ClientsController(
             .AsNoTracking()
             .Where(assessment => assessment.ClientCompanyId == id)
             .OrderByDescending(assessment => assessment.CreatedAt)
+            .ThenByDescending(assessment => assessment.Id)
             .Select(assessment => new ReadinessAssessment
             {
                 Id = assessment.Id,
@@ -1066,22 +1177,11 @@ public class ClientsController(
 
     private async Task<ClientReport?> LoadLatestReportSummaryAsync(int id, bool includeSections)
     {
-        var latestReportId = await context.ClientReports
+        var latestReport = await context.ClientReports
             .AsNoTracking()
             .Where(report => report.ClientCompanyId == id)
             .OrderByDescending(report => report.VersionNumber)
             .ThenByDescending(report => report.CreatedAt)
-            .Select(report => (int?)report.Id)
-            .FirstOrDefaultAsync();
-
-        if (!latestReportId.HasValue)
-        {
-            return null;
-        }
-
-        var latestReport = await context.ClientReports
-            .AsNoTracking()
-            .Where(report => report.Id == latestReportId.Value)
             .Select(report => new ClientReport
             {
                 Id = report.Id,
@@ -1129,21 +1229,45 @@ public class ClientsController(
             .FirstOrDefaultAsync();
     }
 
-    private async Task<WorkspaceCollectionCounts> LoadWorkspaceCollectionCountsAsync(int id)
+    private async Task<WorkspaceCollectionCounts?> LoadWorkspaceCollectionCountsAsync(int id)
     {
-        return new WorkspaceCollectionCounts(
-            DocumentCount: await context.ClientDocuments.AsNoTracking().CountAsync(item => item.ClientCompanyId == id),
-            NoteCount: await context.ConsultantNotes.AsNoTracking().CountAsync(item => item.ClientCompanyId == id),
-            TranscriptCount: await context.MeetingTranscripts.AsNoTracking().CountAsync(item => item.ClientCompanyId == id),
-            AiDraftCount: await context.AIAnalysisOutputs.AsNoTracking().CountAsync(item => item.ClientCompanyId == id),
-            GapCount: await context.GapAnalysisItems.AsNoTracking().CountAsync(item => item.ClientCompanyId == id),
-            OpenGapCount: await context.GapAnalysisItems.AsNoTracking().CountAsync(item => item.ClientCompanyId == id && item.Status == GapStatus.Open),
-            SwotCount: await context.SwotAnalysisItems.AsNoTracking().CountAsync(item => item.ClientCompanyId == id),
-            UseCaseCount: await context.AIUseCases.AsNoTracking().CountAsync(item => item.ClientCompanyId == id),
-            RoadmapCount: await context.AIRoadmapItems.AsNoTracking().CountAsync(item => item.ClientCompanyId == id),
-            ReportCount: await context.ClientReports.AsNoTracking().CountAsync(item => item.ClientCompanyId == id),
-            OpenTaskCount: await context.ClientTasks.AsNoTracking().CountAsync(item => item.ClientCompanyId == id && item.Status != ClientTaskStatus.Done),
-            ActivityLogCount: await context.ClientActivityLogs.AsNoTracking().CountAsync(item => item.ClientCompanyId == id));
+        return await context.ClientCompanies
+            .AsNoTracking()
+            .Where(client => client.Id == id)
+            .Select(client => new WorkspaceCollectionCounts(
+                context.AssessmentResponses.Count(response =>
+                    context.ReadinessAssessments
+                        .Where(assessment => assessment.ClientCompanyId == client.Id)
+                        .OrderByDescending(assessment => assessment.CreatedAt)
+                        .ThenByDescending(assessment => assessment.Id)
+                        .Select(assessment => assessment.Id)
+                        .Take(1)
+                        .Contains(response.ReadinessAssessmentId)),
+                context.ClientDocuments.Count(item => item.ClientCompanyId == client.Id),
+                context.ConsultantNotes.Count(item => item.ClientCompanyId == client.Id),
+                context.MeetingTranscripts.Count(item => item.ClientCompanyId == client.Id),
+                context.AIAnalysisOutputs.Count(item => item.ClientCompanyId == client.Id),
+                context.GapAnalysisItems.Count(item => item.ClientCompanyId == client.Id),
+                context.GapAnalysisItems.Count(item => item.ClientCompanyId == client.Id && item.Status == GapStatus.Open),
+                context.SwotAnalysisItems.Count(item => item.ClientCompanyId == client.Id),
+                context.AIUseCases.Count(item => item.ClientCompanyId == client.Id),
+                context.AIRoadmapItems.Count(item => item.ClientCompanyId == client.Id),
+                context.ClientReports.Count(item => item.ClientCompanyId == client.Id),
+                context.ClientTasks.Count(item => item.ClientCompanyId == client.Id && item.Status != ClientTaskStatus.Done),
+                context.ClientActivityLogs.Count(item => item.ClientCompanyId == client.Id),
+                context.ClientActivityLogs
+                    .Where(activity => activity.ClientCompanyId == client.Id)
+                    .OrderByDescending(activity => activity.CreatedAt)
+                    .ThenByDescending(activity => activity.Id)
+                    .Select(activity => activity.ActivityType)
+                    .FirstOrDefault(),
+                context.ClientActivityLogs
+                    .Where(activity => activity.ClientCompanyId == client.Id)
+                    .OrderByDescending(activity => activity.CreatedAt)
+                    .ThenByDescending(activity => activity.Id)
+                    .Select(activity => (DateTime?)activity.CreatedAt)
+                    .FirstOrDefault()))
+            .FirstOrDefaultAsync();
     }
 
     private static ReportStatus GetLatestReportStatus(ClientCompany client)
@@ -1233,6 +1357,7 @@ public class ClientsController(
     }
 
     private sealed record WorkspaceCollectionCounts(
+        int AssessmentResponseCount,
         int DocumentCount,
         int NoteCount,
         int TranscriptCount,
@@ -1244,7 +1369,9 @@ public class ClientsController(
         int RoadmapCount,
         int ReportCount,
         int OpenTaskCount,
-        int ActivityLogCount);
+        int ActivityLogCount,
+        string? LatestActivityType,
+        DateTime? LatestActivityCreatedAt);
 
     private static void AddDefaultWorkflow(ClientCompany client)
     {

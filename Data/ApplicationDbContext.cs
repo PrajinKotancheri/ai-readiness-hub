@@ -71,6 +71,12 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
             .HasIndex(assessment => assessment.ClientToken);
 
         modelBuilder.Entity<ReadinessAssessment>()
+            .HasIndex(assessment => new { assessment.ClientCompanyId, assessment.CreatedAt });
+
+        modelBuilder.Entity<ReadinessAssessment>()
+            .HasIndex(assessment => new { assessment.FormStatus, assessment.SentAt });
+
+        modelBuilder.Entity<ReadinessAssessment>()
             .HasIndex(assessment => assessment.ExternalResponseId);
 
         modelBuilder.Entity<AssessmentResponse>()
@@ -89,8 +95,14 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
         modelBuilder.Entity<AssessmentResponse>()
             .HasIndex(response => response.ExternalResponseId);
 
+        modelBuilder.Entity<AssessmentResponse>()
+            .HasIndex(response => new { response.Status, response.ReceivedAt });
+
         modelBuilder.Entity<AssessmentAnswer>()
             .HasIndex(answer => answer.AssessmentResponseId);
+
+        modelBuilder.Entity<ClientWorkflowStep>()
+            .HasIndex(step => new { step.ClientCompanyId, step.DisplayOrder });
 
         modelBuilder.Entity<ClientDocument>()
             .HasIndex(document => new { document.ClientCompanyId, document.UploadedAt });
@@ -116,11 +128,20 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
         modelBuilder.Entity<ClientReport>()
             .HasIndex(report => new { report.ClientCompanyId, report.ReportStatus });
 
+        modelBuilder.Entity<ClientReport>()
+            .HasIndex(report => new { report.ReportStatus, report.GeneratedAt });
+
         modelBuilder.Entity<ClientTask>()
             .HasIndex(task => new { task.ClientCompanyId, task.Status });
 
+        modelBuilder.Entity<ClientTask>()
+            .HasIndex(task => new { task.Status, task.DueDate });
+
         modelBuilder.Entity<ClientActivityLog>()
             .HasIndex(activity => new { activity.ClientCompanyId, activity.CreatedAt });
+
+        modelBuilder.Entity<ReadinessScore>()
+            .HasIndex(score => new { score.ClientCompanyId, score.CreatedAt });
 
         modelBuilder.Entity<ClientCompany>()
             .HasMany(client => client.ReadinessAssessments)

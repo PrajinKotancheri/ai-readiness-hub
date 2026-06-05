@@ -18,5 +18,16 @@ public class DashboardViewModel
     public IReadOnlyList<AssessmentResponse> RecentlyReceivedAssessmentResponses { get; set; } = [];
     public IReadOnlyList<ClientCompany> ClientsWithMissingDocuments { get; set; } = [];
     public IReadOnlyList<ClientReport> ReportsWaitingForReview { get; set; } = [];
-    public IReadOnlyList<ClientCompany> RecentlyUpdatedClients { get; set; } = [];
+    public IReadOnlyList<DashboardClientSummaryViewModel> RecentlyUpdatedClients { get; set; } = [];
+}
+
+public class DashboardClientSummaryViewModel
+{
+    public int Id { get; set; }
+    public string CompanyName { get; set; } = string.Empty;
+    public string? Industry { get; set; }
+    public ClientStage CurrentStage { get; set; }
+    public ReportStatus LatestReportStatus { get; set; } = ReportStatus.NotStarted;
+    public string? NextAction { get; set; }
+    public DateTime LastUpdated { get; set; }
 }

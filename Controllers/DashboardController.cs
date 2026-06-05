@@ -16,34 +16,35 @@ public class DashboardController(
     public async Task<IActionResult> Index()
     {
         var stopwatch = Stopwatch.StartNew();
+        var stepStopwatch = Stopwatch.StartNew();
         var today = DateTime.UtcNow.Date;
-
-        var totalClients = await context.ClientCompanies.AsNoTracking().CountAsync();
-        var activeClients = await context.ClientCompanies.AsNoTracking().CountAsync(client => client.CurrentStage != ClientStage.Closed);
-        var overdueTasks = await context.ClientTasks
-            .AsNoTracking()
-            .CountAsync(task => task.Status != ClientTaskStatus.Done && task.DueDate.HasValue && task.DueDate.Value.Date < today);
-        var reportsInReview = await context.ClientReports
-            .AsNoTracking()
-            .CountAsync(report => report.ReportStatus == ReportStatus.DraftGenerated || report.ReportStatus == ReportStatus.InConsultantReview);
-        var formsAwaitingCompletion = await context.ReadinessAssessments
-            .AsNoTracking()
-            .CountAsync(assessment => assessment.FormStatus == ReadinessFormStatus.Sent &&
-                !context.AssessmentResponses.Any(response => response.ReadinessAssessmentId == assessment.Id));
-        var responsesReceivedNotReviewed = await context.AssessmentResponses
-            .AsNoTracking()
-            .CountAsync(response => response.Status == AssessmentResponseStatus.Received || response.Status == AssessmentResponseStatus.Imported);
 
         var clientsByStageRows = await context.ClientCompanies
             .AsNoTracking()
             .GroupBy(client => client.CurrentStage)
             .Select(group => new { Stage = group.Key, Count = group.Count() })
             .ToListAsync();
-        var reportsByStatusRows = await context.ClientReports
+        var totalClients = clientsByStageRows.Sum(item => item.Count);
+        var activeClients = clientsByStageRows
+            .Where(item => item.Stage != ClientStage.Closed)
+            .Sum(item => item.Count);
+
+        logger.LogInformation(
+            "Dashboard client count/stage query completed. TotalClients: {TotalClients}; ActiveClients: {ActiveClients}; StageBuckets: {StageBucketCount}; ElapsedMs: {ElapsedMs}; RequestId: {RequestId}",
+            totalClients,
+            activeClients,
+            clientsByStageRows.Count,
+            stepStopwatch.ElapsedMilliseconds,
+            HttpContext.TraceIdentifier);
+        stepStopwatch.Restart();
+
+        var openTaskRows = await context.ClientTasks
             .AsNoTracking()
-            .GroupBy(report => report.ReportStatus)
-            .Select(group => new { Status = group.Key, Count = group.Count() })
+            .Where(task => task.Status != ClientTaskStatus.Done)
+            .GroupBy(task => task.DueDate.HasValue && task.DueDate < today)
+            .Select(group => new { IsOverdue = group.Key, Count = group.Count() })
             .ToListAsync();
+        var overdueTasks = openTaskRows.FirstOrDefault(item => item.IsOverdue)?.Count ?? 0;
 
         var pendingTasks = await context.ClientTasks
             .AsNoTracking()
@@ -68,6 +69,67 @@ public class DashboardController(
             })
             .ToListAsync();
 
+        logger.LogInformation(
+            "Dashboard pending tasks query completed. OpenTaskBuckets: {OpenTaskBuckets}; OverdueTasks: {OverdueTasks}; PendingTasksShown: {PendingTasksShown}; ElapsedMs: {ElapsedMs}; RequestId: {RequestId}",
+            openTaskRows.Count,
+            overdueTasks,
+            pendingTasks.Count,
+            stepStopwatch.ElapsedMilliseconds,
+            HttpContext.TraceIdentifier);
+        stepStopwatch.Restart();
+
+        var reportsByStatusRows = await context.ClientReports
+            .AsNoTracking()
+            .GroupBy(report => report.ReportStatus)
+            .Select(group => new { Status = group.Key, Count = group.Count() })
+            .ToListAsync();
+        var reportsInReview = reportsByStatusRows
+            .Where(item => item.Status is ReportStatus.DraftGenerated or ReportStatus.InConsultantReview)
+            .Sum(item => item.Count);
+
+        var reportsWaitingForReview = await context.ClientReports
+            .AsNoTracking()
+            .Where(report => report.ReportStatus == ReportStatus.DraftGenerated || report.ReportStatus == ReportStatus.InConsultantReview)
+            .OrderByDescending(report => report.GeneratedAt ?? report.CreatedAt)
+            .Take(8)
+            .Select(report => new ClientReport
+            {
+                Id = report.Id,
+                ClientCompanyId = report.ClientCompanyId,
+                ReportTitle = report.ReportTitle,
+                ReportStatus = report.ReportStatus,
+                GeneratedAt = report.GeneratedAt,
+                CreatedAt = report.CreatedAt
+            })
+            .ToListAsync();
+
+        logger.LogInformation(
+            "Dashboard reports for review query completed. ReportsInReview: {ReportsInReview}; ReportsForReviewShown: {ReportsForReviewShown}; ReportStatusBuckets: {ReportStatusBuckets}; ElapsedMs: {ElapsedMs}; RequestId: {RequestId}",
+            reportsInReview,
+            reportsWaitingForReview.Count,
+            reportsByStatusRows.Count,
+            stepStopwatch.ElapsedMilliseconds,
+            HttpContext.TraceIdentifier);
+        stepStopwatch.Restart();
+
+        var formAwaitingSummary = await context.ReadinessAssessments
+            .AsNoTracking()
+            .Where(assessment => assessment.FormStatus == ReadinessFormStatus.Sent &&
+                !context.AssessmentResponses.Any(response => response.ReadinessAssessmentId == assessment.Id))
+            .GroupBy(_ => 1)
+            .Select(group => new
+            {
+                FormsAwaitingCompletion = group.Count(),
+                ClientsAwaitingFormResponse = group
+                    .Select(assessment => assessment.ClientCompanyId)
+                    .Distinct()
+                    .Count()
+            })
+            .FirstOrDefaultAsync();
+
+        var formsAwaitingCompletion = formAwaitingSummary?.FormsAwaitingCompletion ?? 0;
+        var clientsAwaitingFormResponse = formAwaitingSummary?.ClientsAwaitingFormResponse ?? 0;
+
         var formsSentNotCompleted = await context.ReadinessAssessments
             .AsNoTracking()
             .Where(assessment => assessment.FormStatus == ReadinessFormStatus.Sent &&
@@ -88,6 +150,19 @@ public class DashboardController(
                 }
             })
             .ToListAsync();
+
+        logger.LogInformation(
+            "Dashboard forms awaiting completion query completed. FormsAwaitingCompletion: {FormsAwaitingCompletion}; ClientsAwaitingFormResponse: {ClientsAwaitingFormResponse}; FormsShown: {FormsShown}; ElapsedMs: {ElapsedMs}; RequestId: {RequestId}",
+            formsAwaitingCompletion,
+            clientsAwaitingFormResponse,
+            formsSentNotCompleted.Count,
+            stepStopwatch.ElapsedMilliseconds,
+            HttpContext.TraceIdentifier);
+        stepStopwatch.Restart();
+
+        var responsesReceivedNotReviewed = await context.AssessmentResponses
+            .AsNoTracking()
+            .CountAsync(response => response.Status == AssessmentResponseStatus.Received || response.Status == AssessmentResponseStatus.Imported);
 
         var recentlyReceivedResponses = await context.AssessmentResponses
             .AsNoTracking()
@@ -117,87 +192,53 @@ public class DashboardController(
             })
             .ToListAsync();
 
-        var reportsWaitingForReview = await context.ClientReports
-            .AsNoTracking()
-            .Where(report => report.ReportStatus == ReportStatus.DraftGenerated || report.ReportStatus == ReportStatus.InConsultantReview)
-            .OrderByDescending(report => report.GeneratedAt ?? report.CreatedAt)
-            .Take(8)
-            .Select(report => new ClientReport
-            {
-                Id = report.Id,
-                ClientCompanyId = report.ClientCompanyId,
-                ReportTitle = report.ReportTitle,
-                ReportStatus = report.ReportStatus,
-                GeneratedAt = report.GeneratedAt,
-                CreatedAt = report.CreatedAt
-            })
-            .ToListAsync();
+        logger.LogInformation(
+            "Dashboard recent responses query completed. ResponsesReceivedNotReviewed: {ResponsesReceivedNotReviewed}; RecentResponsesShown: {RecentResponsesShown}; ElapsedMs: {ElapsedMs}; RequestId: {RequestId}",
+            responsesReceivedNotReviewed,
+            recentlyReceivedResponses.Count,
+            stepStopwatch.ElapsedMilliseconds,
+            HttpContext.TraceIdentifier);
+        stepStopwatch.Restart();
 
         var recentlyUpdatedClients = await context.ClientCompanies
             .AsNoTracking()
             .OrderByDescending(client => client.LastModifiedAt ?? client.CreatedAt)
             .Take(8)
-            .Select(client => new ClientCompany
+            .Select(client => new DashboardClientSummaryViewModel
             {
                 Id = client.Id,
                 CompanyName = client.CompanyName,
                 Industry = client.Industry,
                 CurrentStage = client.CurrentStage,
                 NextAction = client.NextAction,
-                CreatedAt = client.CreatedAt,
-                LastModifiedAt = client.LastModifiedAt
+                LastUpdated = client.LastModifiedAt ?? client.CreatedAt,
+                LatestReportStatus = context.ClientReports
+                    .Where(report => report.ClientCompanyId == client.Id)
+                    .OrderByDescending(report => report.VersionNumber)
+                    .ThenByDescending(report => report.CreatedAt)
+                    .Select(report => (ReportStatus?)report.ReportStatus)
+                    .FirstOrDefault() ?? ReportStatus.NotStarted
             })
             .ToListAsync();
-        var recentlyUpdatedClientIds = recentlyUpdatedClients.Select(client => client.Id).ToList();
-        var recentClientReports = await context.ClientReports
-            .AsNoTracking()
-            .Where(report => recentlyUpdatedClientIds.Contains(report.ClientCompanyId))
-            .OrderByDescending(report => report.VersionNumber)
-            .ThenByDescending(report => report.CreatedAt)
-            .Select(report => new ClientReport
-            {
-                Id = report.Id,
-                ClientCompanyId = report.ClientCompanyId,
-                ReportStatus = report.ReportStatus,
-                VersionNumber = report.VersionNumber,
-                CreatedAt = report.CreatedAt
-            })
-            .ToListAsync();
-        foreach (var client in recentlyUpdatedClients)
-        {
-            var latestReport = recentClientReports
-                .Where(report => report.ClientCompanyId == client.Id)
-                .OrderByDescending(report => report.VersionNumber)
-                .ThenByDescending(report => report.CreatedAt)
-                .FirstOrDefault();
-            if (latestReport is not null)
-            {
-                client.Reports.Add(latestReport);
-            }
-        }
 
-        var latestAssessmentRows = await context.ReadinessAssessments
-            .AsNoTracking()
-            .GroupBy(assessment => assessment.ClientCompanyId)
-            .Select(group => group
-                .OrderByDescending(assessment => assessment.CreatedAt)
-                .Select(assessment => new
-                {
-                    assessment.Id,
-                    assessment.FormStatus
-                })
-                .First())
-            .ToListAsync();
-        var latestAssessmentIds = latestAssessmentRows.Select(assessment => assessment.Id).ToList();
-        var latestAssessmentIdsWithResponses = await context.AssessmentResponses
-            .AsNoTracking()
-            .Where(response => latestAssessmentIds.Contains(response.ReadinessAssessmentId))
-            .Select(response => response.ReadinessAssessmentId)
-            .Distinct()
-            .ToListAsync();
-        var clientsAwaitingFormResponse = latestAssessmentRows.Count(assessment =>
-            assessment.FormStatus == ReadinessFormStatus.Sent &&
-            !latestAssessmentIdsWithResponses.Contains(assessment.Id));
+        logger.LogInformation(
+            "Dashboard recently updated clients query completed. RecentlyUpdatedClientsShown: {RecentlyUpdatedClientsShown}; ElapsedMs: {ElapsedMs}; RequestId: {RequestId}",
+            recentlyUpdatedClients.Count,
+            stepStopwatch.ElapsedMilliseconds,
+            HttpContext.TraceIdentifier);
+        stepStopwatch.Restart();
+
+        var clientsByStage = Enum.GetValues<ClientStage>()
+            .ToDictionary(stage => stage, stage => clientsByStageRows.FirstOrDefault(item => item.Stage == stage)?.Count ?? 0);
+        var reportsByStatus = Enum.GetValues<ReportStatus>()
+            .ToDictionary(status => status, status => reportsByStatusRows.FirstOrDefault(item => item.Status == status)?.Count ?? 0);
+
+        logger.LogInformation(
+            "Dashboard grouped/status calculations completed. ClientStageStatuses: {ClientStageStatuses}; ReportStatuses: {ReportStatuses}; ElapsedMs: {ElapsedMs}; RequestId: {RequestId}",
+            clientsByStage.Count,
+            reportsByStatus.Count,
+            stepStopwatch.ElapsedMilliseconds,
+            HttpContext.TraceIdentifier);
 
         var viewModel = new DashboardViewModel
         {
@@ -208,10 +249,8 @@ public class DashboardController(
             FormsAwaitingCompletion = formsAwaitingCompletion,
             ClientsAwaitingFormResponse = clientsAwaitingFormResponse,
             ResponsesReceivedNotReviewed = responsesReceivedNotReviewed,
-            ClientsByStage = Enum.GetValues<ClientStage>()
-                .ToDictionary(stage => stage, stage => clientsByStageRows.FirstOrDefault(item => item.Stage == stage)?.Count ?? 0),
-            ReportsByStatus = Enum.GetValues<ReportStatus>()
-                .ToDictionary(status => status, status => reportsByStatusRows.FirstOrDefault(item => item.Status == status)?.Count ?? 0),
+            ClientsByStage = clientsByStage,
+            ReportsByStatus = reportsByStatus,
             PendingTasks = pendingTasks,
             FormsSentNotCompleted = formsSentNotCompleted,
             RecentlyReceivedAssessmentResponses = recentlyReceivedResponses,

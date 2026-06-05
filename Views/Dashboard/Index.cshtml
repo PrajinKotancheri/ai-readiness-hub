@@ -238,16 +238,15 @@
                     <tbody>
                         @foreach (var client in Model.RecentlyUpdatedClients)
                         {
-                            var reportStatus = client.Reports.OrderByDescending(report => report.VersionNumber).FirstOrDefault()?.ReportStatus ?? ReportStatus.NotStarted;
                             <tr>
                                 <td>
                                     <a class="client-link" asp-controller="Clients" asp-action="Workspace" asp-route-id="@client.Id">@client.CompanyName</a>
                                     <div class="table-note">@client.Industry</div>
                                 </td>
                                 <td><span class="status-badge @client.CurrentStage.ToBadgeClass()">@client.CurrentStage.ToDisplayName()</span></td>
-                                <td><span class="status-badge @reportStatus.ToBadgeClass()">@reportStatus.ToDisplayName()</span></td>
+                                <td><span class="status-badge @client.LatestReportStatus.ToBadgeClass()">@client.LatestReportStatus.ToDisplayName()</span></td>
                                 <td>@client.NextAction</td>
-                                <td>@((client.LastModifiedAt ?? client.CreatedAt).ToString("yyyy-MM-dd"))</td>
+                                <td>@client.LastUpdated.ToString("yyyy-MM-dd")</td>
                             </tr>
                         }
                     </tbody>
