@@ -9,6 +9,9 @@
         <h1 class="page-title">Readiness form</h1>
         <p class="page-subtitle">Configure the Google Form link, prefill token field, email templates, and webhook secret.</p>
     </div>
+    <div class="action-strip">
+        <a class="btn btn-outline-primary" asp-controller="Settings" asp-action="PromptInventory">Prompt Inventory</a>
+    </div>
 </div>
 
 @if (TempData["SuccessMessage"] is string successMessage)

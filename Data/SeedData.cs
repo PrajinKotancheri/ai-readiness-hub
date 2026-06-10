@@ -10,6 +10,10 @@ public static class SeedData
     public static async Task InitializeAsync(IServiceProvider services)
     {
         var context = services.GetRequiredService<ApplicationDbContext>();
+        await SeedPromptDefinitionsAsync(context);
+        await SeedReportTemplateSectionsAsync(context);
+        await SeedUseCaseLibraryAsync(context);
+        await context.SaveChangesAsync();
 
         if (await context.ClientCompanies.AnyAsync())
         {
@@ -34,7 +38,7 @@ public static class SeedData
             CurrentStage = ClientStage.AssessmentCompleted,
             OverallReadinessScore = 62,
             KeyRisksSummary = "Data ownership and governance responsibilities need clarification.",
-            NextAction = "Generate gap analysis draft",
+            NextAction = "Generate knowledge gap analysis",
             CreatedAt = SeedNow.AddDays(-21),
             CreatedBy = "Seed"
         };
@@ -54,7 +58,7 @@ public static class SeedData
             ConsultingPackage = "Readiness + Roadmap",
             AssignedConsultant = "Prajin",
             Priority = TaskPriority.Medium,
-            CurrentStage = ClientStage.GapAnalysis,
+            CurrentStage = ClientStage.KnowledgeGapAnalysis,
             OverallReadinessScore = 55,
             KeyRisksSummary = "Manual processes are clear, but data quality and policy maturity are uneven.",
             NextAction = "Review generated SWOT",
@@ -89,8 +93,8 @@ public static class SeedData
         await context.SaveChangesAsync();
 
         AddWorkflow(greenTech, 3);
-        AddWorkflow(alpine, 6);
-        AddWorkflow(eduFuture, 8);
+        AddWorkflow(alpine, 5);
+        AddWorkflow(eduFuture, 15);
 
         var greenAssessment = new ReadinessAssessment
         {
@@ -173,6 +177,31 @@ public static class SeedData
                 SuggestedAction = "Assign an executive sponsor and use-case owners.",
                 CreatedAt = SeedNow.AddDays(-11)
             });
+
+        context.KnowledgeGapItems.Add(new KnowledgeGapItem
+        {
+            ClientCompanyId = greenTech.Id,
+            AssessmentResponse = greenResponse,
+            GapArea = KnowledgeGapArea.GovernanceCompliance,
+            MissingInformation = "AI governance ownership and approval responsibilities are unclear.",
+            WhyItMatters = "The consultant cannot safely recommend client-facing or regulated pilots without understanding who approves AI use.",
+            FollowUpQuestion = "Who owns AI policy, model review, data privacy approval, and usage monitoring?",
+            SuggestedEvidence = "AI policy draft, risk register, approval workflow, or named governance owner.",
+            Priority = KnowledgeGapPriority.High,
+            Status = KnowledgeGapStatus.Open,
+            CreatedAt = SeedNow.AddDays(-11)
+        });
+        context.AIOutputSources.Add(new AIOutputSource
+        {
+            ClientCompanyId = greenTech.Id,
+            OutputType = AIOutputType.KnowledgeGap,
+            SourceType = AIOutputSourceType.Internal,
+            SourceCategory = AIOutputSourceCategory.AssessmentResponse,
+            SourceLabel = "Assessment Response: First response",
+            SourceReference = "Governance answer",
+            EvidenceText = "Governance answer was missing in the imported assessment response.",
+            CreatedAt = SeedNow.AddDays(-11)
+        });
 
         AddUseCase(context, greenTech.Id, "Automated report generation", "Generate first-draft operational reports from asset and maintenance data.", "Operations", 4.15m);
         AddUseCase(context, greenTech.Id, "Internal knowledge assistant", "Answer consultant and engineer questions from policies, project history, and maintenance guidance.", "Operations", 3.75m);
@@ -334,22 +363,7 @@ public static class SeedData
 
     private static void AddWorkflow(ClientCompany client, int completedThrough)
     {
-        var stages = new[]
-        {
-            "Client Registered",
-            "Readiness Form Sent",
-            "Form Completed",
-            "Documents Uploaded",
-            "Initial AI Analysis Completed",
-            "Gap Analysis Completed",
-            "Consultant Session Completed",
-            "Report Draft Generated",
-            "Consultant Review Completed",
-            "Final Report Delivered",
-            "Client Feedback Collected"
-        };
-
-        foreach (var (stage, index) in stages.Select((stage, index) => (stage, index)))
+        foreach (var (stage, index) in StakeholderWorkflow.Stages.Select((stage, index) => (stage, index)))
         {
             var status = index + 1 < completedThrough
                 ? WorkflowStepStatus.Completed
@@ -410,19 +424,15 @@ public static class SeedData
     {
         var sections = new[]
         {
-            "Executive Summary",
-            "Company Context",
-            "AI Readiness Score",
-            "Current State",
-            "Gap Analysis",
-            "SWOT Analysis",
-            "Industry Trends",
-            "Competitor Insights",
-            "Recommended AI Use Cases",
-            "Use Case Scoring",
-            "1-Year Roadmap",
-            "Risks and Mitigation",
-            "Recommended Next Steps"
+            "Cover / Client Details",
+            "Personal Note",
+            "AI Readiness Summary",
+            "Strengths & Development Areas",
+            "AI Readiness Deep-Dive",
+            "Competitive Snapshot",
+            "Top Recommended AI Use Cases",
+            "Recommended Roadmap",
+            "Next Steps / How We Can Help"
         };
 
         for (var index = 0; index < sections.Length; index++)
@@ -448,5 +458,123 @@ public static class SeedData
             CreatedBy = "Seed",
             CreatedAt = SeedNow
         });
+    }
+
+    private static async Task SeedPromptDefinitionsAsync(ApplicationDbContext context)
+    {
+        var prompts = new (string Name, string Goal, string Inputs, string Outputs, string Location, string Notes)[]
+        {
+            ("Company Summary", "Summarize the client context for consultant review.", "Client profile, assessment response, notes, documents", "Editable company summary draft", "Workspace > Company Summary", "Feeds later analysis after approval."),
+            ("Knowledge Gap Analysis", "Identify missing consultant understanding before conclusions.", "Client profile, latest assessment, missing answers, notes/documents", "Knowledge gap items and discovery agenda", "Workspace > Knowledge Gap Analysis", "First AI activity after assessment."),
+            ("Readiness Score", "Calculate readiness dimensions aligned to the strategic report.", "Assessment answers, approved evidence", "Readiness score, adoption profile, benchmark", "Workspace > Assessment Responses", "Uses stakeholder score labels."),
+            ("Industry Analysis", "Create an industry context draft with sources.", "Approved company summary, documents, external research", "Editable industry analysis", "Workspace > Industry & Competitors", "External sources to be added later."),
+            ("Competitor Analysis", "Compare representative competitors and AI use signals.", "Approved industry analysis, competitor URLs, research", "Editable competitor insight draft", "Workspace > Industry & Competitors", "Requires sourced validation."),
+            ("SWOT Analysis", "Synthesize strengths, weaknesses, opportunities, and threats.", "Approved company/industry/competitor outputs", "Editable SWOT draft", "Workspace > SWOT", "Feeds use case identification."),
+            ("Use Case Identification", "Identify suitable AI use cases from approved evidence.", "Approved SWOT, knowledge gaps, client goals", "Use case shortlist", "Workspace > Use Cases & Scoring", "Future: curated library plus research."),
+            ("Use Case Scoring", "Prioritize use cases by ROI, feasibility, fit, data readiness, and risk.", "Use case shortlist, readiness score", "Weighted use case scores", "Workspace > Use Cases & Scoring", "Consultant can override scores."),
+            ("Roadmap Generation", "Create a phased roadmap from approved use cases.", "Approved use cases and scores", "Roadmap phases and dependencies", "Workspace > Roadmap", "Feeds strategic report."),
+            ("Strategic Report Generation", "Assemble the consultant-reviewed strategic report.", "Approved outputs and report template", "Editable report sections", "Workspace > Strategic Report", "Final report is not automated without approval.")
+        };
+
+        var existing = await context.PromptDefinitions
+            .Select(prompt => prompt.PromptName)
+            .ToListAsync();
+        var existingSet = existing.ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var prompt in prompts)
+        {
+            if (existingSet.Contains(prompt.Name))
+            {
+                continue;
+            }
+
+            context.PromptDefinitions.Add(new PromptDefinition
+            {
+                PromptName = prompt.Name,
+                Goal = prompt.Goal,
+                Inputs = prompt.Inputs,
+                Outputs = prompt.Outputs,
+                PlatformLocation = prompt.Location,
+                PromptText = "Stakeholder to provide actual prompt.",
+                Notes = prompt.Notes,
+                Status = PromptStatus.Draft,
+                VersionNumber = 1,
+                CreatedAt = SeedNow
+            });
+        }
+    }
+
+    private static async Task SeedReportTemplateSectionsAsync(ApplicationDbContext context)
+    {
+        var sections = new (string Title, string Goal)[]
+        {
+            ("Cover / Client Details", "Identify company, industry, assessment date, and prepared-by details."),
+            ("Personal Note", "Provide consultant-authored context and relationship framing."),
+            ("AI Readiness Summary", "Summarize readiness score, adoption profile, benchmark, and interpretation."),
+            ("Strengths & Development Areas", "Show dimensions, scores, status, and interpretation."),
+            ("AI Readiness Deep-Dive", "Explain strategic context, governance/compliance, data readiness, and operational bottlenecks."),
+            ("Competitive Snapshot", "Summarize industry trends, competitor examples, and key takeaway."),
+            ("Top Recommended AI Use Cases", "List the strongest recommended AI use cases and expected outcomes."),
+            ("Recommended Roadmap", "Lay out foundation, pilot/prove, and scale/position phases."),
+            ("Next Steps / How We Can Help", "Explain advisory, prioritization, governance, delivery, and partner support.")
+        };
+
+        var existing = await context.ReportTemplateSections
+            .Select(section => section.SectionTitle)
+            .ToListAsync();
+        var existingSet = existing.ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        for (var index = 0; index < sections.Length; index++)
+        {
+            if (existingSet.Contains(sections[index].Title))
+            {
+                continue;
+            }
+
+            context.ReportTemplateSections.Add(new ReportTemplateSection
+            {
+                SectionTitle = sections[index].Title,
+                SectionOrder = index + 1,
+                SectionGoal = sections[index].Goal,
+                DefaultPrompt = "Stakeholder to provide actual prompt.",
+                Status = ReportTemplateSectionStatus.Active,
+                CreatedAt = SeedNow
+            });
+        }
+    }
+
+    private static async Task SeedUseCaseLibraryAsync(ApplicationDbContext context)
+    {
+        var existing = await context.UseCaseLibraryItems
+            .Select(item => item.Name)
+            .ToListAsync();
+        var existingSet = existing.ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var items = new[]
+        {
+            ("Internal knowledge assistant", "Answers employee questions from approved internal documents.", "Operations, Professional Services, SaaS"),
+            ("Automated report generation", "Creates first-draft management or operational reports.", "Operations, Consulting, Energy, Finance"),
+            ("Meeting summary and action tracker", "Summarizes meetings and creates follow-up tasks.", "Sales, Customer Success, Consulting")
+        };
+
+        foreach (var item in items)
+        {
+            if (existingSet.Contains(item.Item1))
+            {
+                continue;
+            }
+
+            context.UseCaseLibraryItems.Add(new UseCaseLibraryItem
+            {
+                Name = item.Item1,
+                Description = item.Item2,
+                ApplicableIndustries = item.Item3,
+                SuccessCriteria = "Time saved, quality reviewed, and adoption measured.",
+                TypicalRoi = "Medium to high depending on process volume.",
+                Evidence = "Placeholder library entry. Stakeholder curation required.",
+                Complexity = ComplexityLevel.Medium,
+                Dependencies = "Approved data access, responsible owner, review workflow.",
+                CreatedAt = SeedNow
+            });
+        }
     }
 }

@@ -273,6 +273,8 @@ public class ClientsController(
                 "assessmentanswers" => ("WorkspaceTabs/_AssessmentAnswers", "Assessment answers", await LoadAssessmentTabViewModelAsync(id, responseId)),
                 "documents" => ("WorkspaceTabs/_Documents", "Documents", await LoadDocumentsTabViewModelAsync(id)),
                 "notestranscripts" => ("WorkspaceTabs/_NotesTranscripts", "Notes and transcripts", await LoadNotesTranscriptsTabViewModelAsync(id)),
+                "knowledgegapanalysis" => ("WorkspaceTabs/_KnowledgeGapAnalysis", "Knowledge gap analysis", await LoadKnowledgeGapAnalysisTabViewModelAsync(id)),
+                "companysummary" => ("WorkspaceTabs/_CompanySummary", "Company summary", await LoadCompanySummaryTabViewModelAsync(id)),
                 "aidrafts" => ("WorkspaceTabs/_AIDrafts", "AI drafts", await LoadAIDraftsTabViewModelAsync(id)),
                 "gapanalysis" => ("WorkspaceTabs/_GapAnalysis", "Gap analysis", await LoadGapAnalysisTabViewModelAsync(id)),
                 "swot" => ("WorkspaceTabs/_Swot", "SWOT", await LoadSwotTabViewModelAsync(id)),
@@ -281,6 +283,7 @@ public class ClientsController(
                 "roadmap" => ("WorkspaceTabs/_Roadmap", "Roadmap", await LoadRoadmapTabViewModelAsync(id)),
                 "reports" => ("WorkspaceTabs/_Reports", "Reports", await LoadReportsTabViewModelAsync(id)),
                 "tasks" => ("WorkspaceTabs/_Tasks", "Tasks and follow-ups", await LoadTasksTabViewModelAsync(id)),
+                "tasksactivity" => ("WorkspaceTabs/_TasksActivity", "Tasks and activity", await LoadTasksActivityTabViewModelAsync(id)),
                 "activitylog" => ("WorkspaceTabs/_ActivityLog", "Activity log", await LoadActivityLogTabViewModelAsync(id)),
                 _ => (string.Empty, string.Empty, null)
             };
@@ -339,13 +342,14 @@ public class ClientsController(
             }
 
             logger.LogInformation(
-                "Client workspace deferred tab counts loaded. ClientCompanyId: {ClientCompanyId}; Responses: {ResponseCount}; Documents: {DocumentCount}; Notes: {NoteCount}; Transcripts: {TranscriptCount}; AI drafts: {AiDraftCount}; OpenGaps: {OpenGapCount}; SwotItems: {SwotCount}; UseCases: {UseCaseCount}; RoadmapItems: {RoadmapCount}; Reports: {ReportCount}; OpenTasks: {OpenTaskCount}; ActivityLogs: {ActivityLogCount}; LatestActivityType: {LatestActivityType}; LatestActivityAt: {LatestActivityAt}; ElapsedMs: {ElapsedMs}; RequestId: {RequestId}",
+                "Client workspace deferred tab counts loaded. ClientCompanyId: {ClientCompanyId}; Responses: {ResponseCount}; Documents: {DocumentCount}; Notes: {NoteCount}; Transcripts: {TranscriptCount}; AI drafts: {AiDraftCount}; KnowledgeGaps: {KnowledgeGapCount}; OpenGaps: {OpenGapCount}; SwotItems: {SwotCount}; UseCases: {UseCaseCount}; RoadmapItems: {RoadmapCount}; Reports: {ReportCount}; OpenTasks: {OpenTaskCount}; ActivityLogs: {ActivityLogCount}; LatestActivityType: {LatestActivityType}; LatestActivityAt: {LatestActivityAt}; ElapsedMs: {ElapsedMs}; RequestId: {RequestId}",
                 id,
                 counts.AssessmentResponseCount,
                 counts.DocumentCount,
                 counts.NoteCount,
                 counts.TranscriptCount,
                 counts.AiDraftCount,
+                counts.KnowledgeGapCount,
                 counts.OpenGapCount,
                 counts.SwotCount,
                 counts.UseCaseCount,
@@ -366,6 +370,7 @@ public class ClientsController(
                 noteCount = counts.NoteCount,
                 transcriptCount = counts.TranscriptCount,
                 aiDraftCount = counts.AiDraftCount,
+                knowledgeGapCount = counts.KnowledgeGapCount,
                 openGapCount = counts.OpenGapCount,
                 swotCount = counts.SwotCount,
                 useCaseCount = counts.UseCaseCount,
@@ -555,6 +560,7 @@ public class ClientsController(
             NoteCount = 0,
             TranscriptCount = 0,
             AiDraftCount = 0,
+            KnowledgeGapCount = 0,
             GapCount = 0,
             OpenGapCount = 0,
             SwotCount = 0,
@@ -769,6 +775,117 @@ public class ClientsController(
         };
     }
 
+    private async Task<ClientWorkspaceViewModel?> LoadKnowledgeGapAnalysisTabViewModelAsync(int id)
+    {
+        var client = await LoadClientSummaryAsync(id);
+        if (client is null)
+        {
+            return null;
+        }
+
+        var knowledgeGapItems = await context.KnowledgeGapItems
+            .AsNoTracking()
+            .Where(item => item.ClientCompanyId == id)
+            .OrderBy(item => item.Status == KnowledgeGapStatus.Approved)
+            .ThenByDescending(item => item.Priority)
+            .ThenByDescending(item => item.CreatedAt)
+            .Take(80)
+            .Select(item => new KnowledgeGapItem
+            {
+                Id = item.Id,
+                ClientCompanyId = item.ClientCompanyId,
+                AssessmentResponseId = item.AssessmentResponseId,
+                GapArea = item.GapArea,
+                MissingInformation = item.MissingInformation,
+                WhyItMatters = item.WhyItMatters,
+                FollowUpQuestion = item.FollowUpQuestion,
+                SuggestedEvidence = item.SuggestedEvidence,
+                Priority = item.Priority,
+                Status = item.Status,
+                CreatedAt = item.CreatedAt,
+                LastModifiedAt = item.LastModifiedAt,
+                ApprovedAt = item.ApprovedAt,
+                ApprovedBy = item.ApprovedBy
+            })
+            .ToListAsync();
+
+        client.KnowledgeGapItems = knowledgeGapItems;
+
+        var sources = await LoadAIOutputSourcesAsync(id, AIOutputType.KnowledgeGap);
+
+        return new ClientWorkspaceViewModel
+        {
+            Client = client,
+            KnowledgeGapItems = knowledgeGapItems,
+            KnowledgeGapCount = await context.KnowledgeGapItems.AsNoTracking().CountAsync(item => item.ClientCompanyId == id),
+            AIOutputSources = sources
+        };
+    }
+
+    private async Task<ClientWorkspaceViewModel?> LoadCompanySummaryTabViewModelAsync(int id)
+    {
+        var client = await LoadClientSummaryAsync(id);
+        if (client is null)
+        {
+            return null;
+        }
+
+        var latestSummary = await context.AIAnalysisOutputs
+            .AsNoTracking()
+            .Where(output => output.ClientCompanyId == id && output.AnalysisType == AnalysisType.CompanySummary)
+            .OrderByDescending(output => output.VersionNumber)
+            .ThenByDescending(output => output.CreatedAt)
+            .Select(output => new AIAnalysisOutput
+            {
+                Id = output.Id,
+                ClientCompanyId = output.ClientCompanyId,
+                AnalysisType = output.AnalysisType,
+                Title = output.Title,
+                InputSummary = output.InputSummary,
+                OutputContent = output.OutputContent,
+                Status = output.Status,
+                VersionNumber = output.VersionNumber,
+                GeneratedAt = output.GeneratedAt,
+                GeneratedBy = output.GeneratedBy,
+                ApprovedAt = output.ApprovedAt,
+                ApprovedBy = output.ApprovedBy,
+                CreatedAt = output.CreatedAt,
+                LastModifiedAt = output.LastModifiedAt
+            })
+            .FirstOrDefaultAsync();
+
+        client.AnalysisOutputs = latestSummary is null ? [] : [latestSummary];
+
+        var sources = await LoadAIOutputSourcesAsync(id, AIOutputType.CompanySummary, latestSummary?.Id);
+        var approvedKnowledgeGaps = await context.KnowledgeGapItems
+            .AsNoTracking()
+            .Where(item => item.ClientCompanyId == id && item.Status == KnowledgeGapStatus.Approved)
+            .OrderByDescending(item => item.ApprovedAt ?? item.LastModifiedAt ?? item.CreatedAt)
+            .Take(10)
+            .Select(item => new KnowledgeGapItem
+            {
+                Id = item.Id,
+                ClientCompanyId = item.ClientCompanyId,
+                GapArea = item.GapArea,
+                MissingInformation = item.MissingInformation,
+                Status = item.Status,
+                ApprovedAt = item.ApprovedAt,
+                ApprovedBy = item.ApprovedBy,
+                CreatedAt = item.CreatedAt
+            })
+            .ToListAsync();
+
+        return new ClientWorkspaceViewModel
+        {
+            Client = client,
+            AiDraftCount = await context.AIAnalysisOutputs.AsNoTracking().CountAsync(item => item.ClientCompanyId == id),
+            KnowledgeGapCount = await context.KnowledgeGapItems.AsNoTracking().CountAsync(item => item.ClientCompanyId == id),
+            LatestAnalysisOutputs = client.AnalysisOutputs.ToList(),
+            KnowledgeGapItems = approvedKnowledgeGaps,
+            AIOutputSources = sources
+        };
+    }
+
     private async Task<ClientWorkspaceViewModel?> LoadAIDraftsTabViewModelAsync(int id)
     {
         var client = await LoadClientSummaryAsync(id);
@@ -815,7 +932,8 @@ public class ClientsController(
             AiDraftCount = await context.AIAnalysisOutputs.AsNoTracking().CountAsync(item => item.ClientCompanyId == id),
             LatestAnalysisOutputs = client.AnalysisOutputs
                 .OrderByDescending(output => output.CreatedAt)
-                .ToList()
+                .ToList(),
+            AIOutputSources = await LoadAIOutputSourcesAsync(id)
         };
     }
 
@@ -970,7 +1088,14 @@ public class ClientsController(
         {
             Client = client,
             LatestReport = latestReport,
-            ReportCount = await context.ClientReports.AsNoTracking().CountAsync(item => item.ClientCompanyId == id)
+            ReportCount = await context.ClientReports.AsNoTracking().CountAsync(item => item.ClientCompanyId == id),
+            ReportTemplateSections = await context.ReportTemplateSections
+                .AsNoTracking()
+                .Where(section => section.Status == ReportTemplateSectionStatus.Active)
+                .OrderBy(section => section.SectionOrder)
+                .ThenBy(section => section.Id)
+                .Take(20)
+                .ToListAsync()
         };
     }
 
@@ -997,6 +1122,38 @@ public class ClientsController(
         };
     }
 
+    private async Task<ClientWorkspaceViewModel?> LoadTasksActivityTabViewModelAsync(int id)
+    {
+        var client = await LoadClientSummaryAsync(id);
+        if (client is null)
+        {
+            return null;
+        }
+
+        client.Tasks = await context.ClientTasks
+            .AsNoTracking()
+            .Where(task => task.ClientCompanyId == id && task.Status != ClientTaskStatus.Done)
+            .OrderBy(task => task.DueDate ?? DateTime.MaxValue)
+            .ThenByDescending(task => task.Priority)
+            .Take(25)
+            .ToListAsync();
+
+        client.ActivityLogs = await context.ClientActivityLogs
+            .AsNoTracking()
+            .Where(activity => activity.ClientCompanyId == id)
+            .OrderByDescending(activity => activity.CreatedAt)
+            .ThenByDescending(activity => activity.Id)
+            .Take(20)
+            .ToListAsync();
+
+        return new ClientWorkspaceViewModel
+        {
+            Client = client,
+            OpenTaskCount = await context.ClientTasks.AsNoTracking().CountAsync(item => item.ClientCompanyId == id && item.Status != ClientTaskStatus.Done),
+            ActivityLogCount = await context.ClientActivityLogs.AsNoTracking().CountAsync(item => item.ClientCompanyId == id)
+        };
+    }
+
     private async Task<ClientWorkspaceViewModel?> LoadActivityLogTabViewModelAsync(int id)
     {
         var client = await LoadClientSummaryAsync(id);
@@ -1017,6 +1174,43 @@ public class ClientsController(
             Client = client,
             ActivityLogCount = await context.ClientActivityLogs.AsNoTracking().CountAsync(item => item.ClientCompanyId == id)
         };
+    }
+
+    private async Task<List<AIOutputSource>> LoadAIOutputSourcesAsync(int clientId, AIOutputType? outputType = null, int? outputId = null)
+    {
+        var query = context.AIOutputSources
+            .AsNoTracking()
+            .Where(source => source.ClientCompanyId == clientId);
+
+        if (outputType.HasValue)
+        {
+            query = query.Where(source => source.OutputType == outputType.Value);
+        }
+
+        if (outputId.HasValue)
+        {
+            query = query.Where(source => source.OutputId == null || source.OutputId == outputId.Value);
+        }
+
+        return await query
+            .OrderByDescending(source => source.CreatedAt)
+            .ThenByDescending(source => source.Id)
+            .Take(40)
+            .Select(source => new AIOutputSource
+            {
+                Id = source.Id,
+                ClientCompanyId = source.ClientCompanyId,
+                OutputType = source.OutputType,
+                OutputId = source.OutputId,
+                SourceType = source.SourceType,
+                SourceCategory = source.SourceCategory,
+                SourceLabel = source.SourceLabel,
+                SourceReference = source.SourceReference,
+                SourceUrl = source.SourceUrl,
+                EvidenceText = source.EvidenceText,
+                CreatedAt = source.CreatedAt
+            })
+            .ToListAsync();
     }
 
     private async Task<ClientCompany?> LoadClientSummaryAsync(int id)
@@ -1055,7 +1249,7 @@ public class ClientsController(
 
     private async Task<List<ClientWorkflowStep>> LoadWorkflowStepsAsync(int id)
     {
-        return await context.ClientWorkflowSteps
+        var steps = await context.ClientWorkflowSteps
             .AsNoTracking()
             .Where(step => step.ClientCompanyId == id)
             .OrderBy(step => step.DisplayOrder)
@@ -1069,6 +1263,8 @@ public class ClientsController(
                 CompletedAt = step.CompletedAt
             })
             .ToListAsync();
+
+        return ApplyStakeholderWorkflow(steps, id);
     }
 
     private async Task<ReadinessAssessment?> LoadLatestAssessmentAsync(int id)
@@ -1228,6 +1424,9 @@ public class ClientsController(
                     SectionOrder = section.SectionOrder,
                     SectionContent = section.SectionContent,
                     SectionStatus = section.SectionStatus,
+                    ApprovedAt = section.ApprovedAt,
+                    ApprovedBy = section.ApprovedBy,
+                    SourceSummary = section.SourceSummary,
                     CreatedAt = section.CreatedAt,
                     LastModifiedAt = section.LastModifiedAt
                 })
@@ -1264,6 +1463,7 @@ public class ClientsController(
                 context.ConsultantNotes.Count(item => item.ClientCompanyId == client.Id),
                 context.MeetingTranscripts.Count(item => item.ClientCompanyId == client.Id),
                 context.AIAnalysisOutputs.Count(item => item.ClientCompanyId == client.Id),
+                context.KnowledgeGapItems.Count(item => item.ClientCompanyId == client.Id),
                 context.GapAnalysisItems.Count(item => item.ClientCompanyId == client.Id),
                 context.GapAnalysisItems.Count(item => item.ClientCompanyId == client.Id && item.Status == GapStatus.Open),
                 context.SwotAnalysisItems.Count(item => item.ClientCompanyId == client.Id),
@@ -1284,7 +1484,7 @@ public class ClientsController(
                     .ThenByDescending(activity => activity.Id)
                     .Select(activity => (DateTime?)activity.CreatedAt)
                     .FirstOrDefault()))
-            .FirstOrDefaultAsync();
+            .SingleOrDefaultAsync();
     }
 
     private static ReportStatus GetLatestReportStatus(ClientCompany client)
@@ -1292,6 +1492,59 @@ public class ClientsController(
         return client.Reports
             .OrderByDescending(report => report.VersionNumber)
             .FirstOrDefault()?.ReportStatus ?? ReportStatus.NotStarted;
+    }
+
+    private static List<ClientWorkflowStep> ApplyStakeholderWorkflow(List<ClientWorkflowStep> existingSteps, int clientId)
+    {
+        if (existingSteps.Count == 0)
+        {
+            return StakeholderWorkflow.Stages
+                .Select((stage, index) => new ClientWorkflowStep
+                {
+                    ClientCompanyId = clientId,
+                    StageName = stage,
+                    DisplayOrder = index + 1,
+                    Status = index == 0 ? WorkflowStepStatus.Completed : WorkflowStepStatus.NotStarted,
+                    CompletedAt = index == 0 ? DateTime.UtcNow : null
+                })
+                .ToList();
+        }
+
+        var mappedSteps = existingSteps
+            .Select(step => new { Stage = StakeholderWorkflow.MapLegacyStageName(step.StageName), Step = step })
+            .GroupBy(item => item.Stage, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(
+                group => group.Key,
+                group => group
+                    .OrderByDescending(item => item.Step.Status == WorkflowStepStatus.Completed)
+                    .ThenByDescending(item => item.Step.CompletedAt ?? DateTime.MinValue)
+                    .ThenBy(item => item.Step.DisplayOrder)
+                    .Select(item => item.Step)
+                    .First(),
+                StringComparer.OrdinalIgnoreCase);
+
+        var nextSteps = new List<ClientWorkflowStep>(StakeholderWorkflow.Stages.Length);
+        for (var index = 0; index < StakeholderWorkflow.Stages.Length; index++)
+        {
+            var stage = StakeholderWorkflow.Stages[index];
+            if (mappedSteps.TryGetValue(stage, out var existing))
+            {
+                existing.StageName = stage;
+                existing.DisplayOrder = index + 1;
+                nextSteps.Add(existing);
+                continue;
+            }
+
+            nextSteps.Add(new ClientWorkflowStep
+            {
+                ClientCompanyId = clientId,
+                StageName = stage,
+                DisplayOrder = index + 1,
+                Status = WorkflowStepStatus.NotStarted
+            });
+        }
+
+        return nextSteps;
     }
 
     private static string NormalizeWorkspaceTabKey(string? tabKey)
@@ -1324,14 +1577,15 @@ public class ClientsController(
             "assessment" or "assessmentanswers" => "assessment",
             "documents" => "documents",
             "notes" or "notestranscripts" => "notes",
-            "analysis" or "aidrafts" => "analysis",
-            "gap" or "gapanalysis" => "gap",
+            "knowledgegap" or "knowledgegapanalysis" or "gap" or "gapanalysis" => "knowledgegap",
+            "companysummary" or "summary" => "companysummary",
+            "analysis" or "aidrafts" => "companysummary",
             "swot" => "swot",
             "insights" or "industrycompetitors" => "insights",
             "usecases" or "usecasesscoring" => "usecases",
             "roadmap" => "roadmap",
             "reports" => "reports",
-            "tasks" => "tasks",
+            "tasks" or "tasksactivity" => "tasks",
             "activity" or "activitylog" => "activity",
             _ => responseId.HasValue ? "assessment" : "overview"
         };
@@ -1344,6 +1598,8 @@ public class ClientsController(
             "assessment" => "assessment-answers",
             "documents" => "documents",
             "notes" => "notes-transcripts",
+            "knowledgegap" => "knowledge-gap-analysis",
+            "companysummary" => "company-summary",
             "analysis" => "ai-drafts",
             "gap" => "gap-analysis",
             "swot" => "swot",
@@ -1351,7 +1607,7 @@ public class ClientsController(
             "usecases" => "use-cases-scoring",
             "roadmap" => "roadmap",
             "reports" => "reports",
-            "tasks" => "tasks",
+            "tasks" => "tasks-activity",
             "activity" => "activity-log",
             _ => "overview"
         };
@@ -1365,14 +1621,16 @@ public class ClientsController(
             "assessmentanswers" => "Assessment answers",
             "documents" => "Documents",
             "notestranscripts" => "Notes and transcripts",
+            "knowledgegapanalysis" => "Knowledge gap analysis",
+            "companysummary" => "Company summary",
             "aidrafts" => "AI drafts",
             "gapanalysis" => "Gap analysis",
             "swot" => "SWOT",
             "industrycompetitors" => "Industry and competitors",
             "usecasesscoring" => "Use cases and scoring",
             "roadmap" => "Roadmap",
-            "reports" => "Reports",
-            "tasks" => "Tasks and follow-ups",
+            "reports" => "Strategic report",
+            "tasks" or "tasksactivity" => "Tasks and activity",
             "activitylog" => "Activity log",
             _ => "Workspace tab"
         };
@@ -1385,6 +1643,8 @@ public class ClientsController(
             "assessmentanswers" => viewModel.AssessmentResponses.Count,
             "documents" => viewModel.Client.Documents.Count,
             "notestranscripts" => viewModel.Client.Notes.Count + viewModel.Client.MeetingTranscripts.Count,
+            "knowledgegapanalysis" => viewModel.KnowledgeGapItems.Count,
+            "companysummary" => viewModel.LatestAnalysisOutputs.Count,
             "aidrafts" => viewModel.LatestAnalysisOutputs.Count,
             "gapanalysis" => viewModel.Client.GapAnalysisItems.Count,
             "swot" => viewModel.Client.SwotItems.Count,
@@ -1392,7 +1652,7 @@ public class ClientsController(
             "usecasesscoring" => viewModel.RankedUseCases.Count,
             "roadmap" => viewModel.Client.RoadmapItems.Count,
             "reports" => viewModel.LatestReport?.Sections.Count ?? 0,
-            "tasks" => viewModel.Client.Tasks.Count,
+            "tasks" or "tasksactivity" => viewModel.Client.Tasks.Count + viewModel.Client.ActivityLogs.Count,
             "activitylog" => viewModel.Client.ActivityLogs.Count,
             _ => 0
         };
@@ -1400,7 +1660,9 @@ public class ClientsController(
 
     private static void ApplyResponseAwareWorkflow(ClientCompany client, AssessmentResponse? latestAnsweredResponse)
     {
-        var formCompletedStep = client.WorkflowSteps.FirstOrDefault(step => step.StageName == "Form Completed");
+        var formCompletedStep = client.WorkflowSteps.FirstOrDefault(step =>
+            step.StageName == "Assessment Completed" ||
+            step.StageName == "Form Completed");
         if (formCompletedStep is null)
         {
             return;
@@ -1433,6 +1695,7 @@ public class ClientsController(
         int NoteCount,
         int TranscriptCount,
         int AiDraftCount,
+        int KnowledgeGapCount,
         int GapCount,
         int OpenGapCount,
         int SwotCount,
@@ -1446,22 +1709,7 @@ public class ClientsController(
 
     private static void AddDefaultWorkflow(ClientCompany client)
     {
-        var stages = new[]
-        {
-            "Client Registered",
-            "Readiness Form Sent",
-            "Form Completed",
-            "Documents Uploaded",
-            "Initial AI Analysis Completed",
-            "Gap Analysis Completed",
-            "Consultant Session Completed",
-            "Report Draft Generated",
-            "Consultant Review Completed",
-            "Final Report Delivered",
-            "Client Feedback Collected"
-        };
-
-        foreach (var (stage, index) in stages.Select((stage, index) => (stage, index)))
+        foreach (var (stage, index) in StakeholderWorkflow.Stages.Select((stage, index) => (stage, index)))
         {
             client.WorkflowSteps.Add(new ClientWorkflowStep
             {

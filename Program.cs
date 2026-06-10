@@ -59,6 +59,7 @@ if (!builder.Environment.IsDevelopment())
     builder.Services.ConfigureOptions<DatabaseDataProtectionKeyManagementOptionsSetup>();
 }
 builder.Services.AddScoped<IAIConsultingAnalysisService, MockAIConsultingAnalysisService>();
+builder.Services.AddScoped<IKnowledgeGapAnalysisService, RuleBasedKnowledgeGapAnalysisService>();
 builder.Services.AddScoped<IClientDocumentSummaryService, MockClientDocumentSummaryService>();
 builder.Services.AddScoped<IEmailService, SendGridEmailService>();
 builder.Services.AddScoped<IReadinessFormService, ReadinessFormService>();

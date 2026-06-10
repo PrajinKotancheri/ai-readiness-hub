@@ -21,6 +21,19 @@ public enum ClientStage
     New,
     AssessmentSent,
     AssessmentCompleted,
+    KnowledgeGapAnalysis,
+    FollowUpDiscovery,
+    EvidenceCollected,
+    CompanySummary,
+    ReadinessScore,
+    IndustryAnalysis,
+    CompetitorAnalysis,
+    SwotAnalysis,
+    UseCaseIdentification,
+    UseCaseScoring,
+    RoadmapGeneration,
+    StrategicReport,
+    FinalReviewApproved,
     DocumentsUploaded,
     GapAnalysis,
     ConsultantSession,
@@ -90,6 +103,11 @@ public enum DocumentType
     StrategyDocument,
     DataSample,
     MeetingTranscript,
+    AssessmentIntroduction,
+    KnowledgeGapDiscoveryMeeting,
+    UseCaseWorkshop,
+    StrategicReportTemplate,
+    ClientReportExample,
     ExistingReport,
     CompetitorDocument,
     Other
@@ -108,6 +126,7 @@ public enum NoteType
 public enum AnalysisType
 {
     CompanySummary,
+    KnowledgeGapAnalysis,
     GapAnalysis,
     Swot,
     IndustryAnalysis,
@@ -124,10 +143,42 @@ public enum DraftStatus
 {
     NotStarted,
     DraftGenerated,
+    InReview,
     ConsultantEdited,
     Approved,
+    Superseded,
     Rejected,
     NeedsClarification
+}
+
+public enum KnowledgeGapArea
+{
+    StrategyVision,
+    BusinessModel,
+    SalesQualification,
+    CustomerOnboarding,
+    ReportingMeasurement,
+    DataOwnership,
+    SystemsIntegration,
+    GovernanceCompliance,
+    OperationsProcess,
+    Other
+}
+
+public enum KnowledgeGapPriority
+{
+    Low,
+    Medium,
+    High
+}
+
+public enum KnowledgeGapStatus
+{
+    Draft,
+    Open,
+    Answered,
+    Approved,
+    NotRelevant
 }
 
 public enum GapArea
@@ -225,7 +276,58 @@ public enum ScoreCategory
     AiBeginner,
     ExplorationReady,
     PilotReady,
-    ImplementationReady
+    ImplementationReady,
+    Observer,
+    CautiousAdopter,
+    Leader
+}
+
+public enum AIOutputType
+{
+    KnowledgeGap,
+    CompanySummary,
+    ReadinessScore,
+    IndustryAnalysis,
+    CompetitorAnalysis,
+    SWOT,
+    UseCase,
+    UseCaseScore,
+    Roadmap,
+    Report
+}
+
+public enum AIOutputSourceType
+{
+    Internal,
+    External
+}
+
+public enum AIOutputSourceCategory
+{
+    Questionnaire,
+    AssessmentResponse,
+    Document,
+    Transcript,
+    ConsultantNote,
+    Website,
+    IndustryReport,
+    Research,
+    ApprovedOutput,
+    Other
+}
+
+public enum PromptStatus
+{
+    Draft,
+    Active,
+    Deprecated
+}
+
+public enum ReportTemplateSectionStatus
+{
+    Draft,
+    Active,
+    Deprecated
 }
 
 public enum RoadmapPhase
@@ -361,6 +463,8 @@ public class ClientCompany
     public ICollection<ClientReport> Reports { get; set; } = [];
     public ICollection<ClientTask> Tasks { get; set; } = [];
     public ICollection<ClientActivityLog> ActivityLogs { get; set; } = [];
+    public ICollection<KnowledgeGapItem> KnowledgeGapItems { get; set; } = [];
+    public ICollection<AIOutputSource> AIOutputSources { get; set; } = [];
 }
 
 public class ClientWorkflowStep
@@ -546,6 +650,9 @@ public class ConsultantNote
     public string? CreatedBy { get; set; }
 
     public DateTime? LastModifiedAt { get; set; }
+
+    public int? KnowledgeGapItemId { get; set; }
+    public KnowledgeGapItem? KnowledgeGapItem { get; set; }
 }
 
 public class MeetingTranscript
@@ -569,6 +676,9 @@ public class MeetingTranscript
 
     [StringLength(120)]
     public string? CreatedBy { get; set; }
+
+    public int? KnowledgeGapItemId { get; set; }
+    public KnowledgeGapItem? KnowledgeGapItem { get; set; }
 }
 
 public class AIAnalysisOutput
@@ -764,6 +874,9 @@ public class ReadinessScore
     public int PeopleGovernanceScore { get; set; }
 
     [Range(0, 100)]
+    public int? GovernanceComplianceScore { get; set; }
+
+    [Range(0, 100)]
     public int OverallScore { get; set; }
 
     public ScoreCategory ScoreCategory { get; set; } = ScoreCategory.AiBeginner;
@@ -830,6 +943,119 @@ public class ReportSection
     public int SectionOrder { get; set; }
     public string? SectionContent { get; set; }
     public SectionStatus SectionStatus { get; set; } = SectionStatus.NotGenerated;
+    public DateTime? ApprovedAt { get; set; }
+
+    [StringLength(120)]
+    public string? ApprovedBy { get; set; }
+
+    public string? SourceSummary { get; set; }
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime? LastModifiedAt { get; set; }
+}
+
+public class KnowledgeGapItem
+{
+    public int Id { get; set; }
+    public int ClientCompanyId { get; set; }
+    public ClientCompany? ClientCompany { get; set; }
+    public int? AssessmentResponseId { get; set; }
+    public AssessmentResponse? AssessmentResponse { get; set; }
+
+    public KnowledgeGapArea GapArea { get; set; } = KnowledgeGapArea.Other;
+
+    [Required]
+    public string MissingInformation { get; set; } = string.Empty;
+
+    public string? WhyItMatters { get; set; }
+    public string? FollowUpQuestion { get; set; }
+    public string? SuggestedEvidence { get; set; }
+    public KnowledgeGapPriority Priority { get; set; } = KnowledgeGapPriority.Medium;
+    public KnowledgeGapStatus Status { get; set; } = KnowledgeGapStatus.Draft;
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime? LastModifiedAt { get; set; }
+    public DateTime? ApprovedAt { get; set; }
+
+    [StringLength(120)]
+    public string? ApprovedBy { get; set; }
+}
+
+public class AIOutputSource
+{
+    public int Id { get; set; }
+    public int ClientCompanyId { get; set; }
+    public ClientCompany? ClientCompany { get; set; }
+    public AIOutputType OutputType { get; set; }
+    public int? OutputId { get; set; }
+    public AIOutputSourceType SourceType { get; set; } = AIOutputSourceType.Internal;
+    public AIOutputSourceCategory SourceCategory { get; set; } = AIOutputSourceCategory.Other;
+
+    [Required, StringLength(220)]
+    public string SourceLabel { get; set; } = string.Empty;
+
+    [StringLength(260)]
+    public string? SourceReference { get; set; }
+
+    [Url, StringLength(1000)]
+    public string? SourceUrl { get; set; }
+
+    public string? EvidenceText { get; set; }
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+}
+
+public class PromptDefinition
+{
+    public int Id { get; set; }
+
+    [Required, StringLength(160)]
+    public string PromptName { get; set; } = string.Empty;
+
+    public string? Goal { get; set; }
+    public string? Inputs { get; set; }
+    public string? Outputs { get; set; }
+
+    [StringLength(160)]
+    public string? PlatformLocation { get; set; }
+
+    public string PromptText { get; set; } = "Stakeholder to provide actual prompt.";
+    public string? Notes { get; set; }
+    public PromptStatus Status { get; set; } = PromptStatus.Draft;
+    public int VersionNumber { get; set; } = 1;
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime? LastModifiedAt { get; set; }
+}
+
+public class ReportTemplateSection
+{
+    public int Id { get; set; }
+
+    [Required, StringLength(180)]
+    public string SectionTitle { get; set; } = string.Empty;
+
+    public int SectionOrder { get; set; }
+    public string? SectionGoal { get; set; }
+    public string? DefaultPrompt { get; set; }
+    public ReportTemplateSectionStatus Status { get; set; } = ReportTemplateSectionStatus.Active;
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime? LastModifiedAt { get; set; }
+}
+
+public class UseCaseLibraryItem
+{
+    public int Id { get; set; }
+
+    [Required, StringLength(180)]
+    public string Name { get; set; } = string.Empty;
+
+    [Required]
+    public string Description { get; set; } = string.Empty;
+
+    public string? ApplicableIndustries { get; set; }
+    public string? SuccessCriteria { get; set; }
+    public string? TypicalRoi { get; set; }
+    public string? Evidence { get; set; }
+    public string? CaseStudies { get; set; }
+    public ComplexityLevel Complexity { get; set; } = ComplexityLevel.Medium;
+    public string? Dependencies { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime? LastModifiedAt { get; set; }
 }

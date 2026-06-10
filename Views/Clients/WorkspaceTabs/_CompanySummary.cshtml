@@ -1,0 +1,101 @@
+@model ClientWorkspaceViewModel
+@{
+    var client = Model.Client;
+    var summary = Model.LatestAnalysisOutputs.FirstOrDefault(output => output.AnalysisType == AnalysisType.CompanySummary);
+    var approvedKnowledgeGaps = Model.KnowledgeGapItems.Count(item => item.Status == KnowledgeGapStatus.Approved);
+}
+
+<div class="d-flex justify-content-between flex-wrap gap-2 mb-3">
+    <form asp-controller="Analysis" asp-action="Generate" method="post" class="action-strip">
+        <input type="hidden" name="clientId" value="@client.Id" />
+        <button class="btn btn-primary btn-sm" name="operation" value="company-summary">Generate Company Summary</button>
+    </form>
+    @if (approvedKnowledgeGaps == 0)
+    {
+        <span class="status-badge status-warn">No approved knowledge gaps yet</span>
+    }
+</div>
+
+@if (summary is not null)
+{
+    <section class="panel">
+        <div class="d-flex justify-content-between flex-wrap gap-2 mb-2">
+            <div>
+                <div class="fw-semibold">@summary.Title</div>
+                <div class="table-note">Version @summary.VersionNumber · generated @Html.LocalDateTime(summary.GeneratedAt, "datetime", "not generated")</div>
+            </div>
+            <span class="status-badge @summary.Status.ToBadgeClass()">@summary.Status.ToDisplayName()</span>
+        </div>
+        @if (!string.IsNullOrWhiteSpace(summary.InputSummary))
+        {
+            <div class="table-note mb-2">@summary.InputSummary</div>
+        }
+        <form asp-controller="Analysis" asp-action="EditOutput" method="post">
+            <input type="hidden" name="id" value="@summary.Id" />
+            <textarea name="outputContent" class="form-control" rows="12">@summary.OutputContent</textarea>
+            <select name="status" class="form-select mt-2">
+                @foreach (var status in Enum.GetValues<DraftStatus>())
+                {
+                    <option value="@status" selected="@(status == summary.Status)">@status.ToDisplayName()</option>
+                }
+            </select>
+            <button class="btn btn-outline-primary btn-sm mt-2" type="submit">Save Summary Draft</button>
+        </form>
+        <form asp-controller="Analysis" asp-action="ApproveOutput" method="post" class="mt-2">
+            <input type="hidden" name="id" value="@summary.Id" />
+            <button class="btn btn-primary btn-sm" type="submit" disabled="@(summary.Status == DraftStatus.Approved)">Approve Summary</button>
+        </form>
+    </section>
+}
+else
+{
+    <div class="empty-state">
+        <strong>No company summary draft yet.</strong>
+        Generate the first editable summary after the assessment and initial knowledge gaps have been reviewed.
+    </div>
+}
+
+<section class="panel">
+    <div class="panel-header">
+        <h3 class="panel-title">Summary sources</h3>
+        <span class="status-badge status-neutral">@Model.AIOutputSources.Count source@(Model.AIOutputSources.Count == 1 ? string.Empty : "s")</span>
+    </div>
+    @if (Model.AIOutputSources.Any())
+    {
+        <div class="table-responsive">
+            <table class="table table-sm">
+                <thead><tr><th>Source</th><th>Category</th><th>Reference</th><th>Evidence</th></tr></thead>
+                <tbody>
+                    @foreach (var source in Model.AIOutputSources)
+                    {
+                        <tr>
+                            <td>
+                                <div class="fw-semibold">@source.SourceLabel</div>
+                                <div class="table-note">@source.SourceType.ToDisplayName() · @Html.LocalDateTime(source.CreatedAt, "date")</div>
+                            </td>
+                            <td>@source.SourceCategory.ToDisplayName()</td>
+                            <td>
+                                @if (!string.IsNullOrWhiteSpace(source.SourceUrl))
+                                {
+                                    <a href="@source.SourceUrl" target="_blank" rel="noreferrer">@(!string.IsNullOrWhiteSpace(source.SourceReference) ? source.SourceReference : "Open source")</a>
+                                }
+                                else
+                                {
+                                    <span>@(source.SourceReference ?? "-")</span>
+                                }
+                            </td>
+                            <td>@(source.EvidenceText ?? "-")</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+    else
+    {
+        <div class="empty-state">
+            <strong>No source links yet.</strong>
+            Generated summaries will attach internal source notes; add external references from the Knowledge Gap Analysis tab.
+        </div>
+    }
+</section>

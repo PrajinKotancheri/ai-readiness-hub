@@ -20,6 +20,7 @@ public class ClientWorkspaceViewModel
     public int NoteCount { get; set; }
     public int TranscriptCount { get; set; }
     public int AiDraftCount { get; set; }
+    public int KnowledgeGapCount { get; set; }
     public int GapCount { get; set; }
     public int OpenGapCount { get; set; }
     public int SwotCount { get; set; }
@@ -35,6 +36,9 @@ public class ClientWorkspaceViewModel
     public IReadOnlyList<IGrouping<RoadmapPhase, AIRoadmapItem>> RoadmapByPhase { get; set; } = [];
     public IReadOnlyList<AIUseCase> RankedUseCases { get; set; } = [];
     public IReadOnlyList<AIAnalysisOutput> LatestAnalysisOutputs { get; set; } = [];
+    public IReadOnlyList<KnowledgeGapItem> KnowledgeGapItems { get; set; } = [];
+    public IReadOnlyList<AIOutputSource> AIOutputSources { get; set; } = [];
+    public IReadOnlyList<ReportTemplateSection> ReportTemplateSections { get; set; } = [];
 }
 
 public class WorkspaceTabErrorViewModel

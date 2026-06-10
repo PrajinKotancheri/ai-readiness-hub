@@ -1,0 +1,117 @@
+@model IReadOnlyList<PromptDefinition>
+@{
+    ViewData["Title"] = "Prompt inventory";
+}
+
+<div class="page-header">
+    <div>
+        <div class="page-kicker">Settings</div>
+        <h1 class="page-title">Prompt inventory</h1>
+        <p class="page-subtitle">Track the workflow prompt placeholders, inputs, outputs, locations, versions, and status.</p>
+    </div>
+    <div class="action-strip">
+        <a class="btn btn-outline-secondary" asp-controller="Settings" asp-action="ReadinessForm">Readiness Form</a>
+        <a class="btn btn-outline-primary" asp-controller="Settings" asp-action="PromptInventoryCsv">Export CSV</a>
+    </div>
+</div>
+
+@if (TempData["SuccessMessage"] is string successMessage)
+{
+    <div class="alert alert-success">@successMessage</div>
+}
+@if (TempData["ErrorMessage"] is string errorMessage)
+{
+    <div class="alert alert-danger">@errorMessage</div>
+}
+
+<section class="panel">
+    <div class="panel-header">
+        <h3 class="panel-title">Add prompt definition</h3>
+    </div>
+    <form asp-action="CreatePrompt" method="post" class="form-grid">
+        <input name="promptName" class="form-control" placeholder="Prompt name" />
+        <input name="platformLocation" class="form-control" placeholder="Workspace location" />
+        <input name="versionNumber" type="number" min="1" value="1" class="form-control" />
+        <select name="status" asp-items="Html.GetEnumSelectList<PromptStatus>()" class="form-select"></select>
+        <textarea name="goal" class="form-control compact-textarea form-grid-wide" placeholder="Goal"></textarea>
+        <textarea name="inputs" class="form-control compact-textarea form-grid-wide" placeholder="Inputs"></textarea>
+        <textarea name="outputs" class="form-control compact-textarea form-grid-wide" placeholder="Outputs"></textarea>
+        <textarea name="promptText" class="form-control compact-textarea form-grid-wide" placeholder="Prompt text placeholder">Stakeholder to provide actual prompt.</textarea>
+        <textarea name="notes" class="form-control compact-textarea form-grid-wide" placeholder="Notes"></textarea>
+        <button class="btn btn-primary" type="submit">Add Prompt</button>
+    </form>
+</section>
+
+@if (Model.Any())
+{
+    @foreach (var prompt in Model)
+    {
+        <section class="panel">
+            <div class="d-flex justify-content-between flex-wrap gap-2 mb-2">
+                <div>
+                    <div class="fw-semibold">@prompt.PromptName</div>
+                    <div class="table-note">@prompt.PlatformLocation · version @prompt.VersionNumber · created @Html.LocalDateTime(prompt.CreatedAt, "date")</div>
+                </div>
+                <span class="status-badge @prompt.Status.ToBadgeClass()">@prompt.Status.ToDisplayName()</span>
+            </div>
+            <form asp-action="UpdatePrompt" method="post">
+                <input type="hidden" name="id" value="@prompt.Id" />
+                <div class="row g-2">
+                    <div class="col-lg-5">
+                        <label class="form-label">Prompt name</label>
+                        <input name="promptName" value="@prompt.PromptName" class="form-control" />
+                    </div>
+                    <div class="col-lg-4">
+                        <label class="form-label">Location</label>
+                        <input name="platformLocation" value="@prompt.PlatformLocation" class="form-control" />
+                    </div>
+                    <div class="col-lg-1">
+                        <label class="form-label">Version</label>
+                        <input name="versionNumber" type="number" min="1" value="@prompt.VersionNumber" class="form-control" />
+                    </div>
+                    <div class="col-lg-2">
+                        <label class="form-label">Status</label>
+                        <select name="status" class="form-select">
+                            @foreach (var status in Enum.GetValues<PromptStatus>())
+                            {
+                                <option value="@status" selected="@(status == prompt.Status)">@status.ToDisplayName()</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label">Goal</label>
+                        <textarea name="goal" class="form-control compact-textarea" rows="2">@prompt.Goal</textarea>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Inputs</label>
+                        <textarea name="inputs" class="form-control compact-textarea" rows="2">@prompt.Inputs</textarea>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Outputs</label>
+                        <textarea name="outputs" class="form-control compact-textarea" rows="2">@prompt.Outputs</textarea>
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label">Prompt text</label>
+                        <textarea name="promptText" class="form-control" rows="5">@prompt.PromptText</textarea>
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label">Notes</label>
+                        <textarea name="notes" class="form-control compact-textarea" rows="2">@prompt.Notes</textarea>
+                    </div>
+                </div>
+                <button class="btn btn-outline-primary btn-sm mt-2" type="submit">Save Prompt</button>
+            </form>
+        </section>
+    }
+}
+else
+{
+    <div class="empty-state">
+        <strong>No prompt definitions yet.</strong>
+        Seed data will add the stakeholder workflow placeholders when the app initializes against a configured database.
+    </div>
+}
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

@@ -1,0 +1,173 @@
+@model ClientWorkspaceViewModel
+@{
+    var client = Model.Client;
+    var openItems = Model.KnowledgeGapItems
+        .Where(item => item.Status is KnowledgeGapStatus.Open or KnowledgeGapStatus.Answered or KnowledgeGapStatus.Draft)
+        .OrderByDescending(item => item.Priority)
+        .ThenBy(item => item.GapArea)
+        .ThenByDescending(item => item.CreatedAt)
+        .ToList();
+    var agendaText = openItems.Count == 0
+        ? "No open knowledge gaps. Generate or add gaps before preparing a discovery agenda."
+        : string.Join(
+            Environment.NewLine + Environment.NewLine,
+            openItems.Select((item, index) =>
+                $"{index + 1}. {item.FollowUpQuestion ?? item.MissingInformation}{Environment.NewLine}Evidence to request: {item.SuggestedEvidence ?? "Consultant to define evidence request."}"));
+}
+
+<div class="d-flex justify-content-between flex-wrap gap-2 mb-3">
+    <form asp-controller="KnowledgeGaps" asp-action="Generate" method="post" class="action-strip">
+        <input type="hidden" name="clientId" value="@client.Id" />
+        <button class="btn btn-primary btn-sm" type="submit">Generate Knowledge Gap Analysis</button>
+    </form>
+    <span class="status-badge status-info" data-workspace-count="knowledgeGapCount">@Model.KnowledgeGapCount total</span>
+</div>
+
+<section class="panel mb-3">
+    <div class="panel-header">
+        <h3 class="panel-title">Discovery meeting agenda</h3>
+        <button class="btn btn-outline-secondary btn-sm" type="button" data-copy-target="knowledgeGapAgenda">Copy agenda</button>
+    </div>
+    <textarea id="knowledgeGapAgenda" class="form-control compact-textarea" rows="7" readonly>@agendaText</textarea>
+</section>
+
+<section class="panel mb-3">
+    <div class="panel-header">
+        <h3 class="panel-title">Add knowledge gap</h3>
+    </div>
+    <form asp-controller="KnowledgeGaps" asp-action="Create" method="post" class="form-grid">
+        <input type="hidden" name="clientId" value="@client.Id" />
+        <select name="gapArea" asp-items="Html.GetEnumSelectList<KnowledgeGapArea>()" class="form-select"></select>
+        <select name="priority" asp-items="Html.GetEnumSelectList<KnowledgeGapPriority>()" class="form-select"></select>
+        <input name="missingInformation" class="form-control form-grid-wide" placeholder="Missing information" />
+        <textarea name="whyItMatters" class="form-control compact-textarea form-grid-wide" placeholder="Why it matters"></textarea>
+        <textarea name="followUpQuestion" class="form-control compact-textarea form-grid-wide" placeholder="Follow-up question"></textarea>
+        <textarea name="suggestedEvidence" class="form-control compact-textarea form-grid-wide" placeholder="Suggested evidence to request"></textarea>
+        <button class="btn btn-primary" type="submit">Add Gap</button>
+    </form>
+</section>
+
+@if (Model.KnowledgeGapItems.Any())
+{
+    @foreach (var item in Model.KnowledgeGapItems)
+    {
+        <section class="panel">
+            <div class="d-flex justify-content-between flex-wrap gap-2 mb-2">
+                <div>
+                    <div class="fw-semibold">@item.MissingInformation</div>
+                    <div class="table-note">@item.GapArea.ToDisplayName() · created @Html.LocalDateTime(item.CreatedAt, "datetime")</div>
+                </div>
+                <div class="d-flex gap-2 flex-wrap">
+                    <span class="status-badge @item.Priority.ToBadgeClass()">@item.Priority.ToDisplayName()</span>
+                    <span class="status-badge @item.Status.ToBadgeClass()">@item.Status.ToDisplayName()</span>
+                </div>
+            </div>
+            <form asp-controller="KnowledgeGaps" asp-action="Update" method="post">
+                <input type="hidden" name="id" value="@item.Id" />
+                <input type="hidden" name="status" value="@item.Status" />
+                <div class="row g-2">
+                    <div class="col-md-6">
+                        <label class="form-label">Area</label>
+                        <select name="gapArea" class="form-select">
+                            @foreach (var area in Enum.GetValues<KnowledgeGapArea>())
+                            {
+                                <option value="@area" selected="@(area == item.GapArea)">@area.ToDisplayName()</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Priority</label>
+                        <select name="priority" class="form-select">
+                            @foreach (var priority in Enum.GetValues<KnowledgeGapPriority>())
+                            {
+                                <option value="@priority" selected="@(priority == item.Priority)">@priority.ToDisplayName()</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label">Missing information</label>
+                        <textarea name="missingInformation" class="form-control compact-textarea" rows="2">@item.MissingInformation</textarea>
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label">Why it matters</label>
+                        <textarea name="whyItMatters" class="form-control compact-textarea" rows="2">@item.WhyItMatters</textarea>
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label">Follow-up question</label>
+                        <textarea name="followUpQuestion" class="form-control compact-textarea" rows="2">@item.FollowUpQuestion</textarea>
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label">Suggested evidence</label>
+                        <textarea name="suggestedEvidence" class="form-control compact-textarea" rows="2">@item.SuggestedEvidence</textarea>
+                    </div>
+                </div>
+                <button class="btn btn-outline-primary btn-sm mt-2" type="submit">Save Gap</button>
+            </form>
+            <div class="action-strip mt-2">
+                <form asp-controller="KnowledgeGaps" asp-action="MarkAnswered" method="post">
+                    <input type="hidden" name="id" value="@item.Id" />
+                    <button class="btn btn-outline-primary btn-sm" type="submit" disabled="@(item.Status == KnowledgeGapStatus.Approved)">Mark Answered</button>
+                </form>
+                <form asp-controller="KnowledgeGaps" asp-action="Approve" method="post">
+                    <input type="hidden" name="id" value="@item.Id" />
+                    <button class="btn btn-primary btn-sm" type="submit" disabled="@(item.Status == KnowledgeGapStatus.Approved)">Approve Gap</button>
+                </form>
+            </div>
+        </section>
+    }
+}
+else
+{
+    <div class="empty-state">
+        <strong>No knowledge gaps yet.</strong>
+        Generate the first analysis after an assessment response is available, or add a manual item from discovery.
+    </div>
+}
+
+<section class="panel">
+    <div class="panel-header">
+        <h3 class="panel-title">Source attribution</h3>
+        <span class="status-badge status-neutral">@Model.AIOutputSources.Count source@(Model.AIOutputSources.Count == 1 ? string.Empty : "s")</span>
+    </div>
+    <form asp-controller="KnowledgeGaps" asp-action="AddSource" method="post" class="form-grid mb-3">
+        <input type="hidden" name="clientId" value="@client.Id" />
+        <select name="sourceType" asp-items="Html.GetEnumSelectList<AIOutputSourceType>()" class="form-select"></select>
+        <select name="sourceCategory" asp-items="Html.GetEnumSelectList<AIOutputSourceCategory>()" class="form-select"></select>
+        <input name="sourceLabel" class="form-control" placeholder="Source label" />
+        <input name="sourceReference" class="form-control" placeholder="Reference" />
+        <input name="sourceUrl" class="form-control form-grid-wide" placeholder="https://..." />
+        <textarea name="evidenceText" class="form-control compact-textarea form-grid-wide" placeholder="Evidence note"></textarea>
+        <button class="btn btn-outline-primary" type="submit">Add Source</button>
+    </form>
+    @if (Model.AIOutputSources.Any())
+    {
+        <div class="table-responsive">
+            <table class="table table-sm">
+                <thead><tr><th>Source</th><th>Type</th><th>Reference</th><th>Evidence</th></tr></thead>
+                <tbody>
+                    @foreach (var source in Model.AIOutputSources)
+                    {
+                        <tr>
+                            <td>
+                                <div class="fw-semibold">@source.SourceLabel</div>
+                                <div class="table-note">@Html.LocalDateTime(source.CreatedAt, "date")</div>
+                            </td>
+                            <td>@source.SourceCategory.ToDisplayName()</td>
+                            <td>
+                                @if (!string.IsNullOrWhiteSpace(source.SourceUrl))
+                                {
+                                    <a href="@source.SourceUrl" target="_blank" rel="noreferrer">@(!string.IsNullOrWhiteSpace(source.SourceReference) ? source.SourceReference : "Open source")</a>
+                                }
+                                else
+                                {
+                                    <span>@(source.SourceReference ?? "-")</span>
+                                }
+                            </td>
+                            <td>@(source.EvidenceText ?? "-")</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</section>

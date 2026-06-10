@@ -5,6 +5,7 @@
     var latestResponse = Model.LatestAssessmentResponse;
     var latestScore = Model.LatestScore;
     var latestReportStatus = Model.LatestReport?.ReportStatus ?? ReportStatus.NotStarted;
+    decimal? scoreOnTen = latestScore is null ? null : Math.Round(latestScore.OverallScore / 10m, 1);
 }
 
 <div class="row g-3 mb-3">
@@ -23,7 +24,8 @@
                 <div class="action-group-title">Analysis</div>
                 <div class="action-strip">
                     <button class="btn btn-primary btn-sm" name="operation" value="company-summary">Company Summary</button>
-                    <button class="btn btn-primary btn-sm" name="operation" value="gap-analysis">Gap Analysis</button>
+                    <button class="btn btn-primary btn-sm" formaction="@Url.Action("Generate", "KnowledgeGaps")">Knowledge Gap Analysis</button>
+                    <button class="btn btn-primary btn-sm" name="operation" value="readiness-score">Readiness Score</button>
                     <button class="btn btn-primary btn-sm" name="operation" value="swot">SWOT</button>
                     <button class="btn btn-primary btn-sm" name="operation" value="use-cases">Use Cases</button>
                     <button class="btn btn-primary btn-sm" name="operation" value="roadmap">Roadmap</button>
@@ -31,7 +33,7 @@
             </div>
             <div class="action-group">
                 <div class="action-group-title">Report</div>
-                <button class="btn btn-primary btn-sm" name="operation" value="report">Generate Report Draft</button>
+                <button class="btn btn-primary btn-sm" name="operation" value="report">Generate Strategic Report Draft</button>
             </div>
         </form>
     </div>
@@ -87,6 +89,10 @@
         <div>
             <div class="field-label">Overall score</div>
             <div class="score-number">@(latestScore?.OverallScore.ToString() ?? client.OverallReadinessScore?.ToString("0.##") ?? "-")</div>
+            @if (scoreOnTen is not null)
+            {
+                <div class="table-note">@scoreOnTen.Value.ToString("0.0") / 10 strategic readiness</div>
+            }
         </div>
         <div>
             <div class="field-label">Last calculated</div>
@@ -107,6 +113,22 @@
     {
         <p class="mb-0 mt-3">@latestScore.ScoringSummary</p>
     }
+    @if (latestScore is not null)
+    {
+        <div class="table-responsive mt-3">
+            <table class="table table-sm">
+                <thead><tr><th>Dimension</th><th>Score</th></tr></thead>
+                <tbody>
+                    <tr><td>Business clarity</td><td>@latestScore.BusinessClarityScore / 100</td></tr>
+                    <tr><td>Data readiness</td><td>@latestScore.DataReadinessScore / 100</td></tr>
+                    <tr><td>Process readiness</td><td>@latestScore.ProcessReadinessScore / 100</td></tr>
+                    <tr><td>Technology readiness</td><td>@latestScore.TechnologyReadinessScore / 100</td></tr>
+                    <tr><td>People and change</td><td>@latestScore.PeopleGovernanceScore / 100</td></tr>
+                    <tr><td>Governance / compliance</td><td>@(latestScore.GovernanceComplianceScore?.ToString() ?? "-") / 100</td></tr>
+                </tbody>
+            </table>
+        </div>
+    }
 </section>
 
 <div class="metric-grid">
@@ -114,7 +136,7 @@
     <div class="metric-card"><div class="metric-value" data-workspace-count="documentCount">@Model.DocumentCount</div><div class="metric-label">Documents</div></div>
     <div class="metric-card"><div class="metric-value" data-workspace-count="noteTranscriptCount">@(Model.NoteCount + Model.TranscriptCount)</div><div class="metric-label">Notes & transcripts</div></div>
     <div class="metric-card"><div class="metric-value" data-workspace-count="aiDraftCount">@Model.AiDraftCount</div><div class="metric-label">AI drafts</div></div>
-    <div class="metric-card"><div class="metric-value" data-workspace-count="openGapCount">@Model.OpenGapCount</div><div class="metric-label">Open gaps</div></div>
+    <div class="metric-card"><div class="metric-value" data-workspace-count="knowledgeGapCount">@Model.KnowledgeGapCount</div><div class="metric-label">Knowledge gaps</div></div>
     <div class="metric-card"><div class="metric-value" data-workspace-count="swotCount">@Model.SwotCount</div><div class="metric-label">SWOT items</div></div>
     <div class="metric-card"><div class="metric-value" data-workspace-count="useCaseCount">@Model.UseCaseCount</div><div class="metric-label">AI use cases</div></div>
     <div class="metric-card"><div class="metric-value" data-workspace-count="roadmapCount">@Model.RoadmapCount</div><div class="metric-label">Roadmap items</div></div>

@@ -76,7 +76,7 @@ public class ReadinessFormService(
         client.NextAction = "Wait for Google Form completion or use manual import fallback";
         client.LastModifiedAt = DateTime.UtcNow;
 
-        await MarkWorkflowAsync(clientId, "Readiness Form Sent", WorkflowStepStatus.Completed, cancellationToken);
+        await MarkWorkflowAsync(clientId, "Assessment Sent", WorkflowStepStatus.Completed, cancellationToken);
         Log(clientId, "Readiness form sent", $"Readiness form sent to {client.ContactPersonEmail}.");
         await context.SaveChangesAsync(cancellationToken);
         return assessment;
@@ -150,7 +150,7 @@ public class ReadinessFormService(
     {
         return await context.ClientCompanies
             .Include(client => client.ReadinessAssessments)
-            .FirstOrDefaultAsync(client => client.Id == clientId, cancellationToken);
+            .SingleOrDefaultAsync(client => client.Id == clientId, cancellationToken);
     }
 
     private async Task<ReadinessFormSettings> GetActiveSettingsAsync(CancellationToken cancellationToken)
@@ -231,7 +231,15 @@ public class ReadinessFormService(
 
         if (step is null)
         {
-            logger.LogDebug("Workflow step {StageName} was not found for client {ClientId}.", stageName, clientId);
+            context.ClientWorkflowSteps.Add(new ClientWorkflowStep
+            {
+                ClientCompanyId = clientId,
+                StageName = stageName,
+                DisplayOrder = StakeholderWorkflow.GetDisplayOrder(stageName),
+                Status = status,
+                CompletedAt = status == WorkflowStepStatus.Completed ? DateTime.UtcNow : null
+            });
+            logger.LogDebug("Workflow step {StageName} was created for client {ClientId}.", stageName, clientId);
             return;
         }
 

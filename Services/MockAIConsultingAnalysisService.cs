@@ -11,19 +11,15 @@ public class MockAIConsultingAnalysisService(
 {
     private static readonly string[] ReportSections =
     [
-        "Executive Summary",
-        "Company Context",
-        "AI Readiness Score",
-        "Current State",
-        "Gap Analysis",
-        "SWOT Analysis",
-        "Industry Trends",
-        "Competitor Insights",
-        "Recommended AI Use Cases",
-        "Use Case Scoring",
-        "1-Year Roadmap",
-        "Risks and Mitigation",
-        "Recommended Next Steps"
+        "Cover / Client Details",
+        "Personal Note",
+        "AI Readiness Summary",
+        "Strengths & Development Areas",
+        "AI Readiness Deep-Dive",
+        "Competitive Snapshot",
+        "Top Recommended AI Use Cases",
+        "Recommended Roadmap",
+        "Next Steps / How We Can Help"
     ];
 
     public async Task GenerateCompanySummaryAsync(int clientId)
@@ -51,6 +47,11 @@ public class MockAIConsultingAnalysisService(
             """;
 
         await AddAnalysisOutputAsync(profile.Id, AnalysisType.CompanySummary, "Company summary draft", output, BuildInputSummary(profile, latestResponse));
+        var client = await LoadClientForUpdateAsync(clientId);
+        client.CurrentStage = ClientStage.CompanySummary;
+        client.NextAction = "Review and approve company summary";
+        Touch(client);
+        await MarkWorkflowAsync(clientId, "Company Summary", WorkflowStepStatus.InProgress);
         AddActivityLog(profile.Id, "Company summary generated", "Mock company summary draft saved for consultant review.");
         var generateMs = generateStopwatch.ElapsedMilliseconds;
 
@@ -117,7 +118,7 @@ public class MockAIConsultingAnalysisService(
         Touch(client);
 
         await AddAnalysisOutputAsync(clientId, AnalysisType.GapAnalysis, "Gap analysis draft", BuildGapOutput(profile, newGaps), BuildInputSummary(profile, evidence));
-        await MarkWorkflowAsync(clientId, "Gap Analysis Completed", WorkflowStepStatus.InProgress);
+        await MarkWorkflowAsync(clientId, "Follow-up Discovery", WorkflowStepStatus.InProgress);
         AddActivityLog(clientId, "Gap analysis generated", "Rule-based gap analysis draft generated from latest assessment evidence.");
         var generateMs = generateStopwatch.ElapsedMilliseconds;
 
@@ -166,6 +167,11 @@ public class MockAIConsultingAnalysisService(
         }
 
         await AddAnalysisOutputAsync(clientId, AnalysisType.Swot, "SWOT draft", $"Draft SWOT generated for {profile.CompanyName}. Review each quadrant and approve before report use.", BuildInputSummary(profile, evidence));
+        var client = await LoadClientForUpdateAsync(clientId);
+        client.CurrentStage = ClientStage.SwotAnalysis;
+        client.NextAction = "Review and approve SWOT draft";
+        Touch(client);
+        await MarkWorkflowAsync(clientId, "SWOT Analysis", WorkflowStepStatus.InProgress);
         AddActivityLog(clientId, "SWOT generated", "SWOT draft generated for consultant review.");
         var generateMs = generateStopwatch.ElapsedMilliseconds;
 
@@ -192,6 +198,11 @@ public class MockAIConsultingAnalysisService(
             CreatedAt = DateTime.UtcNow
         });
         await AddAnalysisOutputAsync(clientId, AnalysisType.IndustryAnalysis, "Industry analysis draft", "Placeholder industry analysis generated. Add sourced consultant research before approving.", BuildInputSummary(profile));
+        var client = await LoadClientForUpdateAsync(clientId);
+        client.CurrentStage = ClientStage.IndustryAnalysis;
+        client.NextAction = "Review and source industry analysis";
+        Touch(client);
+        await MarkWorkflowAsync(clientId, "Industry Analysis", WorkflowStepStatus.InProgress);
         AddActivityLog(clientId, "Industry analysis generated", "Placeholder industry insight saved.");
         var generateMs = generateStopwatch.ElapsedMilliseconds;
 
@@ -221,6 +232,11 @@ public class MockAIConsultingAnalysisService(
             CreatedAt = DateTime.UtcNow
         });
         await AddAnalysisOutputAsync(clientId, AnalysisType.CompetitorInsights, "Competitor insight draft", "Placeholder competitor insight generated. Validate sources before approval.", BuildInputSummary(profile));
+        var client = await LoadClientForUpdateAsync(clientId);
+        client.CurrentStage = ClientStage.CompetitorAnalysis;
+        client.NextAction = "Review and source competitor insights";
+        Touch(client);
+        await MarkWorkflowAsync(clientId, "Competitor Analysis", WorkflowStepStatus.InProgress);
         AddActivityLog(clientId, "Competitor insights generated", "Placeholder competitor insight saved.");
         var generateMs = generateStopwatch.ElapsedMilliseconds;
 
@@ -244,6 +260,11 @@ public class MockAIConsultingAnalysisService(
         var generateStopwatch = Stopwatch.StartNew();
         var created = AddDefaultUseCases(clientId, existingTitles);
         await AddAnalysisOutputAsync(clientId, AnalysisType.UseCaseGeneration, "AI use case suggestions", "Suggested use cases generated from the default consulting library. Shortlist the top three after scoring.", BuildInputSummary(profile, evidence));
+        var client = await LoadClientForUpdateAsync(clientId);
+        client.CurrentStage = ClientStage.UseCaseIdentification;
+        client.NextAction = "Shortlist and approve recommended use cases";
+        Touch(client);
+        await MarkWorkflowAsync(clientId, "Use Case Identification", WorkflowStepStatus.InProgress);
         AddActivityLog(clientId, "Use cases generated", "Default AI use case library suggestions saved.");
         var generateMs = generateStopwatch.ElapsedMilliseconds;
 
@@ -310,6 +331,11 @@ public class MockAIConsultingAnalysisService(
         }
 
         await AddAnalysisOutputAsync(clientId, AnalysisType.UseCaseScoring, "Use case scoring draft", "Use cases scored with the MVP weighted rule. Consultant should adjust scores where client context warrants.", BuildInputSummary(profile, latestScore: latestScore));
+        var client = await LoadClientForUpdateAsync(clientId);
+        client.CurrentStage = ClientStage.UseCaseScoring;
+        client.NextAction = "Review use case scoring and approve roadmap inputs";
+        Touch(client);
+        await MarkWorkflowAsync(clientId, "Use Case Scoring", WorkflowStepStatus.InProgress);
         AddActivityLog(clientId, "Use cases scored", "Use case priority scores recalculated.");
         var generateMs = generateStopwatch.ElapsedMilliseconds;
 
@@ -335,6 +361,7 @@ public class MockAIConsultingAnalysisService(
             ProcessReadinessScore = calculation.ProcessReadinessScore,
             TechnologyReadinessScore = calculation.TechnologyReadinessScore,
             PeopleGovernanceScore = calculation.PeopleGovernanceScore,
+            GovernanceComplianceScore = calculation.GovernanceComplianceScore,
             OverallScore = calculation.OverallScore,
             ScoreCategory = calculation.ScoreCategory,
             ScoringSummary = calculation.ScoringSummary,
@@ -344,10 +371,12 @@ public class MockAIConsultingAnalysisService(
 
         var client = await LoadClientForUpdateAsync(clientId);
         client.OverallReadinessScore = calculation.OverallScore;
+        client.CurrentStage = ClientStage.ReadinessScore;
         client.NextAction = "Review readiness score rationale";
         Touch(client);
 
         await AddAnalysisOutputAsync(clientId, AnalysisType.RiskAnalysis, "Readiness score rationale", calculation.ScoringSummary, BuildInputSummary(profile, evidence));
+        await MarkWorkflowAsync(clientId, "Readiness Score", WorkflowStepStatus.InProgress);
         AddActivityLog(clientId, "Readiness score calculated", "Readiness score calculated.");
         var generateMs = generateStopwatch.ElapsedMilliseconds;
 
@@ -418,6 +447,11 @@ public class MockAIConsultingAnalysisService(
         }
 
         await AddAnalysisOutputAsync(clientId, AnalysisType.Roadmap, "Roadmap draft", "Roadmap generated from top use cases and known readiness gaps.", BuildInputSummary(profile, gapCount: gapItems.Count, useCaseCount: useCases.Count));
+        var client = await LoadClientForUpdateAsync(clientId);
+        client.CurrentStage = ClientStage.RoadmapGeneration;
+        client.NextAction = "Review and approve roadmap phases";
+        Touch(client);
+        await MarkWorkflowAsync(clientId, "Roadmap Generation", WorkflowStepStatus.InProgress);
         AddActivityLog(clientId, "Roadmap generated", "Roadmap draft generated from use case priorities.");
         var generateMs = generateStopwatch.ElapsedMilliseconds;
 
@@ -465,18 +499,19 @@ public class MockAIConsultingAnalysisService(
                 SectionOrder = i + 1,
                 SectionContent = BuildReportSectionDraft(reportContext, ReportSections[i]),
                 SectionStatus = SectionStatus.DraftGenerated,
+                SourceSummary = "Latest assessment response, generated workspace outputs, and consultant-reviewed evidence.",
                 CreatedAt = DateTime.UtcNow
             });
         }
 
         context.ClientReports.Add(report);
         var client = await LoadClientForUpdateAsync(clientId);
-        client.CurrentStage = ClientStage.ReportDraft;
+        client.CurrentStage = ClientStage.StrategicReport;
         client.NextAction = "Review and approve report sections";
         Touch(client);
 
-        await AddAnalysisOutputAsync(clientId, AnalysisType.FinalReportSection, "Report draft generated", "A full report draft with editable sections has been generated.", BuildInputSummary(profile, evidence, gaps.Count, useCases.Count, roadmapItems.Count, latestScore));
-        await MarkWorkflowAsync(clientId, "Report Draft Generated", WorkflowStepStatus.Completed);
+        await AddAnalysisOutputAsync(clientId, AnalysisType.FinalReportSection, "Strategic report draft generated", "A full strategic report draft with editable sections has been generated.", BuildInputSummary(profile, evidence, gaps.Count, useCases.Count, roadmapItems.Count, latestScore));
+        await MarkWorkflowAsync(clientId, "Strategic Report", WorkflowStepStatus.Completed);
         AddActivityLog(clientId, "Report draft generated", $"Report version {report.VersionNumber} generated.");
         var generateMs = generateStopwatch.ElapsedMilliseconds;
 
@@ -710,7 +745,7 @@ public class MockAIConsultingAnalysisService(
             .Select(output => (int?)output.VersionNumber)
             .MaxAsync() ?? 0;
 
-        context.AIAnalysisOutputs.Add(new AIAnalysisOutput
+        var output = new AIAnalysisOutput
         {
             ClientCompanyId = clientId,
             AnalysisType = type,
@@ -722,7 +757,37 @@ public class MockAIConsultingAnalysisService(
             GeneratedAt = DateTime.UtcNow,
             GeneratedBy = "MockAI",
             CreatedAt = DateTime.UtcNow
+        };
+        context.AIAnalysisOutputs.Add(output);
+        context.AIOutputSources.Add(new AIOutputSource
+        {
+            ClientCompanyId = clientId,
+            OutputType = MapAIOutputType(type),
+            SourceType = AIOutputSourceType.Internal,
+            SourceCategory = AIOutputSourceCategory.Other,
+            SourceLabel = "Workspace evidence summary",
+            SourceReference = title,
+            EvidenceText = inputSummary,
+            CreatedAt = DateTime.UtcNow
         });
+    }
+
+    private static AIOutputType MapAIOutputType(AnalysisType type)
+    {
+        return type switch
+        {
+            AnalysisType.CompanySummary => AIOutputType.CompanySummary,
+            AnalysisType.KnowledgeGapAnalysis => AIOutputType.KnowledgeGap,
+            AnalysisType.Swot => AIOutputType.SWOT,
+            AnalysisType.IndustryAnalysis => AIOutputType.IndustryAnalysis,
+            AnalysisType.CompetitorInsights => AIOutputType.CompetitorAnalysis,
+            AnalysisType.UseCaseGeneration => AIOutputType.UseCase,
+            AnalysisType.UseCaseScoring => AIOutputType.UseCaseScore,
+            AnalysisType.Roadmap => AIOutputType.Roadmap,
+            AnalysisType.FinalReportSection or AnalysisType.ExecutiveSummary => AIOutputType.Report,
+            AnalysisType.RiskAnalysis => AIOutputType.ReadinessScore,
+            _ => AIOutputType.CompanySummary
+        };
     }
 
     private static string BuildInputSummary(
@@ -760,8 +825,9 @@ public class MockAIConsultingAnalysisService(
         var data = CalculateCategoryScore(profile, answers, ["data", "quality", "system", "reporting", "integration", "crm", "warehouse", "source"]);
         var technology = CalculateCategoryScore(profile, answers, ["tool", "cloud", "saas", "automation", "technical", "integration", "platform", "software"]);
         var process = CalculateCategoryScore(profile, answers, ["process", "workflow", "standard", "repeat", "operation", "bottleneck", "manual", "handoff"]);
-        var governance = CalculateCategoryScore(profile, answers, ["skill", "owner", "leadership", "risk", "compliance", "governance", "policy", "change", "training"]);
-        var overall = (int)Math.Round((business + data + technology + process + governance) / 5.0);
+        var people = CalculateCategoryScore(profile, answers, ["skill", "owner", "leadership", "change", "training", "adoption", "team", "sponsor"]);
+        var governance = CalculateCategoryScore(profile, answers, ["risk", "compliance", "governance", "policy", "privacy", "approval", "security", "legal"]);
+        var overall = (int)Math.Round((business + data + technology + process + people + governance) / 6.0);
         var category = GetScoreCategory(overall);
 
         var categoryScores = new Dictionary<string, int>
@@ -770,15 +836,17 @@ public class MockAIConsultingAnalysisService(
             ["Data readiness"] = data,
             ["Technology readiness"] = technology,
             ["Process readiness"] = process,
-            ["People and governance"] = governance
+            ["People and change"] = people,
+            ["Governance / compliance"] = governance
         };
         var strongest = categoryScores.OrderByDescending(item => item.Value).First();
         var weakest = categoryScores.OrderBy(item => item.Value).First();
         var missingAnswers = answers.Count(answer => IsMissing(answer));
+        var categoryLabel = GetScoreCategoryLabel(category);
 
-        var summary = $"{category} readiness based on {answers.Count} answers from the latest assessment response. Strongest area: {strongest.Key} ({strongest.Value}/100). Needs attention: {weakest.Key} ({weakest.Value}/100). {missingAnswers} missing or weak answer{(missingAnswers == 1 ? "" : "s")} reduced the score.";
+        var summary = $"{categoryLabel} readiness based on {answers.Count} answers from the latest assessment response. Overall: {overall}/100 ({overall / 10m:0.0}/10). Strongest area: {strongest.Key} ({strongest.Value}/100). Needs attention: {weakest.Key} ({weakest.Value}/100). {missingAnswers} missing or weak answer{(missingAnswers == 1 ? "" : "s")} reduced the score.";
 
-        return new ReadinessScoreCalculation(business, data, technology, process, governance, overall, category, summary);
+        return new ReadinessScoreCalculation(business, data, technology, process, people, governance, overall, category, summary);
     }
 
     private static int CalculateCategoryScore(ClientAnalysisProfile profile, IReadOnlyList<AssessmentAnswerEvidence> answers, string[] keywords)
@@ -875,10 +943,24 @@ public class MockAIConsultingAnalysisService(
     {
         return score switch
         {
-            <= 39 => ScoreCategory.AiBeginner,
-            <= 69 => ScoreCategory.ExplorationReady,
-            <= 84 => ScoreCategory.PilotReady,
-            _ => ScoreCategory.ImplementationReady
+            <= 39 => ScoreCategory.Observer,
+            <= 69 => ScoreCategory.CautiousAdopter,
+            _ => ScoreCategory.Leader
+        };
+    }
+
+    private static string GetScoreCategoryLabel(ScoreCategory category)
+    {
+        return category switch
+        {
+            ScoreCategory.Observer => "Observer",
+            ScoreCategory.CautiousAdopter => "Cautious adopter",
+            ScoreCategory.Leader => "Leader",
+            ScoreCategory.AiBeginner => "AI beginner",
+            ScoreCategory.ExplorationReady => "Exploration ready",
+            ScoreCategory.PilotReady => "Pilot ready",
+            ScoreCategory.ImplementationReady => "Implementation ready",
+            _ => category.ToString()
         };
     }
 
@@ -886,21 +968,29 @@ public class MockAIConsultingAnalysisService(
     {
         return sectionTitle switch
         {
-            "Executive Summary" => $"{context.Profile.CompanyName} shows {context.LatestScore?.ScoreCategory.ToString() ?? "an unscored readiness profile"} with practical opportunities that should be validated by the consultant.",
-            "Company Context" => $"{context.Profile.CompanyName} operates in {context.Profile.Industry ?? "an unspecified industry"} with a {context.Profile.BusinessModel ?? "business model still to be clarified"}.",
-            "AI Readiness Score" => context.LatestScore is null ? "Readiness score has not been generated yet." : $"Overall score: {context.LatestScore.OverallScore}/100. {context.LatestScore.ScoringSummary}",
-            "Current State" => $"{context.Evidence.ResponseLabel} contains {context.Evidence.AnswerCount} assessment answers collected on {context.Evidence.ReceivedAt:yyyy-MM-dd}.",
-            "Gap Analysis" => context.Gaps.Count > 0 ? string.Join(Environment.NewLine, context.Gaps.Take(5).Select(gap => $"- {gap.GapArea}: {gap.IssueDescription}")) : "No gap analysis items available yet.",
-            "SWOT Analysis" => context.SwotItems.Count > 0 ? string.Join(Environment.NewLine, context.SwotItems.Take(8).Select(item => $"- {item.Category}: {item.Description}")) : "No SWOT draft available yet.",
-            "Industry Trends" => context.IndustryInsights.Count > 0 ? string.Join(Environment.NewLine, context.IndustryInsights.Select(item => $"- {item.Topic}: {item.InsightText}")) : "No industry insight draft available yet.",
-            "Competitor Insights" => context.CompetitorInsights.Count > 0 ? string.Join(Environment.NewLine, context.CompetitorInsights.Select(item => $"- {item.CompetitorName}: {item.InsightText}")) : "No competitor insight draft available yet.",
-            "Recommended AI Use Cases" => context.UseCases.Count > 0 ? string.Join(Environment.NewLine, context.UseCases.Take(5).Select(useCase => $"- {useCase.Title}: {useCase.Description}")) : "No AI use cases have been generated yet.",
-            "Use Case Scoring" => context.UseCases.Any(useCase => useCase.PriorityScore is not null) ? string.Join(Environment.NewLine, context.UseCases.Where(useCase => useCase.PriorityScore is not null).Take(5).Select(useCase => $"- {useCase.Title}: {useCase.PriorityScore}/5")) : "Use cases are not scored yet.",
-            "1-Year Roadmap" => context.RoadmapItems.Count > 0 ? string.Join(Environment.NewLine, context.RoadmapItems.Take(5).Select(item => $"- {item.Phase}: {item.Title}")) : "Roadmap has not been generated yet.",
-            "Risks and Mitigation" => context.Gaps.Any(gap => gap.Severity is Severity.High or Severity.Critical) ? "Prioritize high-severity readiness gaps before client-facing or regulated AI pilots." : "No high-severity gaps have been captured yet; consultant review still required.",
-            "Recommended Next Steps" => context.Profile.NextAction ?? "Confirm readiness score, shortlist use cases, and validate roadmap owners.",
+            "Cover / Client Details" => $"{context.Profile.CompanyName}{Environment.NewLine}Industry: {context.Profile.Industry ?? "Not specified"}{Environment.NewLine}Prepared for consultant review. Assessment source: {context.Evidence.ResponseLabel}.",
+            "Personal Note" => "Consultant note placeholder. Add relationship context, why this assessment matters now, and any client-specific nuance before approval.",
+            "AI Readiness Summary" => context.LatestScore is null ? "Readiness score has not been generated yet." : $"Overall score: {context.LatestScore.OverallScore}/100 ({context.LatestScore.OverallScore / 10m:0.0}/10). Adoption profile: {GetScoreCategoryLabel(context.LatestScore.ScoreCategory)}. {context.LatestScore.ScoringSummary}",
+            "Strengths & Development Areas" => context.Gaps.Count > 0 ? string.Join(Environment.NewLine, context.Gaps.Take(5).Select(gap => $"- Development area: {gap.GapArea}: {gap.IssueDescription}")) : "No development areas have been captured yet. Add consultant interpretation before approval.",
+            "AI Readiness Deep-Dive" => $"{context.Evidence.ResponseLabel} contains {context.Evidence.AnswerCount} assessment answers collected on {context.Evidence.ReceivedAt:yyyy-MM-dd}. Deep-dive should explain strategic context, data readiness, operating bottlenecks, and governance/compliance.",
+            "Competitive Snapshot" => BuildCompetitiveSnapshot(context),
+            "Top Recommended AI Use Cases" => context.UseCases.Count > 0 ? string.Join(Environment.NewLine, context.UseCases.Take(5).Select(useCase => $"- {useCase.Title}: {useCase.Description}")) : "No AI use cases have been generated yet.",
+            "Recommended Roadmap" => context.RoadmapItems.Count > 0 ? string.Join(Environment.NewLine, context.RoadmapItems.Take(5).Select(item => $"- {item.Phase}: {item.Title}")) : "Roadmap has not been generated yet.",
+            "Next Steps / How We Can Help" => context.Profile.NextAction ?? "Confirm readiness score, shortlist use cases, validate roadmap owners, and agree the first implementation support step.",
             _ => $"Draft {sectionTitle.ToLowerInvariant()} content for {context.Profile.CompanyName}. Consultant review required before approval."
         };
+    }
+
+    private static string BuildCompetitiveSnapshot(ReportDraftContext context)
+    {
+        var industry = context.IndustryInsights.Count > 0
+            ? string.Join(Environment.NewLine, context.IndustryInsights.Select(item => $"- Industry: {item.Topic}: {item.InsightText}"))
+            : "- Industry: no sourced industry insight draft available yet.";
+        var competitors = context.CompetitorInsights.Count > 0
+            ? string.Join(Environment.NewLine, context.CompetitorInsights.Select(item => $"- Competitor: {item.CompetitorName}: {item.InsightText}"))
+            : "- Competitors: no competitor insight draft available yet.";
+
+        return $"{industry}{Environment.NewLine}{competitors}";
     }
 
     private async Task MarkWorkflowAsync(int clientId, string stageName, WorkflowStepStatus status)
@@ -912,6 +1002,14 @@ public class MockAIConsultingAnalysisService(
             .FirstOrDefaultAsync();
         if (step is null)
         {
+            context.ClientWorkflowSteps.Add(new ClientWorkflowStep
+            {
+                ClientCompanyId = clientId,
+                StageName = stageName,
+                DisplayOrder = StakeholderWorkflow.GetDisplayOrder(stageName),
+                Status = status,
+                CompletedAt = status == WorkflowStepStatus.Completed ? DateTime.UtcNow : null
+            });
             return;
         }
 
@@ -1009,6 +1107,7 @@ public class MockAIConsultingAnalysisService(
         int TechnologyReadinessScore,
         int ProcessReadinessScore,
         int PeopleGovernanceScore,
+        int GovernanceComplianceScore,
         int OverallScore,
         ScoreCategory ScoreCategory,
         string ScoringSummary);

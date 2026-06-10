@@ -10,7 +10,13 @@ public static partial class EnumExtensions
         text = text
             .Replace("Ai", "AI", StringComparison.Ordinal)
             .Replace("Roi", "ROI", StringComparison.Ordinal)
+            .Replace("Url", "URL", StringComparison.Ordinal)
             .Replace("Swot", "SWOT", StringComparison.Ordinal)
+            .Replace("CautiousAdopter", "Cautious Adopter", StringComparison.Ordinal)
+            .Replace("GovernanceCompliance", "Governance / Compliance", StringComparison.Ordinal)
+            .Replace("KnowledgeGap", "Knowledge Gap", StringComparison.Ordinal)
+            .Replace("AssessmentIntroduction", "Assessment Introduction", StringComparison.Ordinal)
+            .Replace("UseCase", "Use Case", StringComparison.Ordinal)
             .Replace("ZeroToThreeMonths", "0-3 Months", StringComparison.Ordinal)
             .Replace("ThreeToSixMonths", "3-6 Months", StringComparison.Ordinal)
             .Replace("SixToTwelveMonths", "6-12 Months", StringComparison.Ordinal)

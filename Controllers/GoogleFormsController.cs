@@ -255,7 +255,7 @@ public class GoogleFormsController(
             if (response.AnswerCount > 0)
             {
                 assessment.ClientCompany.CurrentStage = ClientStage.AssessmentCompleted;
-                assessment.ClientCompany.NextAction = "Review received assessment response and generate gap analysis";
+                assessment.ClientCompany.NextAction = "Review received assessment response and generate knowledge gap analysis";
             }
             else
             {
@@ -266,7 +266,7 @@ public class GoogleFormsController(
 
         if (response.AnswerCount > 0)
         {
-            await MarkWorkflowAsync(assessment.ClientCompanyId, "Form Completed");
+            await MarkWorkflowAsync(assessment.ClientCompanyId, "Assessment Completed");
         }
 
         context.ClientActivityLogs.Add(new ClientActivityLog
@@ -367,6 +367,14 @@ public class GoogleFormsController(
 
         if (step is null)
         {
+            context.ClientWorkflowSteps.Add(new ClientWorkflowStep
+            {
+                ClientCompanyId = clientId,
+                StageName = stageName,
+                DisplayOrder = StakeholderWorkflow.GetDisplayOrder(stageName),
+                Status = WorkflowStepStatus.Completed,
+                CompletedAt = DateTime.UtcNow
+            });
             return;
         }
 

@@ -31,7 +31,8 @@ public class ReportsController(ApplicationDbContext context) : Controller
         {
             report.ClientCompany.CurrentStage = reportStatus switch
             {
-                ReportStatus.InConsultantReview => ClientStage.InReview,
+                ReportStatus.InConsultantReview => ClientStage.StrategicReport,
+                ReportStatus.ReadyForDelivery => ClientStage.FinalReviewApproved,
                 ReportStatus.Delivered => ClientStage.Delivered,
                 ReportStatus.Closed => ClientStage.Closed,
                 _ => report.ClientCompany.CurrentStage
@@ -65,6 +66,17 @@ public class ReportsController(ApplicationDbContext context) : Controller
 
         section.SectionContent = sectionContent;
         section.SectionStatus = sectionStatus;
+        if (sectionStatus == SectionStatus.Approved)
+        {
+            section.ApprovedAt ??= DateTime.UtcNow;
+            section.ApprovedBy ??= "Consultant";
+        }
+        else
+        {
+            section.ApprovedAt = null;
+            section.ApprovedBy = null;
+        }
+
         section.LastModifiedAt = DateTime.UtcNow;
         await LogAsync(section.ClientReport.ClientCompanyId, "Report section updated", $"{section.SectionTitle} updated.");
         await context.SaveChangesAsync();

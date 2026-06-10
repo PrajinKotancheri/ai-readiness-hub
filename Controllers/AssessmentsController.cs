@@ -16,7 +16,7 @@ public class AssessmentsController(ApplicationDbContext context, IReadinessFormS
     {
         var client = await context.ClientCompanies
             .Include(item => item.ReadinessAssessments)
-            .FirstOrDefaultAsync(item => item.Id == clientId);
+            .SingleOrDefaultAsync(item => item.Id == clientId);
         if (client is null)
         {
             return NotFound();
@@ -40,7 +40,7 @@ public class AssessmentsController(ApplicationDbContext context, IReadinessFormS
         client.NextAction = "Wait for form completion or import answers";
         client.LastModifiedAt = DateTime.UtcNow;
 
-        await MarkWorkflowAsync(clientId, "Readiness Form Sent", WorkflowStepStatus.Completed);
+        await MarkWorkflowAsync(clientId, "Assessment Sent", WorkflowStepStatus.Completed);
         await LogAsync(clientId, "Form marked as sent", "Readiness assessment form marked as sent.");
         await context.SaveChangesAsync();
         return RedirectToWorkspace(clientId);
@@ -123,7 +123,7 @@ public class AssessmentsController(ApplicationDbContext context, IReadinessFormS
                 .ThenInclude(item => item.Answers)
             .Include(item => item.ReadinessAssessments)
                 .ThenInclude(item => item.Responses)
-            .FirstOrDefaultAsync(item => item.Id == clientId);
+            .SingleOrDefaultAsync(item => item.Id == clientId);
         if (client is null)
         {
             return NotFound();
@@ -173,7 +173,7 @@ public class AssessmentsController(ApplicationDbContext context, IReadinessFormS
         if (response.AnswerCount > 0)
         {
             client.CurrentStage = ClientStage.AssessmentCompleted;
-            client.NextAction = "Review imported answers and generate gap analysis";
+            client.NextAction = "Review imported answers and generate knowledge gap analysis";
         }
         else
         {
@@ -183,7 +183,7 @@ public class AssessmentsController(ApplicationDbContext context, IReadinessFormS
 
         if (response.AnswerCount > 0)
         {
-            await MarkWorkflowAsync(clientId, "Form Completed", WorkflowStepStatus.Completed);
+            await MarkWorkflowAsync(clientId, "Assessment Completed", WorkflowStepStatus.Completed);
         }
         await LogAsync(clientId, "Assessment imported", $"Manual import created: {response.ResponseLabel} with {response.AnswerCount} answers.");
         await context.SaveChangesAsync();
@@ -243,7 +243,7 @@ public class AssessmentsController(ApplicationDbContext context, IReadinessFormS
         assessment.ResponseReceivedAt = receivedAt;
         assessment.LastModifiedAt = receivedAt;
 
-        await MarkWorkflowAsync(clientId, "Form Completed", WorkflowStepStatus.Completed);
+        await MarkWorkflowAsync(clientId, "Assessment Completed", WorkflowStepStatus.Completed);
         await LogAsync(clientId, "Assessment answer added", $"Manual import created: {response.ResponseLabel} with 1 answer.");
         await context.SaveChangesAsync();
         return RedirectToWorkspace(clientId);
@@ -383,6 +383,19 @@ public class AssessmentsController(ApplicationDbContext context, IReadinessFormS
             .OrderBy(item => item.DisplayOrder)
             .ThenBy(item => item.Id)
             .FirstOrDefaultAsync();
+        if (step is null)
+        {
+            context.ClientWorkflowSteps.Add(new ClientWorkflowStep
+            {
+                ClientCompanyId = clientId,
+                StageName = stageName,
+                DisplayOrder = StakeholderWorkflow.GetDisplayOrder(stageName),
+                Status = status,
+                CompletedAt = status == WorkflowStepStatus.Completed ? DateTime.UtcNow : null
+            });
+            return;
+        }
+
         if (step is not null)
         {
             step.Status = status;

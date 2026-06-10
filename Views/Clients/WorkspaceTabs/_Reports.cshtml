@@ -5,8 +5,35 @@
 
 <form asp-controller="Analysis" asp-action="Generate" method="post" class="mb-3">
     <input type="hidden" name="clientId" value="@client.Id" />
-    <button class="btn btn-primary" name="operation" value="report">Generate Report Draft</button>
+    <button class="btn btn-primary" name="operation" value="report">Generate Strategic Report Draft</button>
 </form>
+
+@if (Model.ReportTemplateSections.Any())
+{
+    <section class="panel">
+        <div class="panel-header">
+            <h3 class="panel-title">Strategic report template</h3>
+            <span class="status-badge status-info">@Model.ReportTemplateSections.Count section@(Model.ReportTemplateSections.Count == 1 ? string.Empty : "s")</span>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-sm">
+                <thead><tr><th>#</th><th>Section</th><th>Goal</th><th>Status</th></tr></thead>
+                <tbody>
+                    @foreach (var templateSection in Model.ReportTemplateSections.OrderBy(item => item.SectionOrder))
+                    {
+                        <tr>
+                            <td>@templateSection.SectionOrder</td>
+                            <td class="fw-semibold">@templateSection.SectionTitle</td>
+                            <td>@templateSection.SectionGoal</td>
+                            <td><span class="status-badge @templateSection.Status.ToBadgeClass()">@templateSection.Status.ToDisplayName()</span></td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </section>
+}
+
 @if (Model.LatestReport is not null)
 {
     <div class="d-flex justify-content-between flex-wrap gap-2 mb-3">
@@ -29,19 +56,27 @@
                 <div class="fw-semibold">@reportSection.SectionOrder. @reportSection.SectionTitle</div>
                 <span class="status-badge @reportSection.SectionStatus.ToBadgeClass()">@reportSection.SectionStatus.ToDisplayName()</span>
             </div>
+            @if (!string.IsNullOrWhiteSpace(reportSection.SourceSummary))
+            {
+                <div class="table-note mt-2">Sources: @reportSection.SourceSummary</div>
+            }
             <form asp-controller="Reports" asp-action="Section" method="post" class="mt-2">
                 <input type="hidden" name="sectionId" value="@reportSection.Id" />
                 <textarea name="sectionContent" class="form-control" rows="5">@reportSection.SectionContent</textarea>
                 <select name="sectionStatus" asp-items="Html.GetEnumSelectList<SectionStatus>()" class="form-select mt-2"></select>
                 <button class="btn btn-outline-primary btn-sm mt-2" type="submit">Save section</button>
             </form>
+            @if (reportSection.ApprovedAt is not null)
+            {
+                <div class="table-note mt-2">Approved @Html.LocalDateTime(reportSection.ApprovedAt, "datetime") by @(reportSection.ApprovedBy ?? "Consultant")</div>
+            }
         </div>
     }
 }
 else
 {
     <div class="empty-state">
-        <strong>No report draft yet.</strong>
+        <strong>No strategic report draft yet.</strong>
         Generate a report draft once the assessment, analysis, and roadmap are ready.
     </div>
 }

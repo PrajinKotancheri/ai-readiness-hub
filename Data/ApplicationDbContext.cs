@@ -28,6 +28,11 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
     public DbSet<ReportSection> ReportSections => Set<ReportSection>();
     public DbSet<ClientTask> ClientTasks => Set<ClientTask>();
     public DbSet<ClientActivityLog> ClientActivityLogs => Set<ClientActivityLog>();
+    public DbSet<KnowledgeGapItem> KnowledgeGapItems => Set<KnowledgeGapItem>();
+    public DbSet<AIOutputSource> AIOutputSources => Set<AIOutputSource>();
+    public DbSet<PromptDefinition> PromptDefinitions => Set<PromptDefinition>();
+    public DbSet<ReportTemplateSection> ReportTemplateSections => Set<ReportTemplateSection>();
+    public DbSet<UseCaseLibraryItem> UseCaseLibraryItems => Set<UseCaseLibraryItem>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -148,6 +153,30 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
         modelBuilder.Entity<ReadinessScore>()
             .HasIndex(score => new { score.ClientCompanyId, score.CreatedAt });
 
+        modelBuilder.Entity<KnowledgeGapItem>()
+            .HasIndex(item => new { item.ClientCompanyId, item.Status });
+
+        modelBuilder.Entity<KnowledgeGapItem>()
+            .HasIndex(item => new { item.ClientCompanyId, item.Priority });
+
+        modelBuilder.Entity<KnowledgeGapItem>()
+            .HasIndex(item => item.AssessmentResponseId);
+
+        modelBuilder.Entity<AIOutputSource>()
+            .HasIndex(source => new { source.ClientCompanyId, source.OutputType, source.OutputId });
+
+        modelBuilder.Entity<PromptDefinition>()
+            .HasIndex(prompt => new { prompt.PromptName, prompt.VersionNumber })
+            .IsUnique();
+
+        modelBuilder.Entity<ReportTemplateSection>()
+            .HasIndex(section => new { section.SectionOrder, section.SectionTitle })
+            .IsUnique();
+
+        modelBuilder.Entity<UseCaseLibraryItem>()
+            .HasIndex(item => item.Name)
+            .IsUnique();
+
         modelBuilder.Entity<ClientCompany>()
             .HasMany(client => client.ReadinessAssessments)
             .WithOne(assessment => assessment.ClientCompany)
@@ -188,6 +217,36 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
             .HasMany(report => report.Sections)
             .WithOne(section => section.ClientReport)
             .HasForeignKey(section => section.ClientReportId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<ClientCompany>()
+            .HasMany(client => client.KnowledgeGapItems)
+            .WithOne(item => item.ClientCompany)
+            .HasForeignKey(item => item.ClientCompanyId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<KnowledgeGapItem>()
+            .HasOne(item => item.AssessmentResponse)
+            .WithMany()
+            .HasForeignKey(item => item.AssessmentResponseId)
+            .OnDelete(DeleteBehavior.SetNull);
+
+        modelBuilder.Entity<ConsultantNote>()
+            .HasOne(note => note.KnowledgeGapItem)
+            .WithMany()
+            .HasForeignKey(note => note.KnowledgeGapItemId)
+            .OnDelete(DeleteBehavior.SetNull);
+
+        modelBuilder.Entity<MeetingTranscript>()
+            .HasOne(transcript => transcript.KnowledgeGapItem)
+            .WithMany()
+            .HasForeignKey(transcript => transcript.KnowledgeGapItemId)
+            .OnDelete(DeleteBehavior.SetNull);
+
+        modelBuilder.Entity<ClientCompany>()
+            .HasMany(client => client.AIOutputSources)
+            .WithOne(source => source.ClientCompany)
+            .HasForeignKey(source => source.ClientCompanyId)
             .OnDelete(DeleteBehavior.Cascade);
     }
 }

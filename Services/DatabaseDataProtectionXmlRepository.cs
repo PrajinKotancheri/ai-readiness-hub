@@ -53,7 +53,7 @@ public sealed class DatabaseDataProtectionXmlRepository(
 
         using var scope = scopeFactory.CreateScope();
         var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-        var existingKey = context.DataProtectionKeys.FirstOrDefault(key => key.FriendlyName == keyName);
+        var existingKey = context.DataProtectionKeys.SingleOrDefault(key => key.FriendlyName == keyName);
 
         if (existingKey is null)
         {
