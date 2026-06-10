@@ -30,6 +30,9 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
     public DbSet<ClientActivityLog> ClientActivityLogs => Set<ClientActivityLog>();
     public DbSet<KnowledgeGapItem> KnowledgeGapItems => Set<KnowledgeGapItem>();
     public DbSet<AIOutputSource> AIOutputSources => Set<AIOutputSource>();
+    public DbSet<AIWorkspaceSession> AIWorkspaceSessions => Set<AIWorkspaceSession>();
+    public DbSet<AIWorkspaceMessage> AIWorkspaceMessages => Set<AIWorkspaceMessage>();
+    public DbSet<AIOutputRevision> AIOutputRevisions => Set<AIOutputRevision>();
     public DbSet<PromptDefinition> PromptDefinitions => Set<PromptDefinition>();
     public DbSet<ReportTemplateSection> ReportTemplateSections => Set<ReportTemplateSection>();
     public DbSet<UseCaseLibraryItem> UseCaseLibraryItems => Set<UseCaseLibraryItem>();
@@ -165,6 +168,15 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
         modelBuilder.Entity<AIOutputSource>()
             .HasIndex(source => new { source.ClientCompanyId, source.OutputType, source.OutputId });
 
+        modelBuilder.Entity<AIWorkspaceSession>()
+            .HasIndex(session => new { session.ClientCompanyId, session.OutputType, session.OutputId, session.Status });
+
+        modelBuilder.Entity<AIWorkspaceMessage>()
+            .HasIndex(message => new { message.AIWorkspaceSessionId, message.CreatedAt });
+
+        modelBuilder.Entity<AIOutputRevision>()
+            .HasIndex(revision => new { revision.ClientCompanyId, revision.OutputType, revision.OutputId, revision.VersionNumber });
+
         modelBuilder.Entity<PromptDefinition>()
             .HasIndex(prompt => new { prompt.PromptName, prompt.VersionNumber })
             .IsUnique();
@@ -247,6 +259,30 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
             .HasMany(client => client.AIOutputSources)
             .WithOne(source => source.ClientCompany)
             .HasForeignKey(source => source.ClientCompanyId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<ClientCompany>()
+            .HasMany(client => client.AIWorkspaceSessions)
+            .WithOne(session => session.ClientCompany)
+            .HasForeignKey(session => session.ClientCompanyId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<AIWorkspaceSession>()
+            .HasMany(session => session.Messages)
+            .WithOne(message => message.AIWorkspaceSession)
+            .HasForeignKey(message => message.AIWorkspaceSessionId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<AIWorkspaceSession>()
+            .HasMany(session => session.Revisions)
+            .WithOne(revision => revision.AIWorkspaceSession)
+            .HasForeignKey(revision => revision.AIWorkspaceSessionId)
+            .OnDelete(DeleteBehavior.SetNull);
+
+        modelBuilder.Entity<ClientCompany>()
+            .HasMany(client => client.AIOutputRevisions)
+            .WithOne(revision => revision.ClientCompany)
+            .HasForeignKey(revision => revision.ClientCompanyId)
             .OnDelete(DeleteBehavior.Cascade);
     }
 }

@@ -812,10 +812,34 @@ public class ClientsController(
         client.KnowledgeGapItems = knowledgeGapItems;
 
         var sources = await LoadAIOutputSourcesAsync(id, AIOutputType.KnowledgeGap);
+        var latestKnowledgeGapOutput = await context.AIAnalysisOutputs
+            .AsNoTracking()
+            .Where(output => output.ClientCompanyId == id && output.AnalysisType == AnalysisType.KnowledgeGapAnalysis)
+            .OrderByDescending(output => output.VersionNumber)
+            .ThenByDescending(output => output.CreatedAt)
+            .Select(output => new AIAnalysisOutput
+            {
+                Id = output.Id,
+                ClientCompanyId = output.ClientCompanyId,
+                AnalysisType = output.AnalysisType,
+                Title = output.Title,
+                InputSummary = output.InputSummary,
+                OutputContent = output.OutputContent,
+                Status = output.Status,
+                VersionNumber = output.VersionNumber,
+                GeneratedAt = output.GeneratedAt,
+                GeneratedBy = output.GeneratedBy,
+                ApprovedAt = output.ApprovedAt,
+                ApprovedBy = output.ApprovedBy,
+                CreatedAt = output.CreatedAt,
+                LastModifiedAt = output.LastModifiedAt
+            })
+            .FirstOrDefaultAsync();
 
         return new ClientWorkspaceViewModel
         {
             Client = client,
+            LatestAnalysisOutputs = latestKnowledgeGapOutput is null ? [] : [latestKnowledgeGapOutput],
             KnowledgeGapItems = knowledgeGapItems,
             KnowledgeGapCount = await context.KnowledgeGapItems.AsNoTracking().CountAsync(item => item.ClientCompanyId == id),
             AIOutputSources = sources

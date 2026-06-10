@@ -316,6 +316,36 @@ public enum AIOutputSourceCategory
     Other
 }
 
+public enum AIProviderKind
+{
+    Mock,
+    OpenAI
+}
+
+public enum AIWorkspaceStatus
+{
+    Active,
+    DraftSaved,
+    Approved,
+    Closed
+}
+
+public enum AIWorkspaceMessageRole
+{
+    System,
+    Consultant,
+    Assistant
+}
+
+public enum AIOutputRevisionStatus
+{
+    Draft,
+    InReview,
+    Approved,
+    Superseded,
+    Rejected
+}
+
 public enum PromptStatus
 {
     Draft,
@@ -465,6 +495,8 @@ public class ClientCompany
     public ICollection<ClientActivityLog> ActivityLogs { get; set; } = [];
     public ICollection<KnowledgeGapItem> KnowledgeGapItems { get; set; } = [];
     public ICollection<AIOutputSource> AIOutputSources { get; set; } = [];
+    public ICollection<AIWorkspaceSession> AIWorkspaceSessions { get; set; } = [];
+    public ICollection<AIOutputRevision> AIOutputRevisions { get; set; } = [];
 }
 
 public class ClientWorkflowStep
@@ -1058,6 +1090,73 @@ public class UseCaseLibraryItem
     public string? Dependencies { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime? LastModifiedAt { get; set; }
+}
+
+public class AIWorkspaceSession
+{
+    public int Id { get; set; }
+    public int ClientCompanyId { get; set; }
+    public ClientCompany? ClientCompany { get; set; }
+    public AIOutputType OutputType { get; set; }
+    public int? OutputId { get; set; }
+
+    [Required, StringLength(180)]
+    public string Title { get; set; } = string.Empty;
+
+    public AIWorkspaceStatus Status { get; set; } = AIWorkspaceStatus.Active;
+    public AIProviderKind Provider { get; set; } = AIProviderKind.Mock;
+
+    [StringLength(120)]
+    public string? Model { get; set; }
+
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime? LastModifiedAt { get; set; }
+    public DateTime? ApprovedAt { get; set; }
+
+    [StringLength(120)]
+    public string? ApprovedBy { get; set; }
+
+    public ICollection<AIWorkspaceMessage> Messages { get; set; } = [];
+    public ICollection<AIOutputRevision> Revisions { get; set; } = [];
+}
+
+public class AIWorkspaceMessage
+{
+    public int Id { get; set; }
+    public int AIWorkspaceSessionId { get; set; }
+    public AIWorkspaceSession? AIWorkspaceSession { get; set; }
+    public AIWorkspaceMessageRole Role { get; set; } = AIWorkspaceMessageRole.Consultant;
+
+    [Required]
+    public string MessageText { get; set; } = string.Empty;
+
+    public string? DraftContentSnapshot { get; set; }
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+}
+
+public class AIOutputRevision
+{
+    public int Id { get; set; }
+    public int ClientCompanyId { get; set; }
+    public ClientCompany? ClientCompany { get; set; }
+    public AIOutputType OutputType { get; set; }
+    public int? OutputId { get; set; }
+    public int? AIWorkspaceSessionId { get; set; }
+    public AIWorkspaceSession? AIWorkspaceSession { get; set; }
+    public int VersionNumber { get; set; } = 1;
+    public string DraftContent { get; set; } = string.Empty;
+    public string? ConsultantFeedback { get; set; }
+    public AIProviderKind Provider { get; set; } = AIProviderKind.Mock;
+
+    [StringLength(120)]
+    public string? Model { get; set; }
+
+    public AIOutputRevisionStatus Status { get; set; } = AIOutputRevisionStatus.Draft;
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime? ApprovedAt { get; set; }
+
+    [StringLength(120)]
+    public string? ApprovedBy { get; set; }
 }
 
 public class ClientTask

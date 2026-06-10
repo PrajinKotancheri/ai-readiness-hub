@@ -7,6 +7,9 @@ namespace AI_Readiness_Hub.Services;
 
 public class MockAIConsultingAnalysisService(
     ApplicationDbContext context,
+    IAIContextBuilder contextBuilder,
+    IAIProviderClient providerClient,
+    IStructuredAIResponseParser parser,
     ILogger<MockAIConsultingAnalysisService> logger) : IAIConsultingAnalysisService
 {
     private static readonly string[] ReportSections =
@@ -27,32 +30,82 @@ public class MockAIConsultingAnalysisService(
         var totalStopwatch = Stopwatch.StartNew();
         var loadStopwatch = Stopwatch.StartNew();
         var profile = await LoadClientProfileAsync(clientId);
-        var latestResponse = await LoadLatestResponseEvidenceAsync(clientId, loadAnswers: false);
         var loadMs = loadStopwatch.ElapsedMilliseconds;
 
         var generateStopwatch = Stopwatch.StartNew();
+        var aiContext = await contextBuilder.BuildAsync(new AIContextRequest(clientId, AIOperationNames.CompanySummary));
+        var request = new AIProviderRequest(
+            AIOperationNames.CompanySummary,
+            "You are an AI-assisted consultant. Draft a company summary only from the supplied context. Return valid JSON only.",
+            aiContext.PromptText,
+            aiContext.ContextText,
+            AIJsonSchemas.GetSchemaName(AIOperationNames.CompanySummary),
+            AIJsonSchemas.GetSchema(AIOperationNames.CompanySummary));
+
+        var result = await providerClient.GenerateStructuredJsonAsync(request);
+        if (!result.Succeeded || string.IsNullOrWhiteSpace(result.Content))
+        {
+            throw new InvalidOperationException(result.FriendlyMessage ?? "AI could not generate a company summary. Please try again or switch to Mock provider.");
+        }
+
+        var parsed = parser.ParseCompanySummary(result.Content);
         var output = $"""
-            Company: {profile.CompanyName}
-            Industry: {profile.Industry ?? "Not specified"}
-            Business model: {profile.BusinessModel ?? "Not specified"}
-            Current stage: {profile.CurrentStage}
+            Summary:
+            {parsed.Summary}
 
-            Draft summary:
-            {profile.CompanyName} is being assessed for practical AI readiness across business clarity, data quality, process maturity, technology fit, and governance. The current assessment context suggests {(latestResponse is null ? "the consultant should collect or import assessment answers before final review." : $"{latestResponse.ResponseLabel} has {latestResponse.AnswerCount} captured answers for consultant review.")}
+            Business model:
+            {parsed.BusinessModel ?? "Not specified"}
 
-            Consultant review notes:
-            - Confirm the core business goals.
-            - Validate available data sources and ownership.
-            - Identify the first safe, measurable pilot candidate.
+            Strategic goals:
+            {string.Join(Environment.NewLine, parsed.StrategicGoals.Select(goal => $"- {goal}"))}
+
+            Operational context:
+            {parsed.OperationalContext ?? "Not specified"}
+
+            AI readiness implications:
+            {parsed.AIReadinessImplications ?? "Not specified"}
             """;
 
-        await AddAnalysisOutputAsync(profile.Id, AnalysisType.CompanySummary, "Company summary draft", output, BuildInputSummary(profile, latestResponse));
+        var version = await context.AIAnalysisOutputs
+            .Where(item => item.ClientCompanyId == clientId && item.AnalysisType == AnalysisType.CompanySummary)
+            .Select(item => (int?)item.VersionNumber)
+            .MaxAsync() ?? 0;
+        context.AIAnalysisOutputs.Add(new AIAnalysisOutput
+        {
+            ClientCompanyId = clientId,
+            AnalysisType = AnalysisType.CompanySummary,
+            Title = "Company summary draft",
+            InputSummary = $"{aiContext.Sources.Count} compact source references; provider {result.Provider}.",
+            OutputContent = output,
+            Status = DraftStatus.DraftGenerated,
+            VersionNumber = version + 1,
+            GeneratedAt = DateTime.UtcNow,
+            GeneratedBy = result.Provider.ToString(),
+            CreatedAt = DateTime.UtcNow
+        });
+
+        foreach (var source in parsed.Sources.Concat(aiContext.Sources).Take(30))
+        {
+            context.AIOutputSources.Add(new AIOutputSource
+            {
+                ClientCompanyId = clientId,
+                OutputType = AIOutputType.CompanySummary,
+                SourceType = source.SourceType,
+                SourceCategory = source.SourceCategory,
+                SourceLabel = source.SourceLabel,
+                SourceReference = source.SourceReference,
+                SourceUrl = source.SourceUrl,
+                EvidenceText = source.EvidenceText,
+                CreatedAt = DateTime.UtcNow
+            });
+        }
+
         var client = await LoadClientForUpdateAsync(clientId);
         client.CurrentStage = ClientStage.CompanySummary;
         client.NextAction = "Review and approve company summary";
         Touch(client);
         await MarkWorkflowAsync(clientId, "Company Summary", WorkflowStepStatus.InProgress);
-        AddActivityLog(profile.Id, "Company summary generated", "Mock company summary draft saved for consultant review.");
+        AddActivityLog(profile.Id, "Company summary generated", $"Company Summary generated using {result.Provider}.");
         var generateMs = generateStopwatch.ElapsedMilliseconds;
 
         var saveMs = await SaveChangesWithTimingAsync();

@@ -1,0 +1,103 @@
+@model AIWorkspaceViewModel
+@{
+    var session = Model.Session;
+    var isApproved = session.Status == AIWorkspaceStatus.Approved;
+}
+
+<div class="page-header">
+    <div>
+        <p class="page-kicker">@Model.ClientCompanyName</p>
+        <h1>@session.Title</h1>
+        <p class="page-subtitle">AI-assisted refinement workspace for consultant-controlled drafts.</p>
+    </div>
+    <a class="btn btn-outline-secondary btn-sm" asp-controller="Clients" asp-action="Workspace" asp-route-id="@session.ClientCompanyId">Back to workspace</a>
+</div>
+
+@if (TempData["SuccessMessage"] is string successMessage)
+{
+    <div class="alert alert-success">@successMessage</div>
+}
+@if (TempData["ErrorMessage"] is string errorMessage)
+{
+    <div class="alert alert-danger">@errorMessage</div>
+}
+@if (!string.IsNullOrWhiteSpace(Model.WarningMessage))
+{
+    <div class="alert alert-warning">@Model.WarningMessage</div>
+}
+
+<section class="panel mb-3">
+    <div class="d-flex justify-content-between flex-wrap gap-2">
+        <div class="d-flex gap-2 flex-wrap">
+            <span class="status-badge status-info">Provider: @session.Provider</span>
+            <span class="status-badge status-neutral">Model: @(session.Model ?? "not configured")</span>
+            <span class="status-badge @session.Status.ToBadgeClass()">Status: @session.Status.ToDisplayName()</span>
+            <span class="status-badge status-neutral">@Model.SourceCount source@(Model.SourceCount == 1 ? string.Empty : "s")</span>
+        </div>
+        <div class="table-note">Created @Html.LocalDateTime(session.CreatedAt, "datetime")</div>
+    </div>
+</section>
+
+<div class="workspace-grid">
+    <section class="panel">
+        <div class="panel-header">
+            <h2 class="panel-title">Current draft</h2>
+        </div>
+        <form method="post">
+            <textarea name="currentDraft" class="form-control ai-workspace-draft" rows="22" @(isApproved ? "readonly" : null)>@Model.CurrentDraft</textarea>
+            <div class="action-strip mt-3">
+                <button class="btn btn-outline-primary btn-sm" type="submit" formaction="@Url.Action("SaveDraft", "AIWorkspace", new { id = session.Id })" disabled="@isApproved">Save Draft</button>
+                <button class="btn btn-primary btn-sm" type="submit" formaction="@Url.Action("ApproveFinal", "AIWorkspace", new { id = session.Id })" disabled="@isApproved">Approve Final</button>
+                <button class="btn btn-outline-secondary btn-sm" type="submit" formaction="@Url.Action("Close", "AIWorkspace", new { id = session.Id })">Close Workspace</button>
+            </div>
+        </form>
+    </section>
+
+    <section class="panel">
+        <div class="panel-header">
+            <h2 class="panel-title">Conversation</h2>
+        </div>
+        <div class="ai-workspace-thread">
+            @foreach (var message in Model.Messages)
+            {
+                <div class="ai-message ai-message-@message.Role.ToString().ToLowerInvariant()">
+                    <div class="table-note">@message.Role.ToDisplayName() · @Html.LocalDateTime(message.CreatedAt, "datetime")</div>
+                    <div>@message.MessageText</div>
+                </div>
+            }
+        </div>
+        <form asp-controller="AIWorkspace" asp-action="SendFeedback" asp-route-id="@session.Id" method="post" class="mt-3">
+            <textarea name="currentDraft" class="visually-hidden">@Model.CurrentDraft</textarea>
+            <label class="form-label" for="consultantFeedback">Consultant feedback</label>
+            <textarea id="consultantFeedback" name="consultantFeedback" class="form-control compact-textarea" rows="5" placeholder="Tell AI what to improve, clarify, or preserve." disabled="@isApproved"></textarea>
+            <button class="btn btn-primary btn-sm mt-2" type="submit" disabled="@isApproved">Send Feedback</button>
+        </form>
+    </section>
+</div>
+
+<section class="panel mt-3">
+    <div class="panel-header">
+        <h2 class="panel-title">Revision history</h2>
+        <span class="status-badge status-neutral">@Model.Revisions.Count revision@(Model.Revisions.Count == 1 ? string.Empty : "s")</span>
+    </div>
+    @if (Model.Revisions.Any())
+    {
+        <div class="table-responsive">
+            <table class="table table-sm">
+                <thead><tr><th>Version</th><th>Status</th><th>Provider</th><th>Feedback</th><th>Created</th></tr></thead>
+                <tbody>
+                    @foreach (var revision in Model.Revisions)
+                    {
+                        <tr>
+                            <td>@revision.VersionNumber</td>
+                            <td><span class="status-badge @revision.Status.ToBadgeClass()">@revision.Status.ToDisplayName()</span></td>
+                            <td>@revision.Provider · @(revision.Model ?? "model not set")</td>
+                            <td>@(revision.ConsultantFeedback ?? "-")</td>
+                            <td>@Html.LocalDateTime(revision.CreatedAt, "datetime")</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</section>

@@ -815,6 +815,43 @@ a:hover {
   min-height: 92px;
 }
 
+.workspace-grid {
+  align-items: start;
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: minmax(0, 1.25fr) minmax(320px, 0.75fr);
+}
+
+.ai-workspace-draft {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  font-size: 0.9rem;
+  min-height: 32rem;
+}
+
+.ai-workspace-thread {
+  display: grid;
+  gap: 0.75rem;
+  max-height: 36rem;
+  overflow: auto;
+}
+
+.ai-message {
+  background: var(--app-panel-soft);
+  border: 1px solid var(--app-border);
+  border-radius: 8px;
+  padding: 0.75rem;
+}
+
+.ai-message-assistant {
+  background: #f5fbf9;
+  border-color: rgba(45, 121, 104, 0.28);
+}
+
+.ai-message-consultant {
+  background: #f7f9ff;
+  border-color: rgba(54, 80, 150, 0.24);
+}
+
 .swot-grid {
   display: grid;
   gap: 0.75rem;
@@ -871,6 +908,10 @@ a:hover {
 }
 
 @media (max-width: 900px) {
+  .workspace-grid {
+    grid-template-columns: 1fr;
+  }
+
   .page-header {
     display: block;
   }

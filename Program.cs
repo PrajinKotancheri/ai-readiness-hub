@@ -58,8 +58,21 @@ if (!builder.Environment.IsDevelopment())
     builder.Services.AddSingleton<DatabaseDataProtectionXmlRepository>();
     builder.Services.ConfigureOptions<DatabaseDataProtectionKeyManagementOptionsSetup>();
 }
+builder.Services.Configure<AIOptions>(builder.Configuration.GetSection("AI"));
+builder.Services.AddHttpClient("OpenAI", client =>
+{
+    client.BaseAddress = new Uri("https://api.openai.com/v1/");
+    client.Timeout = TimeSpan.FromSeconds(90);
+});
+builder.Services.AddScoped<MockAIProviderClient>();
+builder.Services.AddScoped<OpenAIProviderClient>();
+builder.Services.AddScoped<IAIProviderClient, ConfiguredAIProviderClient>();
+builder.Services.AddScoped<IPromptTemplateService, PromptTemplateService>();
+builder.Services.AddScoped<IAIContextBuilder, AIContextBuilder>();
+builder.Services.AddScoped<IStructuredAIResponseParser, StructuredAIResponseParser>();
+builder.Services.AddScoped<IAIWorkspaceService, AIWorkspaceService>();
 builder.Services.AddScoped<IAIConsultingAnalysisService, MockAIConsultingAnalysisService>();
-builder.Services.AddScoped<IKnowledgeGapAnalysisService, RuleBasedKnowledgeGapAnalysisService>();
+builder.Services.AddScoped<IKnowledgeGapAnalysisService, AIKnowledgeGapAnalysisService>();
 builder.Services.AddScoped<IClientDocumentSummaryService, MockClientDocumentSummaryService>();
 builder.Services.AddScoped<IEmailService, SendGridEmailService>();
 builder.Services.AddScoped<IReadinessFormService, ReadinessFormService>();
@@ -67,6 +80,7 @@ builder.Services.AddScoped<IReadinessFormService, ReadinessFormService>();
 var app = builder.Build();
 
 ValidateEmailConfiguration(app);
+ValidateAIConfiguration(app);
 
 var configuredUrls = app.Configuration["urls"] ?? app.Configuration["ASPNETCORE_URLS"];
 if (!string.IsNullOrWhiteSpace(configuredUrls))
@@ -223,4 +237,20 @@ static void ValidateEmailConfiguration(WebApplication app)
     }
 
     logger.LogInformation("SendGrid email configuration loaded. Email sending enabled.");
+}
+
+static void ValidateAIConfiguration(WebApplication app)
+{
+    var logger = app.Services
+        .GetRequiredService<ILoggerFactory>()
+        .CreateLogger("AIConfiguration");
+    var provider = app.Configuration["AI:Provider"] ?? "Mock";
+    var model = app.Configuration["AI:Model"] ?? "gpt-5-nano";
+    logger.LogInformation("AI provider configured: {Provider}; Model: {Model}.", provider, model);
+
+    if (provider.Equals("OpenAI", StringComparison.OrdinalIgnoreCase) &&
+        string.IsNullOrWhiteSpace(app.Configuration["OPENAI_API_KEY"]))
+    {
+        logger.LogWarning("OpenAI provider is enabled but OPENAI_API_KEY is not configured.");
+    }
 }

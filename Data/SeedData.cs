@@ -473,7 +473,8 @@ public static class SeedData
             ("Use Case Identification", "Identify suitable AI use cases from approved evidence.", "Approved SWOT, knowledge gaps, client goals", "Use case shortlist", "Workspace > Use Cases & Scoring", "Future: curated library plus research."),
             ("Use Case Scoring", "Prioritize use cases by ROI, feasibility, fit, data readiness, and risk.", "Use case shortlist, readiness score", "Weighted use case scores", "Workspace > Use Cases & Scoring", "Consultant can override scores."),
             ("Roadmap Generation", "Create a phased roadmap from approved use cases.", "Approved use cases and scores", "Roadmap phases and dependencies", "Workspace > Roadmap", "Feeds strategic report."),
-            ("Strategic Report Generation", "Assemble the consultant-reviewed strategic report.", "Approved outputs and report template", "Editable report sections", "Workspace > Strategic Report", "Final report is not automated without approval.")
+            ("Strategic Report Generation", "Assemble the consultant-reviewed strategic report.", "Approved outputs and report template", "Editable report sections", "Workspace > Strategic Report", "Final report is not automated without approval."),
+            ("AI Workspace Refinement", "Improve an existing consultant-reviewed draft based on feedback.", "Current draft, consultant feedback, previous messages, sources", "Improved draft and summary of changes", "AI Workspace", "Used by the consultant chat refinement workflow.")
         };
 
         var existing = await context.PromptDefinitions

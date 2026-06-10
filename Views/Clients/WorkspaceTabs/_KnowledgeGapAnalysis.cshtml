@@ -1,6 +1,7 @@
 @model ClientWorkspaceViewModel
 @{
     var client = Model.Client;
+    var latestOutput = Model.LatestAnalysisOutputs.FirstOrDefault(output => output.AnalysisType == AnalysisType.KnowledgeGapAnalysis);
     var openItems = Model.KnowledgeGapItems
         .Where(item => item.Status is KnowledgeGapStatus.Open or KnowledgeGapStatus.Answered or KnowledgeGapStatus.Draft)
         .OrderByDescending(item => item.Priority)
@@ -20,7 +21,21 @@
         <input type="hidden" name="clientId" value="@client.Id" />
         <button class="btn btn-primary btn-sm" type="submit">Generate Knowledge Gap Analysis</button>
     </form>
-    <span class="status-badge status-info" data-workspace-count="knowledgeGapCount">@Model.KnowledgeGapCount total</span>
+    <div class="d-flex gap-2 flex-wrap">
+        @if (latestOutput is not null)
+        {
+            <span class="status-badge @latestOutput.Status.ToBadgeClass()">@latestOutput.Status.ToDisplayName()</span>
+            <span class="status-badge status-neutral">Provider: @(latestOutput.GeneratedBy ?? "Not recorded")</span>
+            <form asp-controller="AIWorkspace" asp-action="Open" method="post">
+                <input type="hidden" name="clientId" value="@client.Id" />
+                <input type="hidden" name="outputType" value="@AIOutputType.KnowledgeGap" />
+                <input type="hidden" name="outputId" value="@latestOutput.Id" />
+                <button class="btn btn-outline-primary btn-sm" type="submit">Open AI Workspace</button>
+            </form>
+        }
+        <span class="status-badge status-info" data-workspace-count="knowledgeGapCount">@Model.KnowledgeGapCount total</span>
+        <span class="status-badge status-neutral">@Model.AIOutputSources.Count source@(Model.AIOutputSources.Count == 1 ? string.Empty : "s")</span>
+    </div>
 </div>
 
 <section class="panel mb-3">

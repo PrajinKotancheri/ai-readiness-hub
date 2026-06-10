@@ -22,9 +22,18 @@
         <div class="d-flex justify-content-between flex-wrap gap-2 mb-2">
             <div>
                 <div class="fw-semibold">@summary.Title</div>
-                <div class="table-note">Version @summary.VersionNumber · generated @Html.LocalDateTime(summary.GeneratedAt, "datetime", "not generated")</div>
+                <div class="table-note">Version @summary.VersionNumber · generated @Html.LocalDateTime(summary.GeneratedAt, "datetime", "not generated") · provider @(summary.GeneratedBy ?? "not recorded")</div>
             </div>
-            <span class="status-badge @summary.Status.ToBadgeClass()">@summary.Status.ToDisplayName()</span>
+            <div class="d-flex gap-2 flex-wrap">
+                <span class="status-badge @summary.Status.ToBadgeClass()">@summary.Status.ToDisplayName()</span>
+                <span class="status-badge status-neutral">@Model.AIOutputSources.Count source@(Model.AIOutputSources.Count == 1 ? string.Empty : "s")</span>
+                <form asp-controller="AIWorkspace" asp-action="Open" method="post">
+                    <input type="hidden" name="clientId" value="@client.Id" />
+                    <input type="hidden" name="outputType" value="@AIOutputType.CompanySummary" />
+                    <input type="hidden" name="outputId" value="@summary.Id" />
+                    <button class="btn btn-outline-primary btn-sm" type="submit">Open AI Workspace</button>
+                </form>
+            </div>
         </div>
         @if (!string.IsNullOrWhiteSpace(summary.InputSummary))
         {

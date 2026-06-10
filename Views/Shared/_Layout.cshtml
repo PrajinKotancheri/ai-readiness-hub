@@ -2,7 +2,7 @@
     var currentController = ViewContext.RouteData.Values["controller"]?.ToString() ?? string.Empty;
     var dashboardActive = currentController.Equals("Dashboard", StringComparison.OrdinalIgnoreCase);
     var clientsActive = currentController.Equals("Clients", StringComparison.OrdinalIgnoreCase) ||
-        new[] { "Assessments", "Documents", "Notes", "Analysis", "GapAnalysis", "Swot", "Insights", "UseCases", "Roadmap", "Reports", "Tasks" }
+        new[] { "Assessments", "Documents", "Notes", "Analysis", "AIWorkspace", "GapAnalysis", "Swot", "Insights", "UseCases", "Roadmap", "Reports", "Tasks" }
             .Contains(currentController, StringComparer.OrdinalIgnoreCase);
     var settingsActive = currentController.Equals("Settings", StringComparison.OrdinalIgnoreCase);
 }
