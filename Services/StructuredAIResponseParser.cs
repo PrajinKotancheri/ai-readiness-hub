@@ -14,7 +14,7 @@ public class StructuredAIResponseParser : IStructuredAIResponseParser
 {
     public IReadOnlyList<ParsedKnowledgeGapItem> ParseKnowledgeGaps(string json)
     {
-        using var document = JsonDocument.Parse(json);
+        using var document = JsonDocument.Parse(NormalizeJson(json));
         if (!document.RootElement.TryGetProperty("items", out var items) || items.ValueKind != JsonValueKind.Array)
         {
             throw new InvalidOperationException("AI response did not include a valid knowledge gap item list.");
@@ -44,7 +44,7 @@ public class StructuredAIResponseParser : IStructuredAIResponseParser
 
     public ParsedCompanySummary ParseCompanySummary(string json)
     {
-        using var document = JsonDocument.Parse(json);
+        using var document = JsonDocument.Parse(NormalizeJson(json));
         var root = document.RootElement;
         return new ParsedCompanySummary(
             RequiredString(root, "summary"),
@@ -57,12 +57,57 @@ public class StructuredAIResponseParser : IStructuredAIResponseParser
 
     public ParsedRefinement ParseRefinement(string json)
     {
-        using var document = JsonDocument.Parse(json);
+        using var document = JsonDocument.Parse(NormalizeJson(json));
         var root = document.RootElement;
         return new ParsedRefinement(
             RequiredString(root, "improvedDraft"),
             OptionalString(root, "summaryOfChanges"),
             ParseSources(root));
+    }
+
+    private static string NormalizeJson(string value)
+    {
+        var trimmed = value.Trim();
+        if (trimmed.StartsWith("```", StringComparison.Ordinal))
+        {
+            var firstNewLine = trimmed.IndexOf('\n', StringComparison.Ordinal);
+            var lastFence = trimmed.LastIndexOf("```", StringComparison.Ordinal);
+            if (firstNewLine >= 0 && lastFence > firstNewLine)
+            {
+                trimmed = trimmed[(firstNewLine + 1)..lastFence].Trim();
+            }
+        }
+
+        if (IsValidJsonObject(trimmed))
+        {
+            return trimmed;
+        }
+
+        var start = trimmed.IndexOf('{', StringComparison.Ordinal);
+        var end = trimmed.LastIndexOf('}');
+        if (start >= 0 && end > start)
+        {
+            var candidate = trimmed[start..(end + 1)];
+            if (IsValidJsonObject(candidate))
+            {
+                return candidate;
+            }
+        }
+
+        return trimmed;
+    }
+
+    private static bool IsValidJsonObject(string value)
+    {
+        try
+        {
+            using var document = JsonDocument.Parse(value);
+            return document.RootElement.ValueKind == JsonValueKind.Object;
+        }
+        catch (JsonException)
+        {
+            return false;
+        }
     }
 
     private static IReadOnlyList<AIContextSource> ParseSources(JsonElement element)

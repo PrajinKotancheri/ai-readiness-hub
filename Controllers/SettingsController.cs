@@ -90,7 +90,7 @@ public class SettingsController(
         string? inputs,
         string? outputs,
         string? platformLocation,
-        string promptText,
+        string? promptText,
         string? notes,
         PromptStatus status,
         int versionNumber)
@@ -108,7 +108,7 @@ public class SettingsController(
             Inputs = inputs?.Trim(),
             Outputs = outputs?.Trim(),
             PlatformLocation = platformLocation?.Trim(),
-            PromptText = string.IsNullOrWhiteSpace(promptText) ? "Stakeholder to provide actual prompt." : promptText.Trim(),
+            PromptText = promptText?.Trim() ?? string.Empty,
             Notes = notes?.Trim(),
             Status = status,
             VersionNumber = Math.Max(versionNumber, 1),
@@ -128,7 +128,7 @@ public class SettingsController(
         string? inputs,
         string? outputs,
         string? platformLocation,
-        string promptText,
+        string? promptText,
         string? notes,
         PromptStatus status,
         int versionNumber)
@@ -150,7 +150,7 @@ public class SettingsController(
         prompt.Inputs = inputs?.Trim();
         prompt.Outputs = outputs?.Trim();
         prompt.PlatformLocation = platformLocation?.Trim();
-        prompt.PromptText = string.IsNullOrWhiteSpace(promptText) ? "Stakeholder to provide actual prompt." : promptText.Trim();
+        prompt.PromptText = promptText?.Trim() ?? string.Empty;
         prompt.Notes = notes?.Trim();
         prompt.Status = status;
         prompt.VersionNumber = Math.Max(versionNumber, 1);

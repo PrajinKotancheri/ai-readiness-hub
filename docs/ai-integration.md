@@ -12,7 +12,7 @@ Supported keys:
 AI__Provider=Mock
 AI__Model=gpt-5-nano
 AI__Temperature=0.2
-AI__MaxOutputTokens=1800
+AI__MaxOutputTokens=4096
 AI__MaxInputCharactersPerRequest=30000
 AI__EnableExternalResearch=false
 AI__RequireApprovalBeforeChaining=false

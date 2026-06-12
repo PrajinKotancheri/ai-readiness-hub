@@ -7,7 +7,7 @@ public class AIOptions
     public string Provider { get; set; } = "Mock";
     public string Model { get; set; } = "gpt-5-nano";
     public double Temperature { get; set; } = 0.2;
-    public int MaxOutputTokens { get; set; } = 1800;
+    public int MaxOutputTokens { get; set; } = 4096;
     public int MaxInputCharactersPerRequest { get; set; } = 30000;
     public bool EnableExternalResearch { get; set; }
     public bool RequireApprovalBeforeChaining { get; set; }

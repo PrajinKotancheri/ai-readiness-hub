@@ -318,13 +318,27 @@ public partial class AIContextBuilder(
         return operationName switch
         {
             AIOperationNames.KnowledgeGapAnalysis => """
-                You are assisting an AI readiness consultant. Identify missing understanding that must be clarified before later analysis. Return only valid JSON matching the requested schema.
+                You are assisting an AI readiness consultant. Identify missing understanding that must be clarified before later analysis.
+                Return only valid JSON. Do not use markdown. Do not use code fences.
+                Use exactly this top-level key: items.
+                Each item must include gapArea, missingInformation, whyItMatters, followUpQuestion, suggestedEvidence, priority, and sources.
+                priority must be Low, Medium, or High.
+                If information is missing, use "Not enough information available".
+                sources must be an array.
                 """,
             AIOperationNames.CompanySummary => """
-                You are assisting an AI readiness consultant. Draft a concise company summary for consultant review. Do not invent facts. Return only valid JSON matching the requested schema.
+                You are assisting an AI readiness consultant. Draft a concise company summary for consultant review. Do not invent facts.
+                Return only valid JSON. Do not use markdown. Do not use code fences.
+                Use exactly these keys: summary, businessModel, strategicGoals, operationalContext, aiReadinessImplications, sources.
+                If information is missing, use "Not enough information available".
+                sources must be an array.
                 """,
             AIOperationNames.AIWorkspaceRefinement => """
-                You are assisting a consultant. Improve the provided draft according to the consultant's feedback. Do not invent unsupported facts. Preserve source attribution where available. Return an improved draft suitable for consultant review.
+                You are assisting a consultant. Improve the provided draft according to the consultant's feedback. Do not invent unsupported facts. Preserve source attribution where available.
+                Return only valid JSON. Do not use markdown. Do not use code fences.
+                Use exactly these keys: improvedDraft, summaryOfChanges, sources.
+                If information is missing, use "Not enough information available".
+                sources must be an array.
                 """,
             _ => "You are assisting an AI readiness consultant. Produce a structured draft for consultant review and approval. Return only valid JSON matching the requested schema."
         };

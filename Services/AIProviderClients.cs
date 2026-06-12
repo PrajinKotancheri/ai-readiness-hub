@@ -1,8 +1,11 @@
 using System.Diagnostics;
+using System.Net;
 using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
 using AI_Readiness_Hub.Models;
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
 
 namespace AI_Readiness_Hub.Services;
@@ -252,6 +255,7 @@ public class MockAIProviderClient(IOptions<AIOptions> options) : IAIProviderClie
 public class OpenAIProviderClient(
     IHttpClientFactory httpClientFactory,
     IConfiguration configuration,
+    IWebHostEnvironment environment,
     IOptions<AIOptions> options,
     ILogger<OpenAIProviderClient> logger) : IAIProviderClient
 {
@@ -270,17 +274,24 @@ public class OpenAIProviderClient(
         var stopwatch = Stopwatch.StartNew();
         try
         {
-            var body = new
+            var body = new Dictionary<string, object?>
             {
-                model = options.Model,
-                input = new object[]
+                ["model"] = options.Model,
+                ["input"] = new object[]
                 {
-                    new { role = "system", content = request.SystemInstruction },
+                    new
+                    {
+                        role = "system",
+                        content = $"""
+                            {request.SystemInstruction}
+
+                            Return only valid JSON. Do not use markdown or code fences.
+                            """
+                    },
                     new { role = "user", content = $"{request.UserPrompt}{Environment.NewLine}{Environment.NewLine}Context:{Environment.NewLine}{request.ContextText}" }
                 },
-                temperature = options.Temperature,
-                max_output_tokens = options.MaxOutputTokens,
-                text = new
+                ["max_output_tokens"] = options.MaxOutputTokens,
+                ["text"] = new
                 {
                     format = new
                     {
@@ -291,6 +302,10 @@ public class OpenAIProviderClient(
                     }
                 }
             };
+            if (SupportsTemperature(options.Model))
+            {
+                body["temperature"] = options.Temperature;
+            }
 
             var httpClient = httpClientFactory.CreateClient("OpenAI");
             using var httpRequest = new HttpRequestMessage(HttpMethod.Post, "responses")
@@ -301,29 +316,63 @@ public class OpenAIProviderClient(
 
             using var response = await httpClient.SendAsync(httpRequest, cancellationToken);
             var responseJson = await response.Content.ReadAsStringAsync(cancellationToken);
+            var requestId = response.Headers.TryGetValues("x-request-id", out var requestIds)
+                ? requestIds.FirstOrDefault()
+                : null;
             if (!response.IsSuccessStatusCode)
             {
+                var error = OpenAIErrorDetails.From(responseJson);
                 logger.LogWarning(
-                    "OpenAI request failed. Operation: {Operation}; StatusCode: {StatusCode}; Provider: OpenAI; Model: {Model}; DurationMs: {DurationMs}",
+                    "OpenAI request failed. Operation: {Operation}; StatusCode: {StatusCode}; Provider: OpenAI; Model: {Model}; ErrorType: {ErrorType}; ErrorCode: {ErrorCode}; ErrorParam: {ErrorParam}; RequestId: {RequestId}; DurationMs: {DurationMs}; Message: {Message}",
                     request.OperationName,
                     response.StatusCode,
                     options.Model,
-                    stopwatch.ElapsedMilliseconds);
-                return new AIProviderResult(false, null, AIProviderKind.OpenAI, options.Model, "OpenAI could not generate a draft. Please try again or switch to Mock provider.", response.StatusCode.ToString());
+                    error.Type,
+                    error.Code,
+                    error.Param,
+                    requestId ?? "(none)",
+                    stopwatch.ElapsedMilliseconds,
+                    error.Message ?? "(none)");
+                return new AIProviderResult(
+                    false,
+                    null,
+                    AIProviderKind.OpenAI,
+                    options.Model,
+                    $"OpenAI could not generate a draft. {BuildFriendlyFailure(response.StatusCode, error)}",
+                    BuildDiagnosticMessage(response.StatusCode, error, requestId));
             }
 
-            var outputText = ExtractOutputText(responseJson);
-            if (string.IsNullOrWhiteSpace(outputText))
+            var extraction = OpenAIResponseExtraction.From(responseJson);
+            if (string.IsNullOrWhiteSpace(extraction.OutputText))
             {
-                return new AIProviderResult(false, null, AIProviderKind.OpenAI, options.Model, "OpenAI returned an empty response.", "Empty output text.");
+                var responseShape = extraction.Diagnostics.BuildSummary(includeDevelopmentDetails: environment.IsDevelopment());
+                logger.LogWarning(
+                    "OpenAI returned no extractable output text. Operation: {Operation}; StatusCode: {StatusCode}; Provider: OpenAI; Model: {Model}; ResponseId: {ResponseId}; ResponseStatus: {ResponseStatus}; RequestId: {RequestId}; DurationMs: {DurationMs}; DiagnosticCategory: {DiagnosticCategory}; ResponseShape: {ResponseShape}",
+                    request.OperationName,
+                    response.StatusCode,
+                    options.Model,
+                    extraction.Diagnostics.ResponseId ?? "(none)",
+                    extraction.Diagnostics.ResponseStatus ?? "(unknown)",
+                    requestId ?? "(none)",
+                    stopwatch.ElapsedMilliseconds,
+                    BuildEmptyResponseCategory(extraction.Diagnostics),
+                    responseShape);
+                return new AIProviderResult(
+                    false,
+                    null,
+                    AIProviderKind.OpenAI,
+                    options.Model,
+                    BuildEmptyResponseFriendlyFailure(extraction.Diagnostics),
+                    $"Empty output text. {BuildEmptyResponseCategory(extraction.Diagnostics)}. {responseShape}");
             }
 
             logger.LogInformation(
-                "AI operation completed. Operation: {Operation}; Provider: OpenAI; Model: {Model}; DurationMs: {DurationMs}",
+                "AI operation completed. Operation: {Operation}; Provider: OpenAI; Model: {Model}; RequestId: {RequestId}; DurationMs: {DurationMs}",
                 request.OperationName,
                 options.Model,
+                requestId ?? "(none)",
                 stopwatch.ElapsedMilliseconds);
-            return new AIProviderResult(true, outputText, AIProviderKind.OpenAI, options.Model);
+            return new AIProviderResult(true, extraction.OutputText, AIProviderKind.OpenAI, options.Model);
         }
         catch (Exception ex)
         {
@@ -337,36 +386,410 @@ public class OpenAIProviderClient(
         }
     }
 
-    private static string? ExtractOutputText(string responseJson)
+    private static bool SupportsTemperature(string model)
     {
-        using var document = JsonDocument.Parse(responseJson);
-        if (document.RootElement.TryGetProperty("output_text", out var outputText) &&
-            outputText.ValueKind == JsonValueKind.String)
+        return !model.StartsWith("gpt-5", StringComparison.OrdinalIgnoreCase) &&
+            !model.StartsWith("o", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static string BuildFriendlyFailure(HttpStatusCode statusCode, OpenAIErrorDetails error)
+    {
+        return statusCode switch
         {
-            return outputText.GetString();
+            HttpStatusCode.Unauthorized => "Authentication failed. Check the local OPENAI_API_KEY.",
+            HttpStatusCode.TooManyRequests => "The request was rate limited or quota was unavailable.",
+            HttpStatusCode.NotFound => "The configured model was not found or is not accessible.",
+            HttpStatusCode.BadRequest when !string.IsNullOrWhiteSpace(error.Message) => $"Request was rejected: {error.Message}",
+            _ when !string.IsNullOrWhiteSpace(error.Message) => error.Message,
+            _ => $"OpenAI returned HTTP {(int)statusCode}."
+        };
+    }
+
+    private static string BuildDiagnosticMessage(HttpStatusCode statusCode, OpenAIErrorDetails error, string? requestId)
+    {
+        var parts = new List<string>
+        {
+            $"status={(int)statusCode}",
+            $"type={error.Type ?? "unknown"}",
+            $"code={error.Code ?? "unknown"}",
+            $"param={error.Param ?? "unknown"}"
+        };
+        if (!string.IsNullOrWhiteSpace(requestId))
+        {
+            parts.Add($"request_id={requestId}");
+        }
+        if (!string.IsNullOrWhiteSpace(error.Message))
+        {
+            parts.Add($"message={error.Message}");
         }
 
-        if (!document.RootElement.TryGetProperty("output", out var output) || output.ValueKind != JsonValueKind.Array)
+        return string.Join("; ", parts);
+    }
+
+    private static bool TryGetNonEmptyString(JsonElement element, string propertyName, out string? value)
+    {
+        value = null;
+        if (!element.TryGetProperty(propertyName, out var property) || property.ValueKind != JsonValueKind.String)
         {
+            return false;
+        }
+
+        value = property.GetString();
+        return !string.IsNullOrWhiteSpace(value);
+    }
+
+    private static bool TryGetNonEmptyProperty(JsonElement element, string propertyName, out JsonElement value)
+    {
+        value = default;
+        return element.ValueKind == JsonValueKind.Object &&
+            element.TryGetProperty(propertyName, out value) &&
+            value.ValueKind is not JsonValueKind.Null and not JsonValueKind.Undefined;
+    }
+
+    private static string BuildEmptyResponseFriendlyFailure(OpenAIResponseDiagnostics diagnostics)
+    {
+        if (!string.IsNullOrWhiteSpace(diagnostics.IncompleteReason))
+        {
+            return $"OpenAI stopped before returning usable JSON. Reason: {diagnostics.IncompleteReason}.";
+        }
+
+        if (diagnostics.HasRefusal)
+        {
+            return "OpenAI refused to generate this draft. Please adjust the request or switch to Mock provider.";
+        }
+
+        return "OpenAI returned no extractable output text.";
+    }
+
+    private static string BuildEmptyResponseCategory(OpenAIResponseDiagnostics diagnostics)
+    {
+        if (!string.IsNullOrWhiteSpace(diagnostics.IncompleteReason))
+        {
+            return $"incomplete:{diagnostics.IncompleteReason}";
+        }
+
+        if (diagnostics.HasRefusal)
+        {
+            return "refusal";
+        }
+
+        if (diagnostics.OutputItemCount == 0)
+        {
+            return "no_output_items";
+        }
+
+        if (diagnostics.ContentItemCount == 0)
+        {
+            return "no_content_items";
+        }
+
+        return "no_known_text_fields";
+    }
+
+    private sealed record OpenAIErrorDetails(string? Type, string? Code, string? Param, string? Message)
+    {
+        public static OpenAIErrorDetails From(string responseJson)
+        {
+            if (string.IsNullOrWhiteSpace(responseJson))
+            {
+                return new OpenAIErrorDetails(null, null, null, null);
+            }
+
+            try
+            {
+                using var document = JsonDocument.Parse(responseJson);
+                var error = document.RootElement.TryGetProperty("error", out var errorElement)
+                    ? errorElement
+                    : document.RootElement;
+                return new OpenAIErrorDetails(
+                    GetString(error, "type"),
+                    GetString(error, "code"),
+                    GetString(error, "param"),
+                    GetString(error, "message"));
+            }
+            catch (JsonException)
+            {
+                return new OpenAIErrorDetails(null, null, null, "OpenAI returned a non-JSON error response.");
+            }
+        }
+
+        private static string? GetString(JsonElement element, string propertyName)
+        {
+            return element.TryGetProperty(propertyName, out var value) && value.ValueKind == JsonValueKind.String
+                ? value.GetString()
+                : null;
+        }
+    }
+
+    private sealed record OpenAIResponseExtraction(string? OutputText, OpenAIResponseDiagnostics Diagnostics)
+    {
+        public static OpenAIResponseExtraction From(string responseJson)
+        {
+            using var document = JsonDocument.Parse(responseJson);
+            var root = document.RootElement;
+            var diagnostics = OpenAIResponseDiagnostics.From(root);
+            var outputText = ExtractKnownOutputText(root);
+            diagnostics = diagnostics with { ExtractedTextLength = outputText?.Length ?? 0 };
+            return new OpenAIResponseExtraction(outputText, diagnostics);
+        }
+
+        private static string? ExtractKnownOutputText(JsonElement root)
+        {
+            if (TryGetNonEmptyString(root, "output_text", out var outputText))
+            {
+                return outputText;
+            }
+
+            if (TryGetNonEmptyProperty(root, "output", out var output) && output.ValueKind == JsonValueKind.Array)
+            {
+                foreach (var outputItem in output.EnumerateArray())
+                {
+                    if (TryExtractFromOutputItem(outputItem, out var itemText))
+                    {
+                        return itemText;
+                    }
+                }
+            }
+
+            if (TryGetNonEmptyProperty(root, "content", out var content) &&
+                TryExtractFromContentValue(content, out var directContentText))
+            {
+                return directContentText;
+            }
+
+            return RecursiveKnownTextSearch(root, depth: 0);
+        }
+
+        private static bool TryExtractFromOutputItem(JsonElement outputItem, out string? outputText)
+        {
+            outputText = null;
+            if (TryGetNonEmptyString(outputItem, "output_text", out outputText) ||
+                TryGetNonEmptyString(outputItem, "text", out outputText))
+            {
+                return true;
+            }
+
+            return TryGetNonEmptyProperty(outputItem, "content", out var content) &&
+                TryExtractFromContentValue(content, out outputText);
+        }
+
+        private static bool TryExtractFromContentValue(JsonElement content, out string? outputText)
+        {
+            outputText = null;
+            switch (content.ValueKind)
+            {
+                case JsonValueKind.String:
+                    outputText = content.GetString();
+                    return !string.IsNullOrWhiteSpace(outputText);
+                case JsonValueKind.Object:
+                    if (TryGetContentType(content, out var objectType) && objectType == "refusal")
+                    {
+                        return false;
+                    }
+
+                    if (TryGetNonEmptyString(content, "text", out outputText) ||
+                        TryGetNonEmptyString(content, "output_text", out outputText) ||
+                        TryGetNonEmptyString(content, "content", out outputText))
+                    {
+                        return true;
+                    }
+
+                    outputText = RecursiveKnownTextSearch(content, depth: 0);
+                    return !string.IsNullOrWhiteSpace(outputText);
+                case JsonValueKind.Array:
+                    foreach (var contentItem in content.EnumerateArray())
+                    {
+                        if (contentItem.ValueKind == JsonValueKind.Object &&
+                            TryGetContentType(contentItem, out var contentType) &&
+                            contentType == "refusal")
+                        {
+                            continue;
+                        }
+
+                        if (TryExtractFromContentValue(contentItem, out outputText))
+                        {
+                            return true;
+                        }
+                    }
+
+                    return false;
+                default:
+                    return false;
+            }
+        }
+
+        private static string? RecursiveKnownTextSearch(JsonElement element, int depth)
+        {
+            if (depth > 10)
+            {
+                return null;
+            }
+
+            switch (element.ValueKind)
+            {
+                case JsonValueKind.Object:
+                    foreach (var property in element.EnumerateObject())
+                    {
+                        if (ShouldSkipProperty(property.Name))
+                        {
+                            continue;
+                        }
+
+                        if (IsKnownTextProperty(property.Name) &&
+                            property.Value.ValueKind == JsonValueKind.String &&
+                            !string.IsNullOrWhiteSpace(property.Value.GetString()))
+                        {
+                            return property.Value.GetString();
+                        }
+
+                        if (IsKnownTextProperty(property.Name) || property.Value.ValueKind is JsonValueKind.Object or JsonValueKind.Array)
+                        {
+                            var candidate = RecursiveKnownTextSearch(property.Value, depth + 1);
+                            if (!string.IsNullOrWhiteSpace(candidate))
+                            {
+                                return candidate;
+                            }
+                        }
+                    }
+
+                    break;
+                case JsonValueKind.Array:
+                    foreach (var item in element.EnumerateArray())
+                    {
+                        var candidate = RecursiveKnownTextSearch(item, depth + 1);
+                        if (!string.IsNullOrWhiteSpace(candidate))
+                        {
+                            return candidate;
+                        }
+                    }
+
+                    break;
+            }
+
             return null;
         }
 
-        foreach (var item in output.EnumerateArray())
+        private static bool TryGetContentType(JsonElement element, out string? contentType)
         {
-            if (!item.TryGetProperty("content", out var content) || content.ValueKind != JsonValueKind.Array)
+            contentType = null;
+            if (!TryGetNonEmptyString(element, "type", out var type))
             {
-                continue;
+                return false;
             }
 
-            foreach (var contentItem in content.EnumerateArray())
-            {
-                if (contentItem.TryGetProperty("text", out var text) && text.ValueKind == JsonValueKind.String)
-                {
-                    return text.GetString();
-                }
-            }
+            contentType = type?.Trim();
+            return !string.IsNullOrWhiteSpace(contentType);
         }
 
-        return null;
+        private static bool IsKnownTextProperty(string propertyName)
+        {
+            return propertyName.Equals("output_text", StringComparison.OrdinalIgnoreCase) ||
+                propertyName.Equals("text", StringComparison.OrdinalIgnoreCase) ||
+                propertyName.Equals("content", StringComparison.OrdinalIgnoreCase);
+        }
+
+        private static bool ShouldSkipProperty(string propertyName)
+        {
+            return propertyName.Equals("error", StringComparison.OrdinalIgnoreCase) ||
+                propertyName.Equals("debug", StringComparison.OrdinalIgnoreCase) ||
+                propertyName.Equals("logprobs", StringComparison.OrdinalIgnoreCase) ||
+                propertyName.Equals("annotations", StringComparison.OrdinalIgnoreCase) ||
+                propertyName.Equals("usage", StringComparison.OrdinalIgnoreCase) ||
+                propertyName.Equals("reasoning", StringComparison.OrdinalIgnoreCase) ||
+                propertyName.Equals("refusal", StringComparison.OrdinalIgnoreCase);
+        }
+    }
+
+    private sealed record OpenAIResponseDiagnostics(
+        string? ResponseId,
+        string? ResponseStatus,
+        int OutputItemCount,
+        IReadOnlyList<string> OutputItemTypes,
+        int ContentItemCount,
+        IReadOnlyList<string> ContentItemTypes,
+        bool HasOutputText,
+        int ExtractedTextLength,
+        string? IncompleteReason,
+        bool HasRefusal,
+        string? SafetyStatus)
+    {
+        public static OpenAIResponseDiagnostics From(JsonElement root)
+        {
+            var outputTypes = new List<string>();
+            var contentTypes = new List<string>();
+            var contentCount = 0;
+            var hasRefusal = false;
+            var safetyStatus = TryGetNonEmptyString(root, "safety_status", out var safety) ? safety : null;
+
+            if (TryGetNonEmptyProperty(root, "output", out var output) && output.ValueKind == JsonValueKind.Array)
+            {
+                foreach (var outputItem in output.EnumerateArray())
+                {
+                    outputTypes.Add(TryGetNonEmptyString(outputItem, "type", out var outputType) ? outputType! : "unknown");
+                    if (!TryGetNonEmptyProperty(outputItem, "content", out var content))
+                    {
+                        continue;
+                    }
+
+                    if (content.ValueKind == JsonValueKind.Array)
+                    {
+                        foreach (var contentItem in content.EnumerateArray())
+                        {
+                            contentCount++;
+                            var contentType = TryGetNonEmptyString(contentItem, "type", out var type) ? type! : contentItem.ValueKind.ToString();
+                            contentTypes.Add(contentType);
+                            hasRefusal = hasRefusal || contentType.Equals("refusal", StringComparison.OrdinalIgnoreCase);
+                        }
+                    }
+                    else
+                    {
+                        contentCount++;
+                        contentTypes.Add(content.ValueKind.ToString());
+                    }
+                }
+            }
+
+            var incompleteReason = TryGetNonEmptyProperty(root, "incomplete_details", out var incomplete) &&
+                TryGetNonEmptyString(incomplete, "reason", out var reason)
+                    ? reason
+                    : null;
+
+            return new OpenAIResponseDiagnostics(
+                TryGetNonEmptyString(root, "id", out var id) ? id : null,
+                TryGetNonEmptyString(root, "status", out var status) ? status : null,
+                outputTypes.Count,
+                outputTypes,
+                contentCount,
+                contentTypes,
+                TryGetNonEmptyString(root, "output_text", out _),
+                0,
+                incompleteReason,
+                hasRefusal,
+                safetyStatus);
+        }
+
+        public string BuildSummary(bool includeDevelopmentDetails)
+        {
+            var parts = new List<string>
+            {
+                $"response_id={ResponseId ?? "none"}",
+                $"response_status={ResponseStatus ?? "unknown"}",
+                $"output_item_count={OutputItemCount}",
+                $"content_item_count={ContentItemCount}",
+                $"has_output_text={HasOutputText}",
+                $"extracted_text_length={ExtractedTextLength}",
+                $"incomplete_reason={IncompleteReason ?? "none"}",
+                $"has_refusal={HasRefusal}",
+                $"safety_status={SafetyStatus ?? "none"}"
+            };
+
+            if (includeDevelopmentDetails)
+            {
+                parts.Add($"output_item_types={string.Join(",", OutputItemTypes.DefaultIfEmpty("none"))}");
+                parts.Add($"content_item_types={string.Join(",", ContentItemTypes.DefaultIfEmpty("none"))}");
+            }
+
+            return string.Join("; ", parts);
+        }
     }
 }

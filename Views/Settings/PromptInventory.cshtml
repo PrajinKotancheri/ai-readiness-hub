@@ -7,7 +7,7 @@
     <div>
         <div class="page-kicker">Settings</div>
         <h1 class="page-title">Prompt inventory</h1>
-        <p class="page-subtitle">Track the workflow prompt placeholders, inputs, outputs, locations, versions, and status.</p>
+        <p class="page-subtitle">Track and edit workflow prompts, inputs, outputs, locations, versions, and status.</p>
     </div>
     <div class="action-strip">
         <a class="btn btn-outline-secondary" asp-controller="Settings" asp-action="ReadinessForm">Readiness Form</a>
@@ -24,6 +24,10 @@
     <div class="alert alert-danger">@errorMessage</div>
 }
 
+<div class="alert alert-info">
+    These prompts are defaults and can be replaced by stakeholder-specific prompts.
+</div>
+
 <section class="panel">
     <div class="panel-header">
         <h3 class="panel-title">Add prompt definition</h3>
@@ -36,7 +40,7 @@
         <textarea name="goal" class="form-control compact-textarea form-grid-wide" placeholder="Goal"></textarea>
         <textarea name="inputs" class="form-control compact-textarea form-grid-wide" placeholder="Inputs"></textarea>
         <textarea name="outputs" class="form-control compact-textarea form-grid-wide" placeholder="Outputs"></textarea>
-        <textarea name="promptText" class="form-control compact-textarea form-grid-wide" placeholder="Prompt text placeholder">Stakeholder to provide actual prompt.</textarea>
+        <textarea name="promptText" class="form-control form-grid-wide" rows="8" placeholder="Prompt text"></textarea>
         <textarea name="notes" class="form-control compact-textarea form-grid-wide" placeholder="Notes"></textarea>
         <button class="btn btn-primary" type="submit">Add Prompt</button>
     </form>
@@ -52,7 +56,10 @@
                     <div class="fw-semibold">@prompt.PromptName</div>
                     <div class="table-note">@prompt.PlatformLocation · version @prompt.VersionNumber · created @Html.LocalDateTime(prompt.CreatedAt, "date")</div>
                 </div>
-                <span class="status-badge @prompt.Status.ToBadgeClass()">@prompt.Status.ToDisplayName()</span>
+                <div class="d-flex gap-2 flex-wrap">
+                    <span class="status-badge @prompt.Status.ToBadgeClass()">@prompt.Status.ToDisplayName()</span>
+                    <span class="status-badge status-neutral">Version @prompt.VersionNumber</span>
+                </div>
             </div>
             <form asp-action="UpdatePrompt" method="post">
                 <input type="hidden" name="id" value="@prompt.Id" />
@@ -92,7 +99,7 @@
                     </div>
                     <div class="col-12">
                         <label class="form-label">Prompt text</label>
-                        <textarea name="promptText" class="form-control" rows="5">@prompt.PromptText</textarea>
+                        <textarea name="promptText" class="form-control" rows="14">@prompt.PromptText</textarea>
                     </div>
                     <div class="col-12">
                         <label class="form-label">Notes</label>
@@ -108,7 +115,7 @@ else
 {
     <div class="empty-state">
         <strong>No prompt definitions yet.</strong>
-        Seed data will add the stakeholder workflow placeholders when the app initializes against a configured database.
+        Seed data will add the stakeholder workflow prompt defaults when the app initializes against a configured database.
     </div>
 }
 

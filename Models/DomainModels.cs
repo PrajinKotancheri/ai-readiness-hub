@@ -1048,7 +1048,7 @@ public class PromptDefinition
     [StringLength(160)]
     public string? PlatformLocation { get; set; }
 
-    public string PromptText { get; set; } = "Stakeholder to provide actual prompt.";
+    public string PromptText { get; set; } = string.Empty;
     public string? Notes { get; set; }
     public PromptStatus Status { get; set; } = PromptStatus.Draft;
     public int VersionNumber { get; set; } = 1;
